@@ -1,0 +1,1206 @@
+openapi: 3.0.0
+info:
+  title: Parking Garage API
+  description: |
+    RESTful API for managing parking garage operations including vehicle check-in/check-out, 
+    spot management, billing, and analytics. This API provides comprehensive parking management 
+    functionality with real-time availability, automated billing, and detailed reporting.
+    
+    ## Features
+    - **Vehicle Management**: Check-in/check-out with automated spot assignment
+    - **Spot Management**: Multi-floor garage with different spot types and features
+    - **Billing**: Automated fee calculation with multiple rate types
+    - **Analytics**: Real-time occupancy and usage statistics
+    - **Search**: Advanced spot and vehicle search capabilities
+    
+    ## Rate Types
+    - **Hourly**: Standard hourly billing (minimum 1 hour)
+    - **Daily**: Discounted rate for day-long parking
+    - **Monthly**: Premium monthly parking passes
+    
+    ## Spot Types
+    - **Compact**: Small vehicle spots
+    - **Standard**: Regular-sized vehicle spots  
+    - **Oversized**: Large vehicle spots (trucks, RVs)
+    
+    ## Special Features
+    - **EV Charging**: Electric vehicle charging stations
+    - **Handicap**: ADA-compliant accessible spots
+  version: 1.0.0
+  contact:
+    name: Parking Garage Management System
+    email: support@parkinggarage.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.parkinggarage.com/api
+    description: Production server
+
+paths:
+  # Health Check
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: Check API health status and system information
+      operationId: getHealth
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # Garage Management
+  /garage:
+    get:
+      tags:
+        - Garage Management
+      summary: Get garage configuration
+      description: Retrieve current garage configuration and statistics
+      operationId: getGarageConfig
+      parameters:
+        - name: includeStats
+          in: query
+          description: Include occupancy statistics
+          schema:
+            type: boolean
+            default: false
+        - name: includeSpots
+          in: query
+          description: Include detailed spot information
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Garage configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GarageConfigResponse'
+        '404':
+          description: Garage not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Garage Management
+      summary: Initialize garage
+      description: Initialize a new parking garage with floors, bays, and spots
+      operationId: initializeGarage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GarageInitRequest'
+      responses:
+        '201':
+          description: Garage initialized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GarageInitResponse'
+        '400':
+          description: Invalid garage configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Garage already initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags:
+        - Garage Management
+      summary: Update garage configuration
+      description: Update garage settings like name and rates
+      operationId: updateGarageConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GarageUpdateRequest'
+      responses:
+        '200':
+          description: Garage updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GarageUpdateResponse'
+        '400':
+          description: Invalid update request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /garage/rates:
+    patch:
+      tags:
+        - Garage Management
+      summary: Update parking rates
+      description: Update hourly rates for different spot types
+      operationId: updateRates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateUpdateRequest'
+      responses:
+        '200':
+          description: Rates updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateUpdateResponse'
+
+  # Spot Management
+  /spots:
+    get:
+      tags:
+        - Spot Management
+      summary: Get all spots
+      description: Retrieve all parking spots with optional filtering
+      operationId: getAllSpots
+      parameters:
+        - name: floor
+          in: query
+          description: Filter by floor number
+          schema:
+            type: integer
+            minimum: 1
+        - name: type
+          in: query
+          description: Filter by spot type
+          schema:
+            $ref: '#/components/schemas/SpotType'
+        - name: status
+          in: query
+          description: Filter by availability status
+          schema:
+            type: string
+            enum: [available, occupied]
+        - name: feature
+          in: query
+          description: Filter by special feature
+          schema:
+            type: string
+            enum: [ev_charging, handicap]
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Spots retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotsResponse'
+
+  /spots/{spotId}:
+    get:
+      tags:
+        - Spot Management
+      summary: Get specific spot
+      description: Retrieve details for a specific parking spot
+      operationId: getSpotById
+      parameters:
+        - name: spotId
+          in: path
+          required: true
+          description: Unique spot identifier (format: F1-B1-S001)
+          schema:
+            type: string
+            pattern: '^F\d+-B\d+-S\d{3}$'
+      responses:
+        '200':
+          description: Spot details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotResponse'
+        '404':
+          description: Spot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /spots/available:
+    get:
+      tags:
+        - Spot Management
+      summary: Get available spots
+      description: Retrieve all currently available parking spots
+      operationId: getAvailableSpots
+      parameters:
+        - name: vehicleType
+          in: query
+          description: Filter spots compatible with vehicle type
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+      responses:
+        '200':
+          description: Available spots retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailableSpotsResponse'
+
+  # Vehicle Check-in
+  /checkin:
+    post:
+      tags:
+        - Vehicle Operations
+      summary: Check in vehicle
+      description: Check in a vehicle and assign a parking spot
+      operationId: checkInVehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinRequest'
+      responses:
+        '201':
+          description: Vehicle checked in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinResponse'
+        '400':
+          description: Invalid check-in request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Vehicle already checked in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Garage is full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /checkin/simulate:
+    post:
+      tags:
+        - Vehicle Operations
+      summary: Simulate check-in
+      description: Preview check-in without actually performing it
+      operationId: simulateCheckin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinSimulateRequest'
+      responses:
+        '200':
+          description: Check-in simulation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinSimulateResponse'
+
+  /checkin/availability:
+    get:
+      tags:
+        - Vehicle Operations
+      summary: Get parking availability
+      description: Check current parking availability across all vehicle types
+      operationId: getParkingAvailability
+      responses:
+        '200':
+          description: Availability information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+
+  /checkin/availability/{vehicleType}:
+    get:
+      tags:
+        - Vehicle Operations
+      summary: Get availability for vehicle type
+      description: Check availability for a specific vehicle type
+      operationId: getVehicleTypeAvailability
+      parameters:
+        - name: vehicleType
+          in: path
+          required: true
+          description: Type of vehicle
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+      responses:
+        '200':
+          description: Vehicle type availability retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleTypeAvailabilityResponse'
+
+  /checkin/stats:
+    get:
+      tags:
+        - Vehicle Operations
+      summary: Get check-in statistics
+      description: Retrieve comprehensive check-in and occupancy statistics
+      operationId: getCheckinStats
+      responses:
+        '200':
+          description: Check-in statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinStatsResponse'
+
+  # Vehicle Check-out
+  /checkout:
+    post:
+      tags:
+        - Vehicle Operations
+      summary: Check out vehicle
+      description: Check out a vehicle and process payment
+      operationId: checkOutVehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Vehicle checked out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+        '400':
+          description: Invalid checkout request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Vehicle not found or already checked out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /checkout/simulate:
+    post:
+      tags:
+        - Vehicle Operations
+      summary: Simulate checkout
+      description: Preview checkout fees without actually processing
+      operationId: simulateCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutSimulateRequest'
+      responses:
+        '200':
+          description: Checkout simulation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutSimulateResponse'
+
+  # Vehicle Management
+  /vehicles:
+    get:
+      tags:
+        - Vehicle Management
+      summary: Get all vehicles
+      description: Retrieve all parked vehicles with optional filtering
+      operationId: getAllVehicles
+      parameters:
+        - name: status
+          in: query
+          description: Filter by parking status
+          schema:
+            type: string
+            enum: [parked, checked_out]
+            default: parked
+        - name: vehicleType
+          in: query
+          description: Filter by vehicle type
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+        - name: floor
+          in: query
+          description: Filter by parking floor
+          schema:
+            type: integer
+            minimum: 1
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Vehicles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehiclesResponse'
+
+  /vehicles/{licensePlate}:
+    get:
+      tags:
+        - Vehicle Management
+      summary: Get vehicle details
+      description: Retrieve details for a specific vehicle
+      operationId: getVehicleByPlate
+      parameters:
+        - name: licensePlate
+          in: path
+          required: true
+          description: Vehicle license plate
+          schema:
+            type: string
+            pattern: '^[A-Z0-9-]{2,10}$'
+      responses:
+        '200':
+          description: Vehicle details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleResponse'
+        '404':
+          description: Vehicle not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Analytics and Statistics
+  /stats:
+    get:
+      tags:
+        - Analytics
+      summary: Get system statistics
+      description: Retrieve comprehensive system usage and occupancy statistics
+      operationId: getSystemStats
+      responses:
+        '200':
+          description: System statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatsResponse'
+
+  /stats/occupancy:
+    get:
+      tags:
+        - Analytics
+      summary: Get occupancy statistics
+      description: Get detailed occupancy statistics by floor, type, and time
+      operationId: getOccupancyStats
+      parameters:
+        - name: groupBy
+          in: query
+          description: Group statistics by dimension
+          schema:
+            type: string
+            enum: [floor, type, feature]
+            default: floor
+      responses:
+        '200':
+          description: Occupancy statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OccupancyStatsResponse'
+
+  /stats/revenue:
+    get:
+      tags:
+        - Analytics
+      summary: Get revenue statistics
+      description: Retrieve revenue and billing statistics
+      operationId: getRevenueStats
+      parameters:
+        - name: period
+          in: query
+          description: Time period for revenue calculation
+          schema:
+            type: string
+            enum: [today, week, month]
+            default: today
+      responses:
+        '200':
+          description: Revenue statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevenueStatsResponse'
+
+components:
+  schemas:
+    # Basic Types
+    SpotType:
+      type: string
+      enum: [compact, standard, oversized]
+      description: Type of parking spot based on size
+
+    VehicleType:
+      type: string
+      enum: [compact, standard, oversized]
+      description: Type of vehicle based on size
+
+    RateType:
+      type: string
+      enum: [hourly, daily, monthly]
+      description: Parking rate billing type
+
+    PaymentMethod:
+      type: string
+      enum: [cash, credit_card, mobile_payment, subscription]
+      description: Method of payment for parking fees
+
+    # Spot Models
+    Spot:
+      type: object
+      required:
+        - id
+        - floor
+        - bay
+        - spotNumber
+        - type
+        - status
+      properties:
+        id:
+          type: string
+          pattern: '^F\d+-B\d+-S\d{3}$'
+          description: Unique spot identifier (e.g., F1-B2-S005)
+          example: F1-B1-S001
+        floor:
+          type: integer
+          minimum: 1
+          description: Floor number
+          example: 1
+        bay:
+          type: integer
+          minimum: 1
+          description: Bay number within floor
+          example: 1
+        spotNumber:
+          type: integer
+          minimum: 1
+          description: Spot number within bay
+          example: 1
+        type:
+          $ref: '#/components/schemas/SpotType'
+        status:
+          type: string
+          enum: [available, occupied, maintenance, reserved]
+          description: Current spot status
+          example: available
+        features:
+          type: array
+          items:
+            type: string
+            enum: [ev_charging, handicap, covered, security]
+          description: Special features of the spot
+          example: [ev_charging]
+        currentVehicle:
+          type: string
+          nullable: true
+          description: License plate of currently parked vehicle
+          example: ABC123
+        occupiedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when spot was occupied
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when spot was created
+
+    # Vehicle Models
+    Vehicle:
+      type: object
+      required:
+        - licensePlate
+        - vehicleType
+        - spotId
+        - checkInTime
+      properties:
+        licensePlate:
+          type: string
+          pattern: '^[A-Z0-9-]{2,10}$'
+          description: Vehicle license plate number
+          example: ABC123
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        spotId:
+          type: string
+          description: ID of assigned parking spot
+          example: F1-B1-S001
+        rateType:
+          $ref: '#/components/schemas/RateType'
+        checkInTime:
+          type: string
+          format: date-time
+          description: Timestamp of check-in
+        checkOutTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of check-out (null if still parked)
+        totalAmount:
+          type: number
+          format: float
+          minimum: 0
+          nullable: true
+          description: Total amount charged (null if not checked out)
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+
+    # Request Models
+    GarageInitRequest:
+      type: object
+      required:
+        - name
+        - floors
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Name of the parking garage
+          example: Downtown Parking Garage
+        floors:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object
+            required:
+              - number
+              - bays
+              - spotsPerBay
+            properties:
+              number:
+                type: integer
+                minimum: 1
+                maximum: 20
+                description: Floor number
+                example: 1
+              bays:
+                type: integer
+                minimum: 1
+                maximum: 50
+                description: Number of bays on floor
+                example: 5
+              spotsPerBay:
+                type: integer
+                minimum: 1
+                maximum: 50
+                description: Number of spots per bay
+                example: 10
+
+    GarageUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Updated garage name
+          example: Premium Downtown Garage
+
+    RateUpdateRequest:
+      type: object
+      properties:
+        standard:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Hourly rate for standard spots
+          example: 5.00
+        compact:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Hourly rate for compact spots
+          example: 4.00
+        oversized:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Hourly rate for oversized spots
+          example: 7.00
+        ev_charging:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Additional hourly rate for EV charging
+          example: 3.00
+
+    CheckinRequest:
+      type: object
+      required:
+        - licensePlate
+        - vehicleType
+      properties:
+        licensePlate:
+          type: string
+          pattern: '^[A-Z0-9-]{2,10}$'
+          description: Vehicle license plate (will be normalized to uppercase)
+          example: ABC123
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        rateType:
+          $ref: '#/components/schemas/RateType'
+          default: hourly
+
+    CheckinSimulateRequest:
+      type: object
+      required:
+        - licensePlate
+        - vehicleType
+      properties:
+        licensePlate:
+          type: string
+          pattern: '^[A-Z0-9-]{2,10}$'
+          description: Vehicle license plate
+          example: ABC123
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+
+    CheckoutRequest:
+      type: object
+      required:
+        - licensePlate
+      properties:
+        licensePlate:
+          type: string
+          pattern: '^[A-Z0-9-]{2,10}$'
+          description: Vehicle license plate
+          example: ABC123
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+          default: credit_card
+
+    CheckoutSimulateRequest:
+      type: object
+      required:
+        - licensePlate
+      properties:
+        licensePlate:
+          type: string
+          pattern: '^[A-Z0-9-]{2,10}$'
+          description: Vehicle license plate
+          example: ABC123
+        checkOutTime:
+          type: string
+          format: date-time
+          description: Override checkout time for simulation
+        applyGracePeriod:
+          type: boolean
+          default: false
+          description: Apply grace period to calculation
+
+    # Response Models
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          description: Server uptime in seconds
+          example: 3600
+        environment:
+          type: string
+          example: development
+        version:
+          type: string
+          example: 1.0.0
+
+    GarageConfigResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Garage configuration retrieved successfully
+        configuration:
+          type: object
+          properties:
+            id:
+              type: string
+              example: default-garage
+            name:
+              type: string
+              example: Downtown Parking Garage
+            totalCapacity:
+              type: integer
+              example: 250
+            totalFloors:
+              type: integer
+              example: 5
+            floors:
+              type: array
+              items:
+                type: object
+                properties:
+                  number:
+                    type: integer
+                    example: 1
+                  capacity:
+                    type: integer
+                    example: 50
+            rates:
+              type: object
+              properties:
+                standard:
+                  type: number
+                  example: 5.00
+                compact:
+                  type: number
+                  example: 4.00
+                oversized:
+                  type: number
+                  example: 7.00
+                ev_charging:
+                  type: number
+                  example: 3.00
+            initializedAt:
+              type: string
+              format: date-time
+            lastUpdated:
+              type: string
+              format: date-time
+        timestamp:
+          type: string
+          format: date-time
+
+    CheckinResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Vehicle checked in successfully
+        spotId:
+          type: string
+          example: F1-B1-S001
+        location:
+          type: object
+          properties:
+            floor:
+              type: integer
+              example: 1
+            bay:
+              type: integer
+              example: 1
+            spot:
+              type: integer
+              example: 1
+        checkInTime:
+          type: string
+          format: date-time
+        vehicle:
+          type: object
+          properties:
+            licensePlate:
+              type: string
+              example: ABC123
+            type:
+              $ref: '#/components/schemas/VehicleType'
+            rateType:
+              $ref: '#/components/schemas/RateType'
+        spotDetails:
+          type: object
+          properties:
+            type:
+              $ref: '#/components/schemas/SpotType'
+            features:
+              type: array
+              items:
+                type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    CheckoutResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Vehicle checked out successfully
+        vehicle:
+          type: object
+          properties:
+            licensePlate:
+              type: string
+              example: ABC123
+            spotId:
+              type: string
+              example: F1-B1-S001
+        duration:
+          type: object
+          properties:
+            hours:
+              type: integer
+              example: 2
+            minutes:
+              type: integer
+              example: 30
+            totalMinutes:
+              type: integer
+              example: 150
+            formatted:
+              type: string
+              example: 2 hours, 30 minutes
+        billing:
+          type: object
+          properties:
+            baseRate:
+              type: number
+              example: 5.00
+            billableHours:
+              type: integer
+              example: 3
+            subtotal:
+              type: number
+              example: 15.00
+            features:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: ev_charging
+                  rate:
+                    type: number
+                    example: 3.00
+                  amount:
+                    type: number
+                    example: 9.00
+            totalAmount:
+              type: number
+              example: 24.00
+            paymentMethod:
+              $ref: '#/components/schemas/PaymentMethod'
+        spotFreed:
+          type: string
+          example: F1-B1-S001
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          description: Human-readable error message
+          example: Vehicle not found
+        error:
+          type: string
+          description: Detailed error description
+          example: Vehicle ABC123 not found in parking records
+        errorCode:
+          type: string
+          description: Machine-readable error code
+          example: VEHICLE_NOT_FOUND
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of validation errors
+        timestamp:
+          type: string
+          format: date-time
+
+    # Pagination
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          example: 20
+        totalItems:
+          type: integer
+          minimum: 0
+          example: 150
+        totalPages:
+          type: integer
+          minimum: 0
+          example: 8
+        hasNext:
+          type: boolean
+          example: true
+        hasPrev:
+          type: boolean
+          example: false
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Request conflicts with current state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ServiceUnavailable:
+      description: Service temporarily unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  parameters:
+    LicensePlateParam:
+      name: licensePlate
+      in: path
+      required: true
+      description: Vehicle license plate
+      schema:
+        type: string
+        pattern: '^[A-Z0-9-]{2,10}$'
+
+    SpotIdParam:
+      name: spotId
+      in: path
+      required: true
+      description: Unique spot identifier
+      schema:
+        type: string
+        pattern: '^F\d+-B\d+-S\d{3}$'
+
+    PageParam:
+      name: page
+      in: query
+      description: Page number for pagination
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Garage Management
+    description: Garage initialization and configuration
+  - name: Spot Management
+    description: Parking spot management and queries
+  - name: Vehicle Operations
+    description: Vehicle check-in and check-out operations
+  - name: Vehicle Management
+    description: Vehicle tracking and management
+  - name: Analytics
+    description: Statistics and reporting endpoints

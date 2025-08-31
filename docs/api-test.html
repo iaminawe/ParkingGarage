@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Garage API - Interactive Documentation</title>
+    
+    <!-- Stoplight Elements CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements@8/styles.min.css">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-color, #f8fafc);
+            color: var(--text-color, #1a202c);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* CSS Custom Properties for theming */
+        :root {
+            --bg-color: #f8fafc;
+            --text-color: #1a202c;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --primary-color: #667eea;
+            --primary-hover: #5a67d8;
+            --success-color: #48bb78;
+            --error-color: #f56565;
+            --warning-color: #ed8936;
+            --info-color: #4299e1;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Dark mode theme */
+        [data-theme='dark'] {
+            --bg-color: #1a202c;
+            --text-color: #f7fafc;
+            --card-bg: #2d3748;
+            --border-color: #4a5568;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23ffffff" opacity="0.03"/><circle cx="75" cy="75" r="1" fill="%23ffffff" opacity="0.03"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+            pointer-events: none;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: clamp(24px, 4vw, 32px);
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header p {
+            margin: 6px 0 0 0;
+            opacity: 0.9;
+            font-size: 15px;
+            font-weight: 400;
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-1px);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .controls {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .controls:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        
+        .controls h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .server-config {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .server-config {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            
+            .server-config > div {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+        }
+        
+        .server-config label {
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .server-config input {
+            padding: 10px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            width: 280px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .server-config input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .server-config input {
+                width: 100%;
+            }
+        }
+        
+        .server-config button {
+            padding: 10px 24px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .server-config button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .server-config button:active {
+            transform: translateY(0);
+        }
+
+        .server-config button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .server-config select {
+            padding: 10px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .server-config select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Loading States and Status Indicators */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-indicator.online {
+            background: rgba(72, 187, 120, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(72, 187, 120, 0.3);
+        }
+
+        .status-indicator.offline {
+            background: rgba(245, 101, 101, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(245, 101, 101, 0.3);
+        }
+
+        .status-indicator.loading {
+            background: rgba(66, 153, 225, 0.1);
+            color: var(--info-color);
+            border: 1px solid rgba(66, 153, 225, 0.3);
+        }
+
+        .status-indicator::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .status-indicator.loading::before {
+            animation: pulse 2s infinite;
+        }
+
+        /* Response Time Indicator */
+        .response-time {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+
+        .response-time.fast {
+            color: var(--success-color);
+        }
+
+        .response-time.slow {
+            color: var(--warning-color);
+        }
+
+        .response-time.very-slow {
+            color: var(--error-color);
+        }
+
+        /* Enhanced Error Dialog */
+        .error-dialog {
+            animation: slideIn 0.3s ease-out;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+        }
+
+        .error-header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .error-title {
+            color: var(--text-color);
+        }
+
+        .error-content {
+            background: var(--card-bg);
+        }
+
+        .error-message {
+            color: var(--text-color);
+        }
+
+        .error-details {
+            background: var(--bg-color);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .error-suggestions h4 {
+            color: var(--text-color);
+        }
+
+        .error-suggestions ul {
+            color: var(--text-color);
+        }
+
+        .error-actions {
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--error-color);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--info-color);
+        }
+
+        .toast-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            opacity: 0.7;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+            background: var(--border-color);
+        }
+
+        .environment-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 8px;
+        }
+
+        .environment-indicator.development {
+            background: #fbbf24;
+            color: #92400e;
+        }
+
+        .environment-indicator.staging {
+            background: #f59e0b;
+            color: #7c2d12;
+        }
+
+        .environment-indicator.production {
+            background: #ef4444;
+            color: white;
+        }
+
+        .environment-indicator.custom {
+            background: #6366f1;
+            color: white;
+        }
+
+        .error-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 500px;
+            width: 90%;
+            max-height: 70vh;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .error-dialog.show {
+            display: block;
+        }
+
+        .error-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            display: none;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .error-overlay.show {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .error-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .error-icon {
+            width: 24px;
+            height: 24px;
+            color: #ef4444;
+        }
+
+        .error-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0;
+        }
+
+        .error-content {
+            padding: 20px;
+        }
+
+        .error-message {
+            color: #374151;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .error-details {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .error-suggestions {
+            margin-top: 16px;
+        }
+
+        .error-suggestions h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0 0 8px 0;
+        }
+
+        .error-suggestions ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #374151;
+        }
+
+        .error-suggestions li {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .error-actions {
+            padding: 16px 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .error-btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .error-btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+        }
+
+        .error-btn-primary:hover {
+            background: #5a67d8;
+        }
+
+        .error-btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .error-btn-secondary:hover {
+            background: #f9fafb;
+        }
+
+        .retry-indicator {
+            display: inline-block;
+            margin-left: 8px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .help-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .help-link:hover {
+            text-decoration: underline;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 10px;
+        }
+        
+        .status.connected {
+            background: #10b981;
+            color: white;
+        }
+        
+        .status.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .api-docs {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 600px;
+        }
+        
+        /* Customize Stoplight Elements */
+        .sl-elements {
+            height: 100vh;
+        }
+        
+        .quick-actions {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .quick-actions h3 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background: #f9fafb;
+            border-color: #667eea;
+            color: #667eea;
+        }
+        
+        .info-banner {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            padding: 12px 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .info-banner svg {
+            flex-shrink: 0;
+        }
+        
+        .info-banner p {
+            margin: 0;
+            font-size: 14px;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <div>
+                    <h1>🚗 Parking Garage Management API</h1>
+                    <p>Interactive API Documentation & Testing Interface powered by Stoplight Elements</p>
+                </div>
+                <div>
+                    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+                        🌙 Dark Mode
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Server Configuration -->
+        <div class="controls">
+            <h2>Server Configuration</h2>
+            <div class="server-config">
+                <label for="environmentSelect">Environment:</label>
+                <select id="environmentSelect" onchange="switchEnvironment()">
+                    <option value="development">Development</option>
+                    <option value="staging">Staging</option>
+                    <option value="production">Production</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <span id="environmentIndicator" class="environment-indicator development">Dev</span>
+                
+                <label for="apiServer" style="margin-left: 20px;">API Server:</label>
+                <input type="text" id="apiServer" value="http://localhost:3000" placeholder="http://localhost:3000">
+                <button onclick="updateServer()" id="updateServerBtn">Update Server</button>
+                <span id="connectionStatus" class="status-indicator offline">Disconnected</span>
+                <span id="responseTime" class="response-time" style="display: none;"></span>
+            </div>
+        </div>
+
+        <!-- Info Banner -->
+        <div class="info-banner">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+            </svg>
+            <p><strong>Getting Started:</strong> Make sure your API server is running on port 3000. Use the "Try It" feature in the documentation below to test endpoints interactively.</p>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <h3>Quick Actions</h3>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="initializeGarage()">Initialize Garage</button>
+                <button class="action-btn" onclick="checkGarageStatus()">Check Status</button>
+                <button class="action-btn" onclick="viewAvailableSpots()">View Available Spots</button>
+                <button class="action-btn" onclick="simulateCheckin()">Simulate Check-in</button>
+                <button class="action-btn" onclick="getStatistics()">Get Statistics</button>
+                <button class="action-btn" onclick="testConnection()">Test Connection</button>
+            </div>
+        </div>
+
+        <!-- API Documentation -->
+        <div class="api-docs">
+            <div id="api-documentation"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Error Dialog -->
+    <div class="error-overlay" id="errorOverlay" onclick="closeErrorDialog()"></div>
+    <div class="error-dialog" id="errorDialog">
+        <div class="error-header">
+            <svg class="error-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+            </svg>
+            <h3 class="error-title" id="errorTitle">API Error</h3>
+        </div>
+        <div class="error-content">
+            <div class="error-message" id="errorMessage"></div>
+            <div class="error-details" id="errorDetails"></div>
+            <div class="error-suggestions" id="errorSuggestions"></div>
+        </div>
+        <div class="error-actions">
+            <button class="error-btn error-btn-secondary" onclick="closeErrorDialog()">Close</button>
+            <button class="error-btn error-btn-primary" id="retryButton" onclick="retryLastAction()">Retry</button>
+        </div>
+    </div>
+
+    <!-- Stoplight Elements JS -->
+    <script src="https://unpkg.com/@stoplight/elements@8/web-components.min.js"></script>
+    
+    <script>
+        // Global API server variable and environment configuration
+        let apiServer = 'http://localhost:3000';
+        let currentEnvironment = 'development';
+        
+        // Environment presets
+        const environmentPresets = {
+            development: {
+                url: 'http://localhost:3000',
+                name: 'Development',
+                indicator: 'Dev',
+                description: 'Local development server'
+            },
+            staging: {
+                url: 'https://staging-api.parkinggarage.com',
+                name: 'Staging',
+                indicator: 'Staging',
+                description: 'Staging environment for testing'
+            },
+            production: {
+                url: 'https://api.parkinggarage.com',
+                name: 'Production',
+                indicator: 'Prod',
+                description: 'Production environment'
+            },
+            custom: {
+                url: apiServer,
+                name: 'Custom',
+                indicator: 'Custom',
+                description: 'Custom server URL'
+            }
+        };
+        
+        // Error handling system
+        let lastFailedAction = null;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
+        
+        // UI State Management
+        let currentTheme = localStorage.getItem('theme') || 'light';
+        let connectionStatus = 'offline';
+        let lastResponseTime = 0;
+
+        // Error categories and their corresponding messages
+        const errorCategories = {
+            network: {
+                title: 'Network Error',
+                icon: 'network',
+                getMessage: (error) => 'Unable to connect to the API server. Please check your network connection and server status.'
+            },
+            cors: {
+                title: 'CORS Error', 
+                icon: 'security',
+                getMessage: (error) => 'Cross-Origin Request Blocked. The API server needs to allow requests from this domain.'
+            },
+            server: {
+                title: 'Server Error',
+                icon: 'server',
+                getMessage: (error, status) => `The API server returned an error (${status}). This might be a temporary issue.`
+            },
+            client: {
+                title: 'Request Error',
+                icon: 'client',
+                getMessage: (error, status) => `Invalid request (${status}). Please check your request parameters and try again.`
+            },
+            auth: {
+                title: 'Authentication Error',
+                icon: 'auth', 
+                getMessage: (error) => 'Authentication failed. Please check your API credentials.'
+            },
+            validation: {
+                title: 'Validation Error',
+                icon: 'validation',
+                getMessage: (error) => 'Request validation failed. Please check your input data.'
+            },
+            timeout: {
+                title: 'Request Timeout',
+                icon: 'timeout',
+                getMessage: (error) => 'The request took too long to complete. The server might be overloaded.'
+            }
+        };
+
+        // Enhanced error handler
+        function handleError(error, context = {}) {
+            console.error('API Error:', error, context);
+            
+            const errorInfo = categorizeError(error, context);
+            const suggestions = getErrorSuggestions(errorInfo, context);
+            
+            showErrorDialog(errorInfo, suggestions, context);
+        }
+
+        // Categorize errors based on type and status code
+        function categorizeError(error, context) {
+            const { status, response } = context;
+            
+            // Network errors
+            if (error.name === 'TypeError' || error.message.includes('fetch')) {
+                if (error.message.includes('CORS') || error.message.includes('cors')) {
+                    return { category: 'cors', error, status };
+                }
+                return { category: 'network', error, status };
+            }
+            
+            // HTTP status code errors
+            if (status) {
+                if (status >= 500) return { category: 'server', error, status };
+                if (status === 429) return { category: 'timeout', error, status };
+                if (status === 401 || status === 403) return { category: 'auth', error, status };
+                if (status === 400 || status === 422) return { category: 'validation', error, status };
+                if (status >= 400) return { category: 'client', error, status };
+            }
+            
+            // Timeout errors
+            if (error.name === 'AbortError' || error.message.includes('timeout')) {
+                return { category: 'timeout', error, status };
+            }
+            
+            // Default to server error
+            return { category: 'server', error, status };
+        }
+
+        // Get contextual suggestions for different error types
+        function getErrorSuggestions(errorInfo, context) {
+            const { category, status } = errorInfo;
+            const { url, method } = context;
+            
+            const suggestions = {
+                network: [
+                    'Check if the API server is running',
+                    'Verify your internet connection',
+                    'Try switching to a different environment',
+                    'Check if the server URL is correct',
+                    '<a href="#" class="help-link" onclick="showNetworkHelp()">Network troubleshooting guide</a>'
+                ],
+                cors: [
+                    'Ensure the API server has CORS headers configured',
+                    'Add "Access-Control-Allow-Origin: *" to server responses',
+                    'If using a custom domain, add it to the server\'s allowed origins',
+                    'Try using a CORS proxy for development',
+                    '<a href="#" class="help-link" onclick="showCorsHelp()">View CORS setup guide</a>'
+                ],
+                server: [
+                    'Wait a moment and try again',
+                    'Check the server logs for more details',
+                    'Try a different endpoint to test server health',
+                    'Contact the API administrator if the issue persists'
+                ],
+                client: [
+                    'Check your request parameters and data format',
+                    'Verify all required fields are provided',
+                    'Ensure data types match the API specification',
+                    'Review the API documentation for this endpoint'
+                ],
+                auth: [
+                    'Check if authentication is required for this endpoint',
+                    'Verify your API key or token is valid',
+                    'Ensure proper authorization headers are set',
+                    'Contact your administrator for access permissions',
+                    '<a href="#" class="help-link" onclick="showAuthHelp()">Authentication troubleshooting guide</a>'
+                ],
+                validation: [
+                    'Check all required fields are provided',
+                    'Verify data formats match the expected types',
+                    'Ensure field lengths are within limits',
+                    'Review validation rules in the API documentation',
+                    '<a href="#" class="help-link" onclick="showValidationHelp()">Validation troubleshooting guide</a>'
+                ],
+                timeout: [
+                    'Try again with a longer timeout',
+                    'Check if the server is experiencing high load',
+                    'Try making the request during off-peak hours',
+                    'Contact support if timeouts persist'
+                ]
+            };
+            
+            return suggestions[category] || suggestions.server;
+        }
+
+        // Show enhanced error dialog
+        function showErrorDialog(errorInfo, suggestions, context) {
+            const { category, error, status } = errorInfo;
+            const categoryInfo = errorCategories[category];
+            
+            // Update dialog content
+            document.getElementById('errorTitle').textContent = categoryInfo.title;
+            document.getElementById('errorMessage').textContent = categoryInfo.getMessage(error, status);
+            
+            // Add technical details
+            const details = [];
+            if (status) details.push(`HTTP Status: ${status}`);
+            if (context.url) details.push(`URL: ${context.url}`);
+            if (context.method) details.push(`Method: ${context.method}`);
+            if (error.message) details.push(`Error: ${error.message}`);
+            
+            document.getElementById('errorDetails').innerHTML = details.join('<br>');
+            
+            // Add suggestions
+            const suggestionsHtml = `
+                <h4>Troubleshooting Steps:</h4>
+                <ul>
+                    ${suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+                </ul>
+            `;
+            document.getElementById('errorSuggestions').innerHTML = suggestionsHtml;
+            
+            // Store context for retry
+            lastFailedAction = context.retryAction;
+            
+            // Show/hide retry button
+            const retryButton = document.getElementById('retryButton');
+            if (context.retryAction && retryCount < MAX_RETRIES) {
+                retryButton.style.display = 'inline-block';
+                retryButton.innerHTML = `Retry${retryCount > 0 ? ` (${retryCount}/${MAX_RETRIES})` : ''}`;
+            } else {
+                retryButton.style.display = 'none';
+            }
+            
+            // Show dialog
+            document.getElementById('errorOverlay').classList.add('show');
+            document.getElementById('errorDialog').classList.add('show');
+        }
+
+        // Close error dialog
+        function closeErrorDialog() {
+            document.getElementById('errorOverlay').classList.remove('show');
+            document.getElementById('errorDialog').classList.remove('show');
+        }
+
+        // Retry last failed action
+        function retryLastAction() {
+            if (lastFailedAction && retryCount < MAX_RETRIES) {
+                retryCount++;
+                closeErrorDialog();
+                lastFailedAction();
+            }
+        }
+
+        // Show CORS help dialog
+        function showCorsHelp() {
+            const corsGuide = {
+                title: 'CORS Configuration Guide',
+                message: 'Cross-Origin Resource Sharing (CORS) allows web applications to make requests to a different domain.',
+                details: `
+                    <strong>Server Headers Required:</strong><br>
+                    • Access-Control-Allow-Origin: *<br>
+                    • Access-Control-Allow-Methods: GET, POST, PUT, DELETE<br>
+                    • Access-Control-Allow-Headers: Content-Type, Authorization<br><br>
+                    
+                    <strong>Express.js Implementation:</strong><br>
+                    npm install cors<br>
+                    const cors = require('cors');<br>
+                    app.use(cors());
+                `,
+                suggestions: [
+                    'Add CORS middleware to your Express.js server',
+                    'Configure specific origins instead of wildcard (*) for production',
+                    'Test with a CORS proxy for development',
+                    'Check browser developer tools for CORS error details',
+                    '<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_blank" class="help-link">Learn more about CORS</a>'
+                ]
+            };
+            
+            showHelpDialog(corsGuide);
+        }
+
+        // Generic help dialog system
+        function showHelpDialog(helpContent) {
+            // Reuse the error dialog with help-specific styling
+            const dialog = document.getElementById('errorDialog');
+            const overlay = document.getElementById('errorOverlay');
+            
+            document.getElementById('errorTitle').textContent = helpContent.title;
+            document.getElementById('errorMessage').textContent = helpContent.message;
+            document.getElementById('errorDetails').innerHTML = helpContent.details || '';
+            
+            const suggestionsHtml = helpContent.suggestions ? `
+                <h4>Quick Tips:</h4>
+                <ul>
+                    ${helpContent.suggestions.map(tip => `<li>${tip}</li>`).join('')}
+                </ul>
+            ` : '';
+            document.getElementById('errorSuggestions').innerHTML = suggestionsHtml;
+            
+            // Hide retry button for help dialogs
+            document.getElementById('retryButton').style.display = 'none';
+            
+            overlay.classList.add('show');
+            dialog.classList.add('show');
+        }
+
+        // Show network troubleshooting help
+        function showNetworkHelp() {
+            const networkGuide = {
+                title: 'Network Troubleshooting',
+                message: 'Connection issues can occur due to various network or server problems.',
+                suggestions: [
+                    'Verify the API server is running and accessible',
+                    'Check if the server URL and port are correct',
+                    'Test with a different network (mobile hotspot)',
+                    'Disable browser extensions that might block requests',
+                    'Check firewall or antivirus settings',
+                    '<a href="#" class="help-link" onclick="testServerHealth()">Test server health</a>'
+                ]
+            };
+            showHelpDialog(networkGuide);
+        }
+
+        // Show validation help
+        function showValidationHelp() {
+            const validationGuide = {
+                title: 'Request Validation Guide',
+                message: 'Validation errors occur when request data doesn\'t match the API requirements.',
+                details: `
+                    <strong>Common Issues:</strong><br>
+                    • Missing required fields<br>
+                    • Invalid data types or formats<br>
+                    • Values outside allowed ranges<br>
+                    • Incorrect JSON structure
+                `,
+                suggestions: [
+                    'Check the OpenAPI specification for field requirements',
+                    'Ensure all required fields are provided',
+                    'Verify data types match the expected format',
+                    'Test with minimal valid data first',
+                    '<a href="./openapi.yaml" target="_blank" class="help-link">View API specification</a>'
+                ]
+            };
+            showHelpDialog(validationGuide);
+        }
+
+        // Show authentication troubleshooting help
+        function showAuthHelp() {
+            const authGuide = {
+                title: 'Authentication Troubleshooting',
+                message: 'Authentication errors typically occur when API keys, tokens, or permissions are missing or invalid.',
+                details: `
+                    <strong>Common Authentication Methods:</strong><br>
+                    • API Key: Add header "X-API-Key: your-key-here"<br>
+                    • Bearer Token: Add header "Authorization: Bearer your-token"<br>
+                    • Basic Auth: Encode credentials and add "Authorization: Basic encoded-creds"<br><br>
+                    
+                    <strong>Check These:</strong><br>
+                    • Token expiration date<br>
+                    • Required permissions/scopes<br>
+                    • Correct header format<br>
+                    • API endpoint access level
+                `,
+                suggestions: [
+                    'Verify your API credentials are correct and active',
+                    'Check if the token has expired and needs renewal',
+                    'Ensure proper authorization headers are set',
+                    'Verify you have permission to access this endpoint',
+                    '<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication" target="_blank" class="help-link">Learn more about HTTP Authentication</a>'
+                ]
+            };
+            
+            showHelpDialog(authGuide);
+        }
+
+        // Show validation troubleshooting help
+        function showValidationHelp() {
+            const validationGuide = {
+                title: 'Validation Error Troubleshooting',
+                message: 'Validation errors occur when request data doesn\'t match the expected format, type, or constraints.',
+                details: `
+                    <strong>Common Validation Issues:</strong><br>
+                    • Missing required fields<br>
+                    • Wrong data types (string vs number)<br>
+                    • Values outside allowed ranges<br>
+                    • Invalid format (email, date, etc.)<br><br>
+                    
+                    <strong>Debugging Steps:</strong><br>
+                    • Check API documentation for required fields<br>
+                    • Verify data types match expectations<br>
+                    • Test with minimal valid payload<br>
+                    • Review error messages for specific field issues
+                `,
+                suggestions: [
+                    'Check that all required fields are provided',
+                    'Verify data types match the API specification',
+                    'Ensure string lengths are within limits',
+                    'Test with a minimal valid request first',
+                    '<a href="https://json-schema.org/" target="_blank" class="help-link">Learn more about JSON Schema validation</a>'
+                ]
+            };
+            
+            showHelpDialog(validationGuide);
+        }
+
+        // Test server health with multiple endpoints
+        async function testServerHealth() {
+            const healthEndpoints = [
+                '/health',
+                '/api/garage/status', 
+                '/api/spots/available'
+            ];
+            
+            const results = [];
+            
+            for (const endpoint of healthEndpoints) {
+                try {
+                    const start = performance.now();
+                    const response = await fetch(`${apiServer}${endpoint}`);
+                    const end = performance.now();
+                    
+                    results.push({
+                        endpoint,
+                        status: response.status,
+                        ok: response.ok,
+                        time: Math.round(end - start)
+                    });
+                } catch (error) {
+                    results.push({
+                        endpoint,
+                        status: 'Failed',
+                        ok: false,
+                        error: error.message
+                    });
+                }
+            }
+            
+            const healthReport = results.map(r => 
+                `${r.endpoint}: ${r.ok ? '✅' : '❌'} ${r.status} ${r.time ? `(${r.time}ms)` : ''}`
+            ).join('\n');
+            
+            alert(`Server Health Check:\n\n${healthReport}`);
+        }
+
+        // Enhanced fetch function with error handling
+        async function apiRequest(url, options = {}, context = {}) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), options.timeout || 30000);
+            
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    const errorContext = {
+                        ...context,
+                        url,
+                        method: options.method || 'GET',
+                        status: response.status,
+                        response
+                    };
+                    
+                    let errorMessage = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error || errorMessage;
+                    } catch (e) {
+                        errorMessage = `${response.status} ${response.statusText}`;
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                retryCount = 0; // Reset retry count on success
+                return response;
+                
+            } catch (error) {
+                clearTimeout(timeoutId);
+                
+                const errorContext = {
+                    ...context,
+                    url,
+                    method: options.method || 'GET',
+                    status: error.status
+                };
+                
+                // Don't show error dialog if this is a retry
+                if (!context.isRetry) {
+                    handleError(error, errorContext);
+                }
+                
+                throw error;
+            }
+        }
+
+        // Initialize Stoplight Elements
+        function initializeElements() {
+            const docsContainer = document.getElementById('api-documentation');
+            docsContainer.innerHTML = `
+                <elements-api
+                    apiDescriptionUrl="http://localhost:9000/openapi.yaml"
+                    router="hash"
+                    layout="sidebar"
+                    hideInternal="false"
+                    tryItCredentialsPolicy="include"
+                    tryItCorsProxy="https://cors-anywhere.herokuapp.com/"
+                />
+            `;
+        }
+        
+        // Switch environment
+        function switchEnvironment() {
+            const environmentSelect = document.getElementById('environmentSelect');
+            const serverInput = document.getElementById('apiServer');
+            const environmentIndicator = document.getElementById('environmentIndicator');
+            
+            currentEnvironment = environmentSelect.value;
+            const preset = environmentPresets[currentEnvironment];
+            
+            // Update UI
+            if (currentEnvironment !== 'custom') {
+                serverInput.value = preset.url;
+                apiServer = preset.url;
+                serverInput.disabled = false; // Allow editing for validation
+            } else {
+                serverInput.disabled = false;
+                // Keep current custom URL
+            }
+            
+            // Update environment indicator
+            environmentIndicator.textContent = preset.indicator;
+            environmentIndicator.className = `environment-indicator ${currentEnvironment}`;
+            
+            // Save to localStorage
+            localStorage.setItem('parkingGarageEnvironment', currentEnvironment);
+            localStorage.setItem('parkingGarageApiServer', apiServer);
+            
+            // Show environment change notification
+            console.log(`Environment switched to: ${preset.name} (${preset.url})`);
+            
+            // Test connection and reinitialize
+            testConnection();
+            initializeElements();
+        }
+
+        // Update server configuration
+        function updateServer() {
+            const serverInput = document.getElementById('apiServer');
+            apiServer = serverInput.value;
+            
+            // If using a preset environment, switch to custom
+            if (currentEnvironment !== 'custom') {
+                const environmentSelect = document.getElementById('environmentSelect');
+                environmentSelect.value = 'custom';
+                currentEnvironment = 'custom';
+                
+                // Update environment indicator
+                const environmentIndicator = document.getElementById('environmentIndicator');
+                environmentIndicator.textContent = 'Custom';
+                environmentIndicator.className = 'environment-indicator custom';
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('parkingGarageEnvironment', currentEnvironment);
+            localStorage.setItem('parkingGarageApiServer', apiServer);
+            
+            // Update the OpenAPI spec server
+            testConnection();
+            
+            // Reinitialize Elements with new server
+            initializeElements();
+        }
+        
+        // Load saved environment from localStorage
+        function loadSavedEnvironment() {
+            const savedEnvironment = localStorage.getItem('parkingGarageEnvironment');
+            const savedApiServer = localStorage.getItem('parkingGarageApiServer');
+            
+            if (savedEnvironment && environmentPresets[savedEnvironment]) {
+                currentEnvironment = savedEnvironment;
+                const environmentSelect = document.getElementById('environmentSelect');
+                const serverInput = document.getElementById('apiServer');
+                const environmentIndicator = document.getElementById('environmentIndicator');
+                
+                environmentSelect.value = currentEnvironment;
+                
+                if (savedApiServer) {
+                    apiServer = savedApiServer;
+                    serverInput.value = savedApiServer;
+                } else if (currentEnvironment !== 'custom') {
+                    apiServer = environmentPresets[currentEnvironment].url;
+                    serverInput.value = apiServer;
+                }
+                
+                // Update environment indicator
+                const preset = environmentPresets[currentEnvironment];
+                environmentIndicator.textContent = preset.indicator;
+                environmentIndicator.className = `environment-indicator ${currentEnvironment}`;
+            }
+        }
+        
+        // Test connection to API server
+        async function testConnection() {
+            const status = document.getElementById('connectionStatus');
+            try {
+                const response = await apiRequest(`${apiServer}/api/garage/status`, {}, {
+                    retryAction: () => testConnection(),
+                    isRetry: false
+                });
+                
+                status.textContent = 'Connected';
+                status.className = 'status connected';
+            } catch (error) {
+                status.textContent = 'Not Connected';
+                status.className = 'status disconnected';
+                // Error dialog is handled by apiRequest function
+            }
+        }
+        
+        // Quick action functions
+        async function initializeGarage() {
+            const garageData = {
+                name: "Downtown Parking Garage",
+                floors: [
+                    { number: 1, bays: 3, spotsPerBay: 20 },
+                    { number: 2, bays: 3, spotsPerBay: 20 },
+                    { number: 3, bays: 2, spotsPerBay: 15 }
+                ]
+            };
+            
+            try {
+                const response = await apiRequest(`${apiServer}/api/garage/initialize`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(garageData)
+                }, {
+                    retryAction: () => initializeGarage(),
+                    description: 'Initialize garage with sample configuration'
+                });
+                
+                const result = await response.json();
+                alert('Garage initialized successfully!\n' + JSON.stringify(result.data, null, 2));
+            } catch (error) {
+                // Error handling is done by apiRequest function
+                console.log('Initialize garage failed:', error.message);
+            }
+        }
+        
+        async function checkGarageStatus() {
+            try {
+                const response = await apiRequest(`${apiServer}/api/garage/status`, {}, {
+                    retryAction: () => checkGarageStatus(),
+                    description: 'Check garage status'
+                });
+                
+                const result = await response.json();
+                alert('Garage Status:\n' + JSON.stringify(result, null, 2));
+            } catch (error) {
+                console.log('Check status failed:', error.message);
+            }
+        }
+        
+        async function viewAvailableSpots() {
+            try {
+                const response = await apiRequest(`${apiServer}/api/spots/available`, {}, {
+                    retryAction: () => viewAvailableSpots(),
+                    description: 'View available parking spots'
+                });
+                
+                const result = await response.json();
+                const count = result.data ? result.data.length : 0;
+                alert(`Available Spots: ${count}\n\nFirst 5 spots:\n` + 
+                      JSON.stringify(result.data?.slice(0, 5), null, 2));
+            } catch (error) {
+                console.log('View spots failed:', error.message);
+            }
+        }
+        
+        async function simulateCheckin() {
+            const vehicleData = {
+                licensePlate: "TEST" + Math.floor(Math.random() * 1000),
+                vehicleType: ["compact", "standard", "oversized"][Math.floor(Math.random() * 3)]
+            };
+            
+            try {
+                const response = await apiRequest(`${apiServer}/api/checkin/simulate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(vehicleData)
+                }, {
+                    retryAction: () => simulateCheckin(),
+                    description: 'Simulate vehicle check-in'
+                });
+                
+                const result = await response.json();
+                alert('Check-in Simulation:\n' + JSON.stringify(result.data, null, 2));
+            } catch (error) {
+                console.log('Simulate check-in failed:', error.message);
+            }
+        }
+        
+        async function getStatistics() {
+            try {
+                const response = await apiRequest(`${apiServer}/api/garage/statistics`, {}, {
+                    retryAction: () => getStatistics(),
+                    description: 'Get garage statistics'
+                });
+                
+                const result = await response.json();
+                alert('Garage Statistics:\n' + JSON.stringify(result, null, 2));
+            } catch (error) {
+                console.log('Get statistics failed:', error.message);
+            }
+        }
+
+        // Theme Management
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            localStorage.setItem('theme', currentTheme);
+            
+            const toggle = document.getElementById('themeToggle');
+            toggle.textContent = currentTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+            
+            showToast(`Switched to ${currentTheme} mode`, 'success');
+        }
+
+        function initializeTheme() {
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            const toggle = document.getElementById('themeToggle');
+            toggle.textContent = currentTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '✓',
+                error: '✗', 
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-message">${message}</div>
+                <button class="toast-close" onclick="removeToast(this)">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto-remove after duration
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    removeToast(toast.querySelector('.toast-close'));
+                }
+            }, duration);
+        }
+
+        function removeToast(button) {
+            const toast = button.closest('.toast');
+            toast.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }
+
+        // Status Indicators
+        function updateConnectionStatus(status, responseTime = null) {
+            const indicator = document.getElementById('connectionStatus');
+            const timeElement = document.getElementById('responseTime');
+            
+            connectionStatus = status;
+            lastResponseTime = responseTime;
+            
+            indicator.className = `status-indicator ${status}`;
+            indicator.textContent = {
+                'online': 'Connected',
+                'offline': 'Disconnected', 
+                'loading': 'Connecting...'
+            }[status] || 'Unknown';
+            
+            if (responseTime && status === 'online') {
+                timeElement.style.display = 'inline-flex';
+                const timeClass = responseTime < 200 ? 'fast' : responseTime < 1000 ? 'slow' : 'very-slow';
+                timeElement.className = `response-time ${timeClass}`;
+                timeElement.textContent = `${responseTime}ms`;
+            } else {
+                timeElement.style.display = 'none';
+            }
+        }
+
+        function showLoading(button) {
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.innerHTML = '<span class="loading-spinner"></span>' + originalText;
+            return () => {
+                button.disabled = false;
+                button.textContent = originalText;
+            };
+        }
+
+        // Enhanced API Connection Test
+        async function testConnection() {
+            updateConnectionStatus('loading');
+            
+            try {
+                const start = performance.now();
+                const response = await fetch(`${apiServer}/health`);
+                const end = performance.now();
+                const responseTime = Math.round(end - start);
+                
+                if (response.ok) {
+                    updateConnectionStatus('online', responseTime);
+                    showToast(`Connected to ${apiServer}`, 'success', 2000);
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                updateConnectionStatus('offline');
+                console.log('Connection test failed:', error.message);
+            }
+        }
+
+        // Enhanced updateServer function with loading state
+        async function updateServer() {
+            const button = document.getElementById('updateServerBtn');
+            const hideLoading = showLoading(button);
+            
+            try {
+                const newServer = document.getElementById('apiServer').value.trim();
+                if (!newServer) {
+                    showToast('Please enter a server URL', 'warning');
+                    return;
+                }
+                
+                apiServer = newServer;
+                showToast('Server updated, testing connection...', 'info', 2000);
+                
+                await testConnection();
+                
+                // Update Elements with new server
+                const elements = document.querySelector('elements-api');
+                if (elements) {
+                    elements.setAttribute('api-description-url', `${apiServer}/api-docs/openapi.yaml`);
+                }
+                
+                showToast('Server updated successfully!', 'success');
+            } catch (error) {
+                showToast('Failed to update server', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Keyboard Shortcuts
+        function initializeKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + K for connection test
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    testConnection();
+                }
+                
+                // Ctrl/Cmd + T for theme toggle
+                if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+                    e.preventDefault();
+                    toggleTheme();
+                }
+                
+                // Escape to close error dialog
+                if (e.key === 'Escape') {
+                    closeErrorDialog();
+                }
+            });
+        }
+
+        // Auto-save environment settings
+        function initializeAutoSave() {
+            const serverInput = document.getElementById('apiServer');
+            const envSelect = document.getElementById('environmentSelect');
+            
+            let saveTimeout;
+            const autoSave = () => {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    saveEnvironmentSettings();
+                    showToast('Settings saved', 'info', 1500);
+                }, 1000);
+            };
+            
+            serverInput.addEventListener('input', autoSave);
+            envSelect.addEventListener('change', autoSave);
+        }
+        
+        function saveEnvironmentSettings() {
+            const settings = {
+                server: document.getElementById('apiServer').value,
+                environment: document.getElementById('environmentSelect').value
+            };
+            localStorage.setItem('environmentSettings', JSON.stringify(settings));
+        }
+        
+        function loadEnvironmentSettings() {
+            const saved = localStorage.getItem('environmentSettings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                document.getElementById('apiServer').value = settings.server || apiServer;
+                document.getElementById('environmentSelect').value = settings.environment || 'development';
+                apiServer = settings.server || apiServer;
+                currentEnvironment = settings.environment || 'development';
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeTheme();
+            loadSavedEnvironment();
+            loadEnvironmentSettings();
+            initializeElements();
+            initializeKeyboardShortcuts();
+            initializeAutoSave();
+            testConnection();
+        });
+    </script>
+</body>
+</html>
