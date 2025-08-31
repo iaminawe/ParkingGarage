@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
-const { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } = require('./docs/swagger');
+const { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } = require('../docs/swagger');
 
 const app = express();
 
