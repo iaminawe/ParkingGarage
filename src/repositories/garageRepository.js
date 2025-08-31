@@ -1,10 +1,10 @@
 /**
  * Garage repository for configuration data access operations
- * 
+ *
  * This module provides data access methods for garage configuration
  * using the repository pattern. It manages garage settings, rates,
  * and configuration data.
- * 
+ *
  * @module GarageRepository
  */
 
@@ -29,7 +29,7 @@ class GarageRepository {
    */
   create(garageData, configName = this.defaultConfigKey) {
     const garage = new Garage(garageData);
-    
+
     if (this.store.garageConfig.has(configName)) {
       throw new Error(`Garage configuration '${configName}' already exists`);
     }
@@ -98,7 +98,7 @@ class GarageRepository {
     // Prevent updating immutable fields
     const immutableFields = ['createdAt'];
     const invalidFields = Object.keys(updates).filter(field => immutableFields.includes(field));
-    
+
     if (invalidFields.length > 0) {
       throw new Error(`Cannot update immutable fields: ${invalidFields.join(', ')}`);
     }
@@ -333,7 +333,7 @@ class GarageRepository {
 
     const clonedData = sourceGarage.toObject();
     const clonedGarage = new Garage(clonedData);
-    
+
     this.store.garageConfig.set(newConfigName, clonedGarage);
     return clonedGarage;
   }
@@ -352,11 +352,11 @@ class GarageRepository {
    */
   ensureDefault(garageName = 'Default Parking Garage') {
     let defaultGarage = this.getDefault();
-    
+
     if (!defaultGarage) {
       defaultGarage = this.createDefault(garageName);
     }
-    
+
     return defaultGarage;
   }
 }

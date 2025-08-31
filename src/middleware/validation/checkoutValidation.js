@@ -1,10 +1,10 @@
 /**
  * Checkout validation middleware
- * 
+ *
  * This module provides Express middleware functions for validating
  * vehicle checkout requests, including license plate format validation,
  * request body sanitization, and optional parameter validation.
- * 
+ *
  * @module CheckoutValidation
  */
 

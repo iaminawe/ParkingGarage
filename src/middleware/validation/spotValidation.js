@@ -1,10 +1,10 @@
 /**
  * Spot validation middleware
- * 
+ *
  * This module provides Express middleware functions for validating
  * spot-related requests, including query parameters, route parameters,
  * and request bodies for spot operations.
- * 
+ *
  * @module SpotValidation
  */
 
@@ -19,30 +19,30 @@ const validateSpotQuery = (req, res, next) => {
   try {
     // Validate pagination parameters
     validatePaginationParams(req.query);
-    
+
     // Define allowed filter parameters
     const allowedFilters = ['status', 'type', 'floor', 'bay'];
-    
+
     // Parse and validate filters
     const filters = parseFilters(req.query, allowedFilters);
-    
+
     // Validate specific filter values
     const errors = [];
-    
+
     if (filters.status) {
       const validStatuses = ['available', 'occupied'];
       if (!validStatuses.includes(filters.status)) {
         errors.push(`Invalid status: ${filters.status}. Valid values: ${validStatuses.join(', ')}`);
       }
     }
-    
+
     if (filters.type) {
       const validTypes = ['compact', 'standard', 'oversized'];
       if (!validTypes.includes(filters.type)) {
         errors.push(`Invalid type: ${filters.type}. Valid values: ${validTypes.join(', ')}`);
       }
     }
-    
+
     if (filters.floor) {
       const floor = parseInt(filters.floor);
       if (isNaN(floor) || floor < 1) {
@@ -51,7 +51,7 @@ const validateSpotQuery = (req, res, next) => {
         filters.floor = floor; // Convert to number
       }
     }
-    
+
     if (filters.bay) {
       const bay = parseInt(filters.bay);
       if (isNaN(bay) || bay < 1) {
@@ -60,7 +60,7 @@ const validateSpotQuery = (req, res, next) => {
         filters.bay = bay; // Convert to number
       }
     }
-    
+
     if (errors.length > 0) {
       return res.status(400).json({
         success: false,
@@ -69,11 +69,11 @@ const validateSpotQuery = (req, res, next) => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     // Store validated filters in request object
     req.filters = filters;
     next();
-    
+
   } catch (error) {
     return res.status(400).json({
       success: false,
@@ -89,7 +89,7 @@ const validateSpotQuery = (req, res, next) => {
  */
 const validateSpotId = (req, res, next) => {
   const { id } = req.params;
-  
+
   if (!id) {
     return res.status(400).json({
       success: false,
@@ -97,7 +97,7 @@ const validateSpotId = (req, res, next) => {
       timestamp: new Date().toISOString()
     });
   }
-  
+
   if (!isValidSpotId(id)) {
     return res.status(400).json({
       success: false,
@@ -106,7 +106,7 @@ const validateSpotId = (req, res, next) => {
       timestamp: new Date().toISOString()
     });
   }
-  
+
   next();
 };
 
@@ -116,7 +116,7 @@ const validateSpotId = (req, res, next) => {
 const validateSpotUpdate = (req, res, next) => {
   const { status, type, features } = req.body;
   const errors = [];
-  
+
   // Must have at least one field to update
   if (!status && !type && !features) {
     return res.status(400).json({
@@ -126,7 +126,7 @@ const validateSpotUpdate = (req, res, next) => {
       timestamp: new Date().toISOString()
     });
   }
-  
+
   // Validate status if provided
   if (status !== undefined) {
     const validStatuses = ['available', 'occupied'];
@@ -134,7 +134,7 @@ const validateSpotUpdate = (req, res, next) => {
       errors.push(`Invalid status: ${status}. Valid values: ${validStatuses.join(', ')}`);
     }
   }
-  
+
   // Validate type if provided
   if (type !== undefined) {
     const validTypes = ['compact', 'standard', 'oversized'];
@@ -142,7 +142,7 @@ const validateSpotUpdate = (req, res, next) => {
       errors.push(`Invalid type: ${type}. Valid values: ${validTypes.join(', ')}`);
     }
   }
-  
+
   // Validate features if provided
   if (features !== undefined) {
     if (!Array.isArray(features)) {
@@ -153,7 +153,7 @@ const validateSpotUpdate = (req, res, next) => {
       if (invalidFeatures.length > 0) {
         errors.push(`Invalid features: ${invalidFeatures.join(', ')}. Valid features: ${validFeatures.join(', ')}`);
       }
-      
+
       // Check for duplicates
       const uniqueFeatures = [...new Set(features)];
       if (uniqueFeatures.length !== features.length) {
@@ -161,16 +161,16 @@ const validateSpotUpdate = (req, res, next) => {
       }
     }
   }
-  
+
   // Check for invalid fields
   const allowedFields = ['status', 'type', 'features'];
   const providedFields = Object.keys(req.body);
   const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
-  
+
   if (invalidFields.length > 0) {
     errors.push(`Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`);
   }
-  
+
   if (errors.length > 0) {
     return res.status(400).json({
       success: false,
@@ -179,7 +179,7 @@ const validateSpotUpdate = (req, res, next) => {
       timestamp: new Date().toISOString()
     });
   }
-  
+
   next();
 };
 
@@ -189,21 +189,21 @@ const validateSpotUpdate = (req, res, next) => {
  */
 const sanitizeSpotUpdate = (req, res, next) => {
   const updates = {};
-  
+
   if (req.body.status && typeof req.body.status === 'string') {
     updates.status = req.body.status.trim().toLowerCase();
   }
-  
+
   if (req.body.type && typeof req.body.type === 'string') {
     updates.type = req.body.type.trim().toLowerCase();
   }
-  
+
   if (req.body.features && Array.isArray(req.body.features)) {
     updates.features = req.body.features
       .filter(f => f && typeof f === 'string')
       .map(f => f.trim().toLowerCase());
   }
-  
+
   req.body = updates;
   next();
 };
@@ -213,12 +213,12 @@ const sanitizeSpotUpdate = (req, res, next) => {
  */
 const validateIncludeParams = (req, res, next) => {
   const { include } = req.query;
-  
+
   if (include) {
     const validIncludes = ['metadata', 'features', 'occupancy'];
     const includes = include.split(',').map(i => i.trim().toLowerCase());
     const invalidIncludes = includes.filter(i => !validIncludes.includes(i));
-    
+
     if (invalidIncludes.length > 0) {
       return res.status(400).json({
         success: false,
@@ -227,12 +227,12 @@ const validateIncludeParams = (req, res, next) => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     req.includes = includes;
   } else {
     req.includes = [];
   }
-  
+
   next();
 };
 
@@ -241,7 +241,7 @@ const validateIncludeParams = (req, res, next) => {
  */
 const validateSortParams = (req, res, next) => {
   const { sort, order } = req.query;
-  
+
   if (sort) {
     const validSortFields = ['id', 'floor', 'bay', 'spotNumber', 'type', 'status', 'updatedAt'];
     if (!validSortFields.includes(sort)) {
@@ -252,10 +252,10 @@ const validateSortParams = (req, res, next) => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     req.sort = sort;
   }
-  
+
   if (order) {
     const validOrders = ['asc', 'desc'];
     if (!validOrders.includes(order.toLowerCase())) {
@@ -266,12 +266,12 @@ const validateSortParams = (req, res, next) => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     req.order = order.toLowerCase();
   } else {
     req.order = 'asc';
   }
-  
+
   next();
 };
 

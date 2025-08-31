@@ -1,10 +1,10 @@
 /**
  * Checkout Routes
- * 
+ *
  * This module defines the Express routes for vehicle checkout operations,
  * including the main checkout endpoint, simulation, estimation, statistics,
  * and administrative functions.
- * 
+ *
  * @module CheckoutRoutes
  */
 

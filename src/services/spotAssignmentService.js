@@ -1,10 +1,10 @@
 /**
  * Spot Assignment Service
- * 
+ *
  * This module handles the logic for automatically assigning the best
  * available parking spot based on vehicle type compatibility and
  * preference algorithms (lower floors, closer to entrance/elevator).
- * 
+ *
  * @module SpotAssignmentService
  */
 
@@ -42,10 +42,10 @@ class SpotAssignmentService {
 
     // Get compatible spot types for this vehicle
     const compatibleSpotTypes = SpotAssignmentService.VEHICLE_SPOT_COMPATIBILITY[vehicleType];
-    
+
     // Find all available spots that are compatible
     const availableSpots = this.spotRepository.findAvailable();
-    const compatibleSpots = availableSpots.filter(spot => 
+    const compatibleSpots = availableSpots.filter(spot =>
       compatibleSpotTypes.includes(spot.type)
     );
 
@@ -131,16 +131,16 @@ class SpotAssignmentService {
     // This is a simple heuristic - in real implementation, this would
     // be based on actual garage layout
     const preferredBays = [1, 5, 6]; // Entrance and elevator locations
-    
+
     if (preferredBays.includes(bayNumber)) {
       return 30;
     }
-    
+
     // Bays 2-4 are somewhat close
     if (bayNumber >= 2 && bayNumber <= 4) {
       return 20;
     }
-    
+
     // Other bays get lower score
     return 10;
   }
@@ -173,8 +173,8 @@ class SpotAssignmentService {
   getAvailabilityByVehicleType(vehicleType) {
     const compatibleSpotTypes = this.getCompatibleSpotTypes(vehicleType);
     const availableSpots = this.spotRepository.findAvailable();
-    
-    const compatibleSpots = availableSpots.filter(spot => 
+
+    const compatibleSpots = availableSpots.filter(spot =>
       compatibleSpotTypes.includes(spot.type)
     );
 
@@ -199,7 +199,7 @@ class SpotAssignmentService {
    */
   simulateAssignment(vehicleType) {
     const bestSpot = this.findBestAvailableSpot(vehicleType);
-    
+
     if (!bestSpot) {
       return {
         success: false,
@@ -234,12 +234,12 @@ class SpotAssignmentService {
   getAssignmentStats() {
     const allSpots = this.spotRepository.findAll();
     const availableSpots = this.spotRepository.findAvailable();
-    
+
     const statsByType = {};
     ['compact', 'standard', 'oversized'].forEach(vehicleType => {
       const availability = this.getAvailabilityByVehicleType(vehicleType);
       const simulation = this.simulateAssignment(vehicleType);
-      
+
       statsByType[vehicleType] = {
         availableSpots: availability.total,
         hasAvailableSpot: availability.hasAvailable,

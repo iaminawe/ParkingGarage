@@ -1,10 +1,10 @@
 /**
  * Garage service for garage initialization and management operations
- * 
+ *
  * This service handles the business logic for garage configuration,
  * initialization, and spot creation. It orchestrates between the
  * garage repository and spot repository to ensure proper setup.
- * 
+ *
  * @module GarageService
  */
 
@@ -109,7 +109,7 @@ class GarageService {
       for (let spotNumber = 1; spotNumber <= spotsPerBay; spotNumber++) {
         // Determine spot type based on position (simple distribution)
         const spotType = this.determineSpotType(floor, bay, spotNumber, spotsPerBay);
-        
+
         // Determine special features
         const features = this.determineSpotFeatures(floor, bay, spotNumber, spotsPerBay);
 
@@ -137,9 +137,9 @@ class GarageService {
   determineSpotType(floor, bay, spotNumber, spotsPerBay) {
     // Distribution: 20% compact, 70% standard, 10% oversized
     const position = ((bay - 1) * spotsPerBay + spotNumber - 1) % 10;
-    
-    if (position < 2) return 'compact';      // First 20%
-    if (position >= 9) return 'oversized';   // Last 10%
+
+    if (position < 2) {return 'compact';}      // First 20%
+    if (position >= 9) {return 'oversized';}   // Last 10%
     return 'standard';                       // Middle 70%
   }
 
@@ -153,7 +153,7 @@ class GarageService {
    */
   determineSpotFeatures(floor, bay, spotNumber, spotsPerBay) {
     const features = [];
-    
+
     // Add EV charging to first spot in each bay (roughly 1 in 20 spots)
     if (spotNumber === 1) {
       features.push('ev_charging');
@@ -214,7 +214,7 @@ class GarageService {
 
     // Update rates
     const validRateTypes = ['standard', 'compact', 'oversized', 'ev_charging'];
-    
+
     for (const [rateType, newRate] of Object.entries(rateUpdates)) {
       if (validRateTypes.includes(rateType)) {
         garage.updateRate(rateType, newRate);
@@ -296,7 +296,7 @@ class GarageService {
   getSpotDistributionByType() {
     const spots = this.spotRepository.findAll();
     const distribution = { compact: 0, standard: 0, oversized: 0 };
-    
+
     spots.forEach(spot => {
       if (distribution.hasOwnProperty(spot.type)) {
         distribution[spot.type]++;
@@ -313,7 +313,7 @@ class GarageService {
   getSpotDistributionByFeature() {
     const spots = this.spotRepository.findAll();
     const distribution = { ev_charging: 0, handicap: 0, regular: 0 };
-    
+
     spots.forEach(spot => {
       if (spot.features.includes('ev_charging')) {
         distribution.ev_charging++;
@@ -334,7 +334,7 @@ class GarageService {
   getSpotDistributionByFloor() {
     const spots = this.spotRepository.findAll();
     const distribution = {};
-    
+
     spots.forEach(spot => {
       const floor = `Floor ${spot.floor}`;
       if (!distribution[floor]) {
@@ -366,7 +366,7 @@ class GarageService {
   async resetGarage() {
     this.garageRepository.clear();
     this.spotRepository.clear();
-    
+
     return {
       message: 'Garage reset successfully',
       timestamp: new Date().toISOString()

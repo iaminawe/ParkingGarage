@@ -1,10 +1,10 @@
 /**
  * Spot management routes
- * 
+ *
  * This module defines the Express routes for spot operations including
  * listing, filtering, retrieving individual spots, and updating spot status.
  * All routes include proper validation, error handling, and performance monitoring.
- * 
+ *
  * @module SpotRoutes
  */
 
@@ -26,7 +26,7 @@ const spotController = new SpotController();
 /**
  * GET /api/v1/spots
  * List spots with filtering, sorting, and pagination
- * 
+ *
  * Query Parameters:
  * - status: Filter by status (available, occupied)
  * - type: Filter by type (compact, standard, oversized)
@@ -37,19 +37,19 @@ const spotController = new SpotController();
  * - sort: Sort field (id, floor, bay, type, status, updatedAt)
  * - order: Sort order (asc, desc, default: asc)
  * - include: Additional data (metadata, features, occupancy)
- * 
+ *
  * Examples:
  * - GET /spots?status=available&type=compact&limit=10
  * - GET /spots?floor=2&bay=3&sort=id&order=desc
  * - GET /spots?status=occupied&include=metadata,features
- * 
+ *
  * Response: 200 OK with spots array, pagination, and metadata
  */
 router.get('/',
   validateSpotQuery,
   validateIncludeParams,
   validateSortParams,
-  async (req, res) => {
+  async(req, res) => {
     await spotController.getSpots(req, res);
   }
 );
@@ -57,11 +57,11 @@ router.get('/',
 /**
  * GET /api/v1/spots/statistics
  * Get comprehensive spot statistics and occupancy data
- * 
+ *
  * Response: 200 OK with detailed statistics
  */
 router.get('/statistics',
-  async (req, res) => {
+  async(req, res) => {
     await spotController.getSpotStatistics(req, res);
   }
 );
@@ -70,30 +70,30 @@ router.get('/statistics',
  * GET /api/v1/spots/available
  * Convenience endpoint to get only available spots
  * Supports same query parameters as main spots endpoint except status
- * 
+ *
  * Response: 200 OK with available spots
  */
 router.get('/available',
   validateSpotQuery,
   validateIncludeParams,
   validateSortParams,
-  async (req, res) => {
+  async(req, res) => {
     await spotController.getAvailableSpots(req, res);
   }
 );
 
 /**
  * GET /api/v1/spots/occupied
- * Convenience endpoint to get only occupied spots  
+ * Convenience endpoint to get only occupied spots
  * Supports same query parameters as main spots endpoint except status
- * 
+ *
  * Response: 200 OK with occupied spots
  */
 router.get('/occupied',
   validateSpotQuery,
   validateIncludeParams,
   validateSortParams,
-  async (req, res) => {
+  async(req, res) => {
     await spotController.getOccupiedSpots(req, res);
   }
 );
@@ -101,23 +101,23 @@ router.get('/occupied',
 /**
  * GET /api/v1/spots/search
  * Advanced search endpoint with query parsing
- * 
+ *
  * Query Parameters:
  * - query: Search string (e.g., "floor:2 compact", "F1-B3", "available ev_charging")
  * - All other parameters from main spots endpoint
- * 
+ *
  * Search formats supported:
  * - Field:value (floor:1, type:compact, status:available)
  * - Simple terms (available, compact, F1-B2)
  * - Combined searches (floor:2 compact available)
- * 
+ *
  * Response: 200 OK with matching spots
  */
 router.get('/search',
   validateSpotQuery,
   validateIncludeParams,
   validateSortParams,
-  async (req, res) => {
+  async(req, res) => {
     await spotController.searchSpots(req, res);
   }
 );
@@ -125,17 +125,17 @@ router.get('/search',
 /**
  * GET /api/v1/spots/:id
  * Get individual spot details by ID
- * 
+ *
  * Path Parameters:
  * - id: Spot ID in format F{floor}-B{bay}-S{spot} (e.g., F1-B2-S3)
- * 
- * Response: 
+ *
+ * Response:
  * - 200 OK with spot details
  * - 404 Not Found if spot doesn't exist
  */
 router.get('/:id',
   validateSpotId,
-  async (req, res) => {
+  async(req, res) => {
     await spotController.getSpotById(req, res);
   }
 );
@@ -143,22 +143,22 @@ router.get('/:id',
 /**
  * PATCH /api/v1/spots/:id
  * Update spot status, type, or features
- * 
+ *
  * Path Parameters:
  * - id: Spot ID in format F{floor}-B{bay}-S{spot}
- * 
+ *
  * Request Body (JSON):
  * {
  *   "status": "available|occupied",        // Optional
  *   "type": "compact|standard|oversized",  // Optional
  *   "features": ["ev_charging", "handicap"] // Optional array
  * }
- * 
+ *
  * Notes:
  * - At least one field must be provided
  * - Updates are atomic - either all succeed or none
  * - Immutable fields (id, floor, bay, spotNumber) cannot be updated
- * 
+ *
  * Response:
  * - 200 OK with updated spot details
  * - 400 Bad Request for invalid data
@@ -168,7 +168,7 @@ router.patch('/:id',
   validateSpotId,
   sanitizeSpotUpdate,
   validateSpotUpdate,
-  async (req, res) => {
+  async(req, res) => {
     await spotController.updateSpot(req, res);
   }
 );
@@ -179,7 +179,7 @@ router.patch('/:id',
  */
 router.use((error, req, res, next) => {
   console.error('Spot routes error:', error);
-  
+
   // Handle validation errors
   if (error.status === 400) {
     return res.status(400).json({
@@ -189,7 +189,7 @@ router.use((error, req, res, next) => {
       timestamp: new Date().toISOString()
     });
   }
-  
+
   // Handle generic errors
   res.status(500).json({
     success: false,

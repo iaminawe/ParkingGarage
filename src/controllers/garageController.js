@@ -1,10 +1,10 @@
 /**
  * Garage controller for handling garage management API endpoints
- * 
+ *
  * This controller handles HTTP requests for garage configuration,
  * initialization, and management operations. It orchestrates between
  * the request/response layer and the garage service layer.
- * 
+ *
  * @module GarageController
  */
 
@@ -26,7 +26,7 @@ class GarageController {
   async getGarageConfiguration(req, res) {
     try {
       const { includeStats, includeSpots } = req.query;
-      
+
       const configuration = await this.garageService.getGarageConfiguration({
         includeStats,
         includeSpots
@@ -202,7 +202,7 @@ class GarageController {
         success: true,
         data: {
           initialized: isInitialized,
-          message: isInitialized 
+          message: isInitialized
             ? 'Garage is initialized and ready for operations'
             : 'Garage is not initialized. Please initialize using POST /api/v1/garage/initialize'
         }

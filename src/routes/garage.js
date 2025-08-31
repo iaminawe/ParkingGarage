@@ -1,10 +1,10 @@
 /**
  * Garage management routes
- * 
+ *
  * This module defines the Express routes for garage configuration and
  * management operations. It includes endpoints for garage initialization,
  * configuration updates, rate management, and statistics retrieval.
- * 
+ *
  * @module GarageRoutes
  */
 
@@ -25,19 +25,19 @@ const garageController = new GarageController();
 /**
  * GET /api/v1/garage
  * Get current garage configuration
- * 
+ *
  * Query Parameters:
  * - includeStats: boolean - Include occupancy statistics
  * - includeSpots: boolean - Include detailed spot information
- * 
+ *
  * Responses:
  * - 200: Garage configuration retrieved successfully
  * - 404: Garage not initialized
  * - 500: Server error
  */
-router.get('/', 
+router.get('/',
   validateGarageQuery,
-  async (req, res) => {
+  async(req, res) => {
     await garageController.getGarageConfiguration(req, res);
   }
 );
@@ -45,7 +45,7 @@ router.get('/',
 /**
  * POST /api/v1/garage/initialize
  * Initialize garage with floors, bays, and spots
- * 
+ *
  * Request Body:
  * {
  *   "name": "Main Street Garage",
@@ -54,7 +54,7 @@ router.get('/',
  *     { "number": 2, "bays": 4, "spotsPerBay": 25 }
  *   ]
  * }
- * 
+ *
  * Responses:
  * - 201: Garage initialized successfully
  * - 400: Invalid initialization data
@@ -64,7 +64,7 @@ router.get('/',
 router.post('/initialize',
   sanitizeGarageName,
   validateGarageInitialization,
-  async (req, res) => {
+  async(req, res) => {
     await garageController.initializeGarage(req, res);
   }
 );
@@ -72,7 +72,7 @@ router.post('/initialize',
 /**
  * PUT /api/v1/garage/rates
  * Update garage pricing rates
- * 
+ *
  * Request Body:
  * {
  *   "standard": 5.00,
@@ -80,7 +80,7 @@ router.post('/initialize',
  *   "oversized": 7.00,
  *   "ev_charging": 8.00
  * }
- * 
+ *
  * Responses:
  * - 200: Rates updated successfully
  * - 400: Invalid rate data
@@ -89,7 +89,7 @@ router.post('/initialize',
  */
 router.put('/rates',
   validateRateUpdate,
-  async (req, res) => {
+  async(req, res) => {
     await garageController.updateGarageRates(req, res);
   }
 );
@@ -97,14 +97,14 @@ router.put('/rates',
 /**
  * GET /api/v1/garage/rates
  * Get current garage rates
- * 
+ *
  * Responses:
  * - 200: Current rates retrieved successfully
  * - 404: Garage not initialized
  * - 500: Server error
  */
 router.get('/rates',
-  async (req, res) => {
+  async(req, res) => {
     await garageController.getGarageRates(req, res);
   }
 );
@@ -112,12 +112,12 @@ router.get('/rates',
 /**
  * PUT /api/v1/garage/config
  * Update garage configuration (name, etc.)
- * 
+ *
  * Request Body:
  * {
  *   "name": "Updated Garage Name"
  * }
- * 
+ *
  * Responses:
  * - 200: Configuration updated successfully
  * - 400: Invalid configuration data
@@ -127,7 +127,7 @@ router.get('/rates',
 router.put('/config',
   sanitizeGarageName,
   validateGarageConfigUpdate,
-  async (req, res) => {
+  async(req, res) => {
     await garageController.updateGarageConfiguration(req, res);
   }
 );
@@ -135,14 +135,14 @@ router.put('/config',
 /**
  * GET /api/v1/garage/statistics
  * Get comprehensive garage statistics
- * 
+ *
  * Responses:
  * - 200: Statistics retrieved successfully
  * - 404: Garage not initialized
  * - 500: Server error
  */
 router.get('/statistics',
-  async (req, res) => {
+  async(req, res) => {
     await garageController.getGarageStatistics(req, res);
   }
 );
@@ -150,13 +150,13 @@ router.get('/statistics',
 /**
  * GET /api/v1/garage/status
  * Get garage initialization status
- * 
+ *
  * Responses:
  * - 200: Status retrieved successfully
  * - 500: Server error
  */
 router.get('/status',
-  async (req, res) => {
+  async(req, res) => {
     await garageController.getGarageStatus(req, res);
   }
 );
@@ -164,14 +164,14 @@ router.get('/status',
 /**
  * GET /api/v1/garage/capacity
  * Get garage capacity information
- * 
+ *
  * Responses:
  * - 200: Capacity information retrieved successfully
  * - 404: Garage not initialized
  * - 500: Server error
  */
 router.get('/capacity',
-  async (req, res) => {
+  async(req, res) => {
     await garageController.getGarageCapacity(req, res);
   }
 );
@@ -179,13 +179,13 @@ router.get('/capacity',
 /**
  * DELETE /api/v1/garage/reset
  * Reset garage (clear all data) - mainly for development/testing
- * 
+ *
  * Responses:
  * - 200: Garage reset successfully
  * - 500: Server error
  */
 router.delete('/reset',
-  async (req, res) => {
+  async(req, res) => {
     await garageController.resetGarage(req, res);
   }
 );

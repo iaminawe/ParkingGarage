@@ -1,10 +1,10 @@
 /**
  * Checkout Controller
- * 
+ *
  * This module handles HTTP requests for vehicle checkout operations,
  * including request processing, error handling, and response formatting
  * for the checkout API endpoints.
- * 
+ *
  * @module CheckoutController
  */
 
@@ -24,11 +24,11 @@ class CheckoutController {
    */
   checkOut(req, res) {
     try {
-      const { 
-        licensePlate, 
-        applyGracePeriod = false, 
+      const {
+        licensePlate,
+        applyGracePeriod = false,
         removeRecord = true,
-        checkOutTime 
+        checkOutTime
       } = req.body;
 
       const result = this.checkoutService.checkOutVehicle(licensePlate, {
@@ -226,7 +226,7 @@ class CheckoutController {
   healthCheck(req, res) {
     try {
       const stats = this.checkoutService.getCheckoutStats();
-      
+
       res.status(200).json({
         success: true,
         service: 'checkout',

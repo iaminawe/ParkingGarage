@@ -1,10 +1,10 @@
 /**
  * Check-in Service
- * 
+ *
  * This module handles the business logic for vehicle check-in operations,
  * including duplicate prevention, atomic spot assignment, vehicle record
  * creation, and integration with spot assignment algorithms.
- * 
+ *
  * @module CheckinService
  */
 
@@ -88,7 +88,7 @@ class CheckinService {
    */
   checkForDuplicateVehicle(licensePlate) {
     const existingVehicle = this.vehicleRepository.findById(licensePlate);
-    
+
     if (existingVehicle && !existingVehicle.isCheckedOut()) {
       throw new Error(
         `Vehicle ${licensePlate} is already checked in at spot ${existingVehicle.spotId}. ` +
@@ -105,12 +105,12 @@ class CheckinService {
    */
   findAndReserveSpot(vehicleType) {
     const bestSpot = this.spotAssignmentService.findBestAvailableSpot(vehicleType);
-    
+
     if (!bestSpot) {
       // Provide helpful error message with availability info
       const availability = this.spotAssignmentService.getAvailabilityByVehicleType(vehicleType);
       const totalAvailable = this.spotRepository.findAvailable().length;
-      
+
       throw new Error(
         `No available spots for ${vehicleType} vehicles. ` +
         `Compatible spots available: ${availability.total}. ` +
@@ -257,7 +257,7 @@ class CheckinService {
 
       // Simulate spot assignment
       const simulation = this.spotAssignmentService.simulateAssignment(vehicleType);
-      
+
       if (!simulation.success) {
         return {
           success: false,

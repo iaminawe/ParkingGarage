@@ -39,7 +39,7 @@ class SeedDataInitializer {
 
       this.initialized = true;
       console.log('✅ Seed data initialization complete!');
-      
+
       // Log current status
       await this.logCurrentStatus();
 
@@ -107,24 +107,24 @@ class SeedDataInitializer {
       { licensePlate: 'GHI-012', make: 'Tesla', model: 'Model 3', color: 'White', floor: 1, bay: 3 },
       { licensePlate: 'JKL-345', make: 'Chevrolet', model: 'Malibu', color: 'Black', floor: 1, bay: 4 },
       { licensePlate: 'MNO-678', make: 'Nissan', model: 'Altima', color: 'Gray', floor: 1, bay: 5 },
-      
+
       // Floor 2
       { licensePlate: 'PQR-901', make: 'BMW', model: '3 Series', color: 'Black', floor: 2, bay: 1 },
       { licensePlate: 'STU-234', make: 'Mercedes', model: 'C-Class', color: 'Silver', floor: 2, bay: 2 },
       { licensePlate: 'VWX-567', make: 'Audi', model: 'A4', color: 'Blue', floor: 2, bay: 3 },
       { licensePlate: 'YZA-890', make: 'Volkswagen', model: 'Jetta', color: 'White', floor: 2, bay: 4 },
-      
+
       // Floor 3
       { licensePlate: 'BCD-123', make: 'Mazda', model: 'CX-5', color: 'Red', floor: 3, bay: 1 },
       { licensePlate: 'EFG-456', make: 'Subaru', model: 'Outback', color: 'Green', floor: 3, bay: 2 },
       { licensePlate: 'HIJ-789', make: 'Hyundai', model: 'Elantra', color: 'Silver', floor: 3, bay: 3 },
-      
+
       // Floor 4 (EV section)
       { licensePlate: 'TESLA-01', make: 'Tesla', model: 'Model S', color: 'Red', floor: 4, bay: 1 },
       { licensePlate: 'TESLA-02', make: 'Tesla', model: 'Model X', color: 'White', floor: 4, bay: 1 },
       { licensePlate: 'LEAF-001', make: 'Nissan', model: 'Leaf', color: 'Blue', floor: 4, bay: 2 },
       { licensePlate: 'BOLT-EV1', make: 'Chevrolet', model: 'Bolt', color: 'Orange', floor: 4, bay: 2 },
-      
+
       // Floor 5 (Premium/Rooftop)
       { licensePlate: 'LUX-001', make: 'Porsche', model: '911', color: 'Yellow', floor: 5, bay: 1 },
       { licensePlate: 'LUX-002', make: 'Lamborghini', model: 'Huracan', color: 'Orange', floor: 5, bay: 1 },
@@ -143,7 +143,7 @@ class SeedDataInitializer {
 
         if (availableSpots.length > 0) {
           const spot = availableSpots[0];
-          
+
           // Create vehicle entry
           const vehicle = this.vehicleRepository.create({
             licensePlate: vehicleData.licensePlate,
@@ -209,10 +209,10 @@ class SeedDataInitializer {
   async logCurrentStatus() {
     try {
       const garage = this.garageService.garageRepository.getDefault();
-      if (!garage) return;
+      if (!garage) {return;}
 
       const stats = await this.garageService.getStatistics();
-      
+
       console.log('\n📊 Current Garage Status:');
       console.log('├─ Name:', garage.name);
       console.log('├─ Total Spots:', stats.totalSpots);
@@ -240,14 +240,14 @@ class SeedDataInitializer {
    */
   async reset() {
     console.log('🔄 Resetting all seed data...');
-    
+
     // Clear all repositories
     this.garageService.garageRepository.clear();
     this.spotService.spotRepository.clear();
     this.vehicleRepository.clear();
-    
+
     this.initialized = false;
-    
+
     // Re-initialize
     await this.initialize();
   }

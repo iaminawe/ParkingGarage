@@ -1,10 +1,10 @@
 /**
  * Checkout Service
- * 
+ *
  * This module handles the business logic for vehicle checkout operations,
  * including vehicle lookup, duration calculation, fee computation,
  * atomic spot release, and parking record cleanup.
- * 
+ *
  * @module CheckoutService
  */
 
@@ -86,7 +86,7 @@ class CheckoutService {
     }
 
     const vehicle = this.vehicleRepository.findById(licensePlate);
-    
+
     if (!vehicle) {
       throw new Error(`Vehicle with license plate ${licensePlate} not found. Please check the license plate and try again.`);
     }
@@ -106,7 +106,7 @@ class CheckoutService {
    */
   findAssociatedSpot(spotId) {
     const spot = this.spotRepository.findById(spotId);
-    
+
     if (!spot) {
       throw new Error(`Spot ${spotId} not found. Data integrity issue - please contact support.`);
     }
@@ -370,7 +370,7 @@ class CheckoutService {
    */
   getVehiclesReadyForCheckout(minMinutes = 0) {
     const parkedVehicles = this.vehicleRepository.findParked();
-    
+
     return parkedVehicles.filter(vehicle => {
       const duration = calculateParkingDuration(vehicle.checkInTime);
       return duration.totalMinutes >= minMinutes;
@@ -402,7 +402,7 @@ class CheckoutService {
   forceCheckout(licensePlate, reason = 'Administrative action') {
     try {
       const result = this.checkOutVehicle(licensePlate, { removeRecord: true });
-      
+
       return {
         ...result,
         forced: true,

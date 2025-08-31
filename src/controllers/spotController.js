@@ -1,10 +1,10 @@
 /**
  * Spot controller for HTTP request handling
- * 
+ *
  * This module handles HTTP requests for spot operations, including
  * listing, filtering, retrieving individual spots, and updating spot status.
  * Follows RESTful API conventions with proper error handling.
- * 
+ *
  * @module SpotController
  */
 
@@ -22,10 +22,10 @@ class SpotController {
   /**
    * GET /api/v1/spots
    * List all spots with filtering and pagination
-   * 
+   *
    * Query parameters:
    * - status: Filter by status (available, occupied)
-   * - type: Filter by type (compact, standard, oversized)  
+   * - type: Filter by type (compact, standard, oversized)
    * - floor: Filter by floor number
    * - bay: Filter by bay number
    * - limit: Items per page (default: 20, max: 100)
@@ -45,9 +45,9 @@ class SpotController {
         sort: req.sort,
         order: req.order
       };
-      
+
       const result = await this.spotService.getSpots(filters, pagination, sorting);
-      
+
       // Create response with pagination metadata
       const response = {
         success: true,
@@ -55,21 +55,21 @@ class SpotController {
         pagination: result.pagination,
         metadata: result.metadata
       };
-      
+
       // Add navigation hints for better UX
       if (result.pagination.hasMore) {
         response.links = {
           next: `${req.baseUrl}${req.path}?limit=${result.pagination.limit}&offset=${result.pagination.nextOffset}`
         };
-        
+
         // Add current filters to next link
         Object.keys(filters).forEach(key => {
           response.links.next += `&${key}=${encodeURIComponent(filters[key])}`;
         });
       }
-      
+
       res.status(200).json(response);
-      
+
     } catch (error) {
       console.error('Error in getSpots:', error);
       res.status(500).json({
@@ -89,7 +89,7 @@ class SpotController {
     try {
       const { id } = req.params;
       const spot = await this.spotService.getSpotById(id);
-      
+
       if (!spot) {
         return res.status(404).json({
           success: false,
@@ -99,13 +99,13 @@ class SpotController {
           timestamp: new Date().toISOString()
         });
       }
-      
+
       res.status(200).json({
         success: true,
         data: spot,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error) {
       console.error(`Error in getSpotById for ID ${req.params.id}:`, error);
       res.status(500).json({
@@ -120,7 +120,7 @@ class SpotController {
   /**
    * PATCH /api/v1/spots/:id
    * Update spot status and/or type
-   * 
+   *
    * Request body can contain:
    * - status: New status (available, occupied)
    * - type: New type (compact, standard, oversized)
@@ -130,9 +130,9 @@ class SpotController {
     try {
       const { id } = req.params;
       const updates = req.body;
-      
+
       const updatedSpot = await this.spotService.updateSpot(id, updates);
-      
+
       if (!updatedSpot) {
         return res.status(404).json({
           success: false,
@@ -142,17 +142,17 @@ class SpotController {
           timestamp: new Date().toISOString()
         });
       }
-      
+
       res.status(200).json({
         success: true,
         message: 'Spot updated successfully',
         data: updatedSpot,
         changes: updates
       });
-      
+
     } catch (error) {
       console.error(`Error in updateSpot for ID ${req.params.id}:`, error);
-      
+
       // Handle validation errors
       if (error.message.includes('Invalid') || error.message.includes('Cannot update')) {
         return res.status(400).json({
@@ -161,7 +161,7 @@ class SpotController {
           timestamp: new Date().toISOString()
         });
       }
-      
+
       res.status(500).json({
         success: false,
         message: 'Internal server error while updating spot',
@@ -178,13 +178,13 @@ class SpotController {
   async getSpotStatistics(req, res) {
     try {
       const statistics = await this.spotService.getSpotStatistics();
-      
+
       res.status(200).json({
         success: true,
         data: statistics,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error) {
       console.error('Error in getSpotStatistics:', error);
       res.status(500).json({
@@ -204,10 +204,10 @@ class SpotController {
     try {
       // Override filters to only show available spots
       req.filters = { ...req.filters, status: 'available' };
-      
+
       // Use the main getSpots method
       await this.getSpots(req, res);
-      
+
     } catch (error) {
       console.error('Error in getAvailableSpots:', error);
       res.status(500).json({
@@ -220,17 +220,17 @@ class SpotController {
   }
 
   /**
-   * GET /api/v1/spots/occupied  
+   * GET /api/v1/spots/occupied
    * Get only occupied spots (convenience endpoint)
    */
   async getOccupiedSpots(req, res) {
     try {
       // Override filters to only show occupied spots
       req.filters = { ...req.filters, status: 'occupied' };
-      
+
       // Use the main getSpots method
       await this.getSpots(req, res);
-      
+
     } catch (error) {
       console.error('Error in getOccupiedSpots:', error);
       res.status(500).json({
@@ -249,7 +249,7 @@ class SpotController {
   async searchSpots(req, res) {
     try {
       const { query } = req.query;
-      
+
       if (!query) {
         return res.status(400).json({
           success: false,
@@ -258,16 +258,16 @@ class SpotController {
           timestamp: new Date().toISOString()
         });
       }
-      
+
       // Parse search query and convert to filters
       const filters = this._parseSearchQuery(query);
-      
+
       // Merge with existing filters
       req.filters = { ...req.filters, ...filters };
-      
+
       // Use the main getSpots method
       await this.getSpots(req, res);
-      
+
     } catch (error) {
       console.error('Error in searchSpots:', error);
       res.status(500).json({
@@ -288,35 +288,35 @@ class SpotController {
   _parseSearchQuery(query) {
     const filters = {};
     const terms = query.toLowerCase().split(' ').filter(term => term.length > 0);
-    
+
     terms.forEach(term => {
       // Handle field:value format
       if (term.includes(':')) {
         const [field, value] = term.split(':');
-        
+
         switch (field) {
-          case 'floor':
-          case 'f':
-            const floor = parseInt(value);
-            if (!isNaN(floor)) filters.floor = floor;
-            break;
-          case 'bay':
-          case 'b':
-            const bay = parseInt(value);
-            if (!isNaN(bay)) filters.bay = bay;
-            break;
-          case 'type':
-          case 't':
-            if (['compact', 'standard', 'oversized'].includes(value)) {
-              filters.type = value;
-            }
-            break;
-          case 'status':
-          case 's':
-            if (['available', 'occupied'].includes(value)) {
-              filters.status = value;
-            }
-            break;
+        case 'floor':
+        case 'f':
+          const floor = parseInt(value);
+          if (!isNaN(floor)) {filters.floor = floor;}
+          break;
+        case 'bay':
+        case 'b':
+          const bay = parseInt(value);
+          if (!isNaN(bay)) {filters.bay = bay;}
+          break;
+        case 'type':
+        case 't':
+          if (['compact', 'standard', 'oversized'].includes(value)) {
+            filters.type = value;
+          }
+          break;
+        case 'status':
+        case 's':
+          if (['available', 'occupied'].includes(value)) {
+            filters.status = value;
+          }
+          break;
         }
       } else {
         // Handle simple terms
@@ -334,7 +334,7 @@ class SpotController {
         }
       }
     });
-    
+
     return filters;
   }
 }

@@ -1,10 +1,10 @@
 /**
  * Check-in Controller
- * 
+ *
  * This module handles HTTP requests for vehicle check-in operations,
  * including request processing, error handling, and response formatting
  * for the check-in API endpoints.
- * 
+ *
  * @module CheckinController
  */
 
@@ -111,8 +111,8 @@ class CheckinController {
           spotType: simulation.assignedSpot.type,
           isExactMatch: simulation.compatibility.isExactMatch
         } : null,
-        message: simulation.success ? 
-          'Spots available for this vehicle type' : 
+        message: simulation.success ?
+          'Spots available for this vehicle type' :
           'No spots available for this vehicle type',
         timestamp: new Date().toISOString()
       });
@@ -297,7 +297,7 @@ class CheckinController {
   healthCheck(req, res) {
     try {
       const stats = this.checkinService.getCheckinStats();
-      
+
       res.status(200).json({
         success: true,
         service: 'checkin',

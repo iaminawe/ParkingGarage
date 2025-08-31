@@ -1,10 +1,10 @@
 /**
  * Vehicle model definition for parking records
- * 
+ *
  * This module defines the Vehicle class which represents a parking
  * record for a vehicle currently parked in the garage. It tracks
  * the vehicle's information, parking location, and timing data.
- * 
+ *
  * @module Vehicle
  */
 
@@ -95,7 +95,7 @@ class Vehicle {
     if (!this.checkOutTime) {
       return Math.floor((new Date() - new Date(this.checkInTime)) / (1000 * 60));
     }
-    
+
     return Math.floor((new Date(this.checkOutTime) - new Date(this.checkInTime)) / (1000 * 60));
   }
 
@@ -119,18 +119,18 @@ class Vehicle {
 
     // Apply rate type multipliers
     switch (this.rateType) {
-      case 'daily':
-        // Daily rate is typically 8 hours worth
-        amount = Math.min(amount, hourlyRate * 8);
-        break;
-      case 'monthly':
-        // Monthly rate calculation (simplified)
-        const days = Math.ceil(hours / 24);
-        amount = Math.min(amount, hourlyRate * 8 * days * 0.8); // 20% discount
-        break;
-      default:
-        // Hourly rate - no modification needed
-        break;
+    case 'daily':
+      // Daily rate is typically 8 hours worth
+      amount = Math.min(amount, hourlyRate * 8);
+      break;
+    case 'monthly':
+      // Monthly rate calculation (simplified)
+      const days = Math.ceil(hours / 24);
+      amount = Math.min(amount, hourlyRate * 8 * days * 0.8); // 20% discount
+      break;
+    default:
+      // Hourly rate - no modification needed
+      break;
     }
 
     return Math.round(amount * 100) / 100; // Round to 2 decimal places
@@ -162,11 +162,11 @@ class Vehicle {
     if (!this.checkOutTime) {
       return 'parked';
     }
-    
+
     if (!this.isPaid) {
       return 'checked_out_unpaid';
     }
-    
+
     return 'completed';
   }
 
@@ -222,11 +222,11 @@ class Vehicle {
    */
   static fromObject(obj) {
     const vehicle = new Vehicle(obj);
-    if (obj.checkOutTime) vehicle.checkOutTime = obj.checkOutTime;
-    if (obj.totalAmount) vehicle.totalAmount = obj.totalAmount;
-    if (obj.isPaid) vehicle.isPaid = obj.isPaid;
-    if (obj.createdAt) vehicle.createdAt = obj.createdAt;
-    if (obj.updatedAt) vehicle.updatedAt = obj.updatedAt;
+    if (obj.checkOutTime) {vehicle.checkOutTime = obj.checkOutTime;}
+    if (obj.totalAmount) {vehicle.totalAmount = obj.totalAmount;}
+    if (obj.isPaid) {vehicle.isPaid = obj.isPaid;}
+    if (obj.createdAt) {vehicle.createdAt = obj.createdAt;}
+    if (obj.updatedAt) {vehicle.updatedAt = obj.updatedAt;}
     return vehicle;
   }
 }

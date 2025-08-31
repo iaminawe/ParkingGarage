@@ -1,10 +1,10 @@
 /**
  * Check-in Routes
- * 
+ *
  * This module defines the Express routes for vehicle check-in operations,
  * including the main check-in endpoint, simulation, availability checking,
  * and statistics endpoints.
- * 
+ *
  * @module CheckinRoutes
  */
 

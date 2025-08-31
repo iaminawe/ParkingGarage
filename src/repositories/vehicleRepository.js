@@ -1,10 +1,10 @@
 /**
  * Vehicle repository for data access operations
- * 
+ *
  * This module provides data access methods for vehicle parking records
  * using the repository pattern. It handles parking sessions, billing,
  * and vehicle tracking operations.
- * 
+ *
  * @module VehicleRepository
  */
 
@@ -27,7 +27,7 @@ class VehicleRepository {
    */
   create(vehicleData) {
     const vehicle = new Vehicle(vehicleData);
-    
+
     if (this.store.vehicles.has(vehicle.licensePlate)) {
       throw new Error(`Vehicle with license plate ${vehicle.licensePlate} already exists`);
     }
@@ -46,7 +46,7 @@ class VehicleRepository {
    */
   checkIn(licensePlate, spotId, vehicleType = 'standard', rateType = 'hourly') {
     const vehicle = Vehicle.checkIn(licensePlate, spotId, vehicleType, rateType);
-    
+
     if (this.store.vehicles.has(vehicle.licensePlate)) {
       throw new Error(`Vehicle ${vehicle.licensePlate} is already parked`);
     }
@@ -87,7 +87,7 @@ class VehicleRepository {
    * @returns {Vehicle|null} Current vehicle or null
    */
   findCurrentInSpot(spotId) {
-    return this.findAll().find(vehicle => 
+    return this.findAll().find(vehicle =>
       vehicle.spotId === spotId && !vehicle.isCheckedOut()
     ) || null;
   }
@@ -172,7 +172,7 @@ class VehicleRepository {
     // Prevent updating immutable fields
     const immutableFields = ['licensePlate', 'checkInTime', 'createdAt'];
     const invalidFields = Object.keys(updates).filter(field => immutableFields.includes(field));
-    
+
     if (invalidFields.length > 0) {
       throw new Error(`Cannot update immutable fields: ${invalidFields.join(', ')}`);
     }
@@ -294,7 +294,7 @@ class VehicleRepository {
     const totalRevenue = vehicles
       .filter(v => v.isPaid)
       .reduce((sum, v) => sum + v.totalAmount, 0);
-    
+
     const pendingRevenue = vehicles
       .filter(v => v.isCheckedOut() && !v.isPaid)
       .reduce((sum, v) => sum + v.totalAmount, 0);
@@ -305,8 +305,8 @@ class VehicleRepository {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       pendingRevenue: Math.round(pendingRevenue * 100) / 100,
       completedSessions,
-      averageRevenue: completedSessions > 0 
-        ? Math.round((totalRevenue / completedSessions) * 100) / 100 
+      averageRevenue: completedSessions > 0
+        ? Math.round((totalRevenue / completedSessions) * 100) / 100
         : 0
     };
   }

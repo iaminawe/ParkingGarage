@@ -1,9 +1,9 @@
 /**
  * Pagination utilities for API responses
- * 
+ *
  * This module provides utility functions for implementing pagination
  * in API responses, including offset/limit calculations and metadata.
- * 
+ *
  * @module PaginationUtils
  */
 
@@ -18,21 +18,21 @@
 function calculatePagination(query, totalCount) {
   // Parse and validate limit
   let limit = parseInt(query.limit) || 20;
-  if (limit < 1) limit = 20;
-  if (limit > 100) limit = 100;
-  
+  if (limit < 1) {limit = 20;}
+  if (limit > 100) {limit = 100;}
+
   // Parse and validate offset
   let offset = parseInt(query.offset) || 0;
-  if (offset < 0) offset = 0;
-  if (offset >= totalCount && totalCount > 0) offset = 0;
-  
+  if (offset < 0) {offset = 0;}
+  if (offset >= totalCount && totalCount > 0) {offset = 0;}
+
   // Calculate pagination metadata
   const hasMore = offset + limit < totalCount;
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(totalCount / limit);
   const nextOffset = hasMore ? offset + limit : null;
   const prevOffset = offset > 0 ? Math.max(0, offset - limit) : null;
-  
+
   return {
     limit,
     offset,
@@ -93,7 +93,7 @@ function createPaginatedResponse(items, pagination, metadata = {}) {
  */
 function createPaginationLinks(baseUrl, pagination, queryParams = {}) {
   const { limit, offset, hasMore, totalPages, nextOffset, prevOffset } = pagination;
-  
+
   // Create query string helper
   const createQuery = (offsetValue) => {
     const params = new URLSearchParams({
@@ -103,26 +103,26 @@ function createPaginationLinks(baseUrl, pagination, queryParams = {}) {
     });
     return params.toString();
   };
-  
+
   const links = {
     self: `${baseUrl}?${createQuery(offset)}`
   };
-  
+
   // Add navigation links if applicable
   if (nextOffset !== null) {
     links.next = `${baseUrl}?${createQuery(nextOffset)}`;
   }
-  
+
   if (prevOffset !== null) {
     links.prev = `${baseUrl}?${createQuery(prevOffset)}`;
   }
-  
+
   // Add first and last page links
   if (totalPages > 1) {
     links.first = `${baseUrl}?${createQuery(0)}`;
     links.last = `${baseUrl}?${createQuery((totalPages - 1) * limit)}`;
   }
-  
+
   return links;
 }
 
@@ -134,13 +134,13 @@ function createPaginationLinks(baseUrl, pagination, queryParams = {}) {
  */
 function parseFilters(query, allowedFilters = []) {
   const filters = {};
-  
+
   allowedFilters.forEach(filterName => {
     if (query[filterName] !== undefined && query[filterName] !== '') {
       filters[filterName] = query[filterName];
     }
   });
-  
+
   return filters;
 }
 
@@ -153,7 +153,7 @@ function parseFilters(query, allowedFilters = []) {
  */
 function createFilterMetadata(allItems, filteredItems, filters = {}) {
   const hasFilters = Object.keys(filters).length > 0;
-  
+
   return {
     totalAvailable: allItems.length,
     totalFiltered: filteredItems.length,
@@ -169,7 +169,7 @@ function createFilterMetadata(allItems, filteredItems, filters = {}) {
  */
 function validatePaginationParams(query) {
   const errors = [];
-  
+
   if (query.limit !== undefined) {
     const limit = parseInt(query.limit);
     if (isNaN(limit)) {
@@ -180,7 +180,7 @@ function validatePaginationParams(query) {
       errors.push('Limit cannot exceed 100');
     }
   }
-  
+
   if (query.offset !== undefined) {
     const offset = parseInt(query.offset);
     if (isNaN(offset)) {
@@ -189,7 +189,7 @@ function validatePaginationParams(query) {
       errors.push('Offset cannot be negative');
     }
   }
-  
+
   if (errors.length > 0) {
     const error = new Error(`Invalid pagination parameters: ${errors.join(', ')}`);
     error.status = 400;

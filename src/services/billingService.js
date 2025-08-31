@@ -1,10 +1,10 @@
 /**
  * Billing Service
- * 
+ *
  * This module handles fee calculations for parking sessions including
  * base rates, spot-type specific rates, EV charging premiums,
  * rate type multipliers, and promotional discounts.
- * 
+ *
  * @module BillingService
  */
 
@@ -125,8 +125,8 @@ class BillingService {
 
     // Apply rate type adjustments
     const { adjustedAmount, discount } = this.applyRateTypeAdjustment(
-      subtotal, 
-      billableHours, 
+      subtotal,
+      billableHours,
       rateType
     );
 
@@ -366,9 +366,9 @@ class BillingService {
       }
     });
 
-    summary.averageCost = vehicles.length > 0 ? 
+    summary.averageCost = vehicles.length > 0 ?
       Math.round((summary.totalRevenue / vehicles.length) * 100) / 100 : 0;
-    
+
     summary.totalRevenue = Math.round(summary.totalRevenue * 100) / 100;
 
     return summary;

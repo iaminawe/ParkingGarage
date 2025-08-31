@@ -1,10 +1,10 @@
 /**
  * Data validation utilities for the parking garage system
- * 
+ *
  * This module provides validation functions for all data models including
  * spots, vehicles, and garage configuration. It ensures data integrity
  * and provides meaningful error messages for invalid data.
- * 
+ *
  * @module Validators
  */
 
@@ -197,8 +197,8 @@ function validateGarageConfig(garageConfig) {
  * @returns {boolean} True if valid format, false otherwise
  */
 function isValidSpotId(spotId) {
-  if (typeof spotId !== 'string') return false;
-  
+  if (typeof spotId !== 'string') {return false;}
+
   const spotIdRegex = /^F(\d+)-B(\d+)-S(\d{3})$/;
   return spotIdRegex.test(spotId);
 }
@@ -206,7 +206,7 @@ function isValidSpotId(spotId) {
 /**
  * Generate a spot ID from floor, bay, and spot number
  * @param {number} floor - Floor number
- * @param {number} bay - Bay number  
+ * @param {number} bay - Bay number
  * @param {number} spotNumber - Spot number
  * @returns {string} Generated spot ID in format F{floor}-B{bay}-S{spot}
  */
@@ -231,7 +231,7 @@ function generateSpotId(floor, bay, spotNumber) {
  * @returns {boolean} True if valid, false otherwise
  */
 function isValidLicensePlate(licensePlate) {
-  if (typeof licensePlate !== 'string') return false;
+  if (typeof licensePlate !== 'string') {return false;}
   return licensePlate.length >= 2 && licensePlate.length <= 10;
 }
 

@@ -1,10 +1,10 @@
 /**
  * Garage validation middleware
- * 
+ *
  * This module provides validation middleware for garage management endpoints.
  * It validates input data for garage initialization, configuration updates,
  * and rate changes to ensure data integrity before processing.
- * 
+ *
  * @module GarageValidation
  */
 

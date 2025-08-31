@@ -1,10 +1,10 @@
 /**
  * Garage model definition for garage configuration
- * 
+ *
  * This module defines the Garage class which represents the overall
  * garage configuration including floors, rates, and spot types.
  * It provides methods for managing garage-wide settings.
- * 
+ *
  * @module Garage
  */
 
@@ -111,12 +111,12 @@ class Garage {
    */
   getHourlyRate(spotType, features = []) {
     let baseRate = this.rates[spotType] || this.rates.standard;
-    
+
     // Add premium for special features
     if (features.includes('ev_charging')) {
       baseRate = Math.max(baseRate, this.rates.ev_charging);
     }
-    
+
     return baseRate;
   }
 
@@ -130,11 +130,11 @@ class Garage {
     if (!this.rates.hasOwnProperty(spotType)) {
       throw new Error(`Invalid spot type: ${spotType}`);
     }
-    
+
     if (typeof newRate !== 'number' || newRate < 0) {
       throw new Error('Rate must be a non-negative number');
     }
-    
+
     this.rates[spotType] = newRate;
     this.updatedAt = new Date().toISOString();
   }
@@ -150,19 +150,19 @@ class Garage {
     if (this.getFloor(floorNumber)) {
       throw new Error(`Floor ${floorNumber} already exists`);
     }
-    
+
     if (typeof floorNumber !== 'number' || floorNumber < 1) {
       throw new Error('Floor number must be a positive number');
     }
-    
+
     if (typeof bays !== 'number' || bays < 1) {
       throw new Error('Number of bays must be a positive number');
     }
-    
+
     if (typeof spotsPerBay !== 'number' || spotsPerBay < 1) {
       throw new Error('Spots per bay must be a positive number');
     }
-    
+
     this.floors.push({ number: floorNumber, bays, spotsPerBay });
     this.floors.sort((a, b) => a.number - b.number);
     this.updatedAt = new Date().toISOString();
@@ -175,15 +175,15 @@ class Garage {
    */
   removeFloor(floorNumber) {
     const index = this.floors.findIndex(floor => floor.number === floorNumber);
-    
+
     if (index === -1) {
       throw new Error(`Floor ${floorNumber} does not exist`);
     }
-    
+
     if (this.floors.length === 1) {
       throw new Error('Cannot remove the last floor');
     }
-    
+
     this.floors.splice(index, 1);
     this.updatedAt = new Date().toISOString();
   }
@@ -255,8 +255,8 @@ class Garage {
    */
   static fromObject(obj) {
     const garage = new Garage(obj);
-    if (obj.createdAt) garage.createdAt = obj.createdAt;
-    if (obj.updatedAt) garage.updatedAt = obj.updatedAt;
+    if (obj.createdAt) {garage.createdAt = obj.createdAt;}
+    if (obj.updatedAt) {garage.updatedAt = obj.updatedAt;}
     return garage;
   }
 }

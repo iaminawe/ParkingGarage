@@ -1,10 +1,10 @@
 /**
  * Check-in validation middleware
- * 
+ *
  * This module provides Express middleware functions for validating
  * vehicle check-in requests, including license plate format,
  * vehicle type validation, and request body sanitization.
- * 
+ *
  * @module CheckinValidation
  */
 

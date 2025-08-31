@@ -1,10 +1,10 @@
 /**
  * Spot repository for data access operations
- * 
+ *
  * This module provides data access methods for parking spots using
  * the repository pattern. It abstracts the underlying storage mechanism
  * and provides a clean interface for CRUD operations.
- * 
+ *
  * @module SpotRepository
  */
 
@@ -28,20 +28,20 @@ class SpotRepository {
    */
   create(spotData) {
     const spot = new Spot(spotData);
-    
+
     if (this.store.spots.has(spot.id)) {
       throw new Error(`Spot with ID ${spot.id} already exists`);
     }
 
     this.store.spots.set(spot.id, spot);
-    
+
     // Update floor/bay index
     const floorBayKey = `F${spot.floor}-B${spot.bay}`;
     if (!this.store.spotsByFloorBay.has(floorBayKey)) {
       this.store.spotsByFloorBay.set(floorBayKey, new Set());
     }
     this.store.spotsByFloorBay.get(floorBayKey).add(spot.id);
-    
+
     return spot;
   }
 
@@ -128,11 +128,11 @@ class SpotRepository {
   findByFloorAndBay(floor, bay) {
     const floorBayKey = `F${floor}-B${bay}`;
     const spotIds = this.store.spotsByFloorBay.get(floorBayKey);
-    
+
     if (!spotIds) {
       return [];
     }
-    
+
     return Array.from(spotIds)
       .map(spotId => this.store.spots.get(spotId))
       .filter(spot => spot !== undefined);
@@ -172,7 +172,7 @@ class SpotRepository {
     // Prevent updating immutable fields
     const immutableFields = ['id', 'floor', 'bay', 'spotNumber', 'createdAt'];
     const invalidFields = Object.keys(updates).filter(field => immutableFields.includes(field));
-    
+
     if (invalidFields.length > 0) {
       throw new Error(`Cannot update immutable fields: ${invalidFields.join(', ')}`);
     }
@@ -187,14 +187,14 @@ class SpotRepository {
     });
 
     spot.updatedAt = new Date().toISOString();
-    
+
     // Update occupied spots tracking
     if (updates.status === 'occupied' && !this.store.occupiedSpots.has(spotId)) {
       this.store.occupiedSpots.add(spotId);
     } else if (updates.status === 'available' && this.store.occupiedSpots.has(spotId)) {
       this.store.occupiedSpots.delete(spotId);
     }
-    
+
     return spot;
   }
 
@@ -251,7 +251,7 @@ class SpotRepository {
 
     // Remove from main storage
     this.store.spots.delete(spotId);
-    
+
     // Remove from floor/bay index
     const floorBayKey = `F${spot.floor}-B${spot.bay}`;
     const spotSet = this.store.spotsByFloorBay.get(floorBayKey);
@@ -261,10 +261,10 @@ class SpotRepository {
         this.store.spotsByFloorBay.delete(floorBayKey);
       }
     }
-    
+
     // Remove from occupied spots
     this.store.occupiedSpots.delete(spotId);
-    
+
     return true;
   }
 
@@ -322,14 +322,14 @@ class SpotRepository {
    */
   createFloorSpots(floor, bays, spotsPerBay, defaultType = 'standard') {
     const createdSpots = [];
-    
+
     for (let bay = 1; bay <= bays; bay++) {
       for (let spotNumber = 1; spotNumber <= spotsPerBay; spotNumber++) {
         const spot = this.createSpot(floor, bay, spotNumber, defaultType);
         createdSpots.push(spot);
       }
     }
-    
+
     return createdSpots;
   }
 

@@ -1,10 +1,10 @@
 /**
  * In-memory storage singleton using JavaScript Maps for O(1) lookups
- * 
+ *
  * This module provides a centralized in-memory data store for the parking garage
  * application. It uses the singleton pattern to ensure a single instance across
  * the entire application and provides high-performance O(1) lookups using Map objects.
- * 
+ *
  * @module MemoryStore
  */
 

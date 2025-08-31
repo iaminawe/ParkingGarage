@@ -1,10 +1,10 @@
 /**
  * Time calculation utilities for parking duration
- * 
+ *
  * This module provides utility functions for calculating parking duration,
  * converting between time units, and handling billing-related time calculations
  * including rounding up to nearest hour for billing purposes.
- * 
+ *
  * @module TimeCalculator
  */
 
@@ -68,7 +68,7 @@ function calculateBillableHours(totalMinutes, minimumHours = 1) {
 
   const totalHours = totalMinutes / 60;
   const roundedHours = Math.ceil(totalHours);
-  
+
   return Math.max(minimumHours, roundedHours);
 }
 
@@ -113,15 +113,15 @@ function hoursToMinutes(hours) {
  */
 function formatDuration(totalMinutes) {
   const { hours, minutes } = minutesToHoursAndMinutes(totalMinutes);
-  
+
   if (hours === 0) {
     return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
   }
-  
+
   if (minutes === 0) {
     return `${hours} hour${hours !== 1 ? 's' : ''}`;
   }
-  
+
   return `${hours} hour${hours !== 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}`;
 }
 
@@ -146,7 +146,7 @@ function applyGracePeriod(totalMinutes, gracePeriodMinutes = 5, minimumHours = 1
   if (isWithinGracePeriod(totalMinutes, gracePeriodMinutes)) {
     return 0; // Free within grace period
   }
-  
+
   return calculateBillableHours(totalMinutes, minimumHours);
 }
 
@@ -167,7 +167,7 @@ function isValidTimestamp(timestamp) {
   if (!timestamp || typeof timestamp !== 'string') {
     return false;
   }
-  
+
   const date = new Date(timestamp);
   return !isNaN(date.getTime());
 }
@@ -190,7 +190,7 @@ function getCurrentParkingDuration(checkInTime) {
 function calculateEstimatedCost(checkInTime, hourlyRate = 5.00) {
   const duration = getCurrentParkingDuration(checkInTime);
   const estimatedCost = duration.billableHours * hourlyRate;
-  
+
   return {
     duration,
     estimatedCost: Math.round(estimatedCost * 100) / 100,

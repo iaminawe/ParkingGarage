@@ -1,10 +1,10 @@
 /**
  * Spot model definition for the parking garage system
- * 
+ *
  * This module defines the Spot class which represents a parking spot
  * in the garage. Each spot has a unique ID, location information,
  * type, status, and optional features.
- * 
+ *
  * @module Spot
  */
 
@@ -56,7 +56,7 @@ class Spot {
    */
   static createSpot(floor, bay, spotNumber, type = 'standard', features = []) {
     const id = generateSpotId(floor, bay, spotNumber);
-    
+
     return new Spot({
       id,
       floor,
@@ -130,7 +130,7 @@ class Spot {
    */
   addFeature(feature) {
     const validFeatures = ['ev_charging', 'handicap'];
-    
+
     if (!validFeatures.includes(feature)) {
       throw new Error(`Invalid feature: ${feature}. Valid features: ${validFeatures.join(', ')}`);
     }
@@ -150,7 +150,7 @@ class Spot {
    */
   removeFeature(feature) {
     const index = this.features.indexOf(feature);
-    
+
     if (index === -1) {
       throw new Error(`Spot ${this.id} does not have feature: ${feature}`);
     }
@@ -193,8 +193,8 @@ class Spot {
    */
   static fromObject(obj) {
     const spot = new Spot(obj);
-    if (obj.createdAt) spot.createdAt = obj.createdAt;
-    if (obj.updatedAt) spot.updatedAt = obj.updatedAt;
+    if (obj.createdAt) {spot.createdAt = obj.createdAt;}
+    if (obj.updatedAt) {spot.updatedAt = obj.updatedAt;}
     return spot;
   }
 }
