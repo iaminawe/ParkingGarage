@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "declaration": false,
+    "declarationMap": false,
+    "removeComments": true,
+    "noEmitOnError": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo-dev",
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*",
+    "tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+  "ts-node": {
+    "files": true,
+    "transpileOnly": true
+  }
+}

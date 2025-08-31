@@ -24,7 +24,9 @@ module.exports = {
   // Test patterns
   testMatch: [
     '**/tests/**/*.test.js',
-    '**/tests/**/*.spec.js'
+    '**/tests/**/*.test.ts',
+    '**/tests/**/*.spec.js',
+    '**/tests/**/*.spec.ts'
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
@@ -34,11 +36,18 @@ module.exports = {
   ],
 
   // Setup files
-  setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.ts'],
 
   // Transform settings
-  // No transform needed for plain Node.js
-  transform: {},
+  transform: {
+    '^.+\\.(ts|js)$': 'babel-jest',
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(.*\\.mjs$))'
+  ],
+
+  // Module file extensions
+  moduleFileExtensions: ['ts', 'js', 'json'],
 
   // Module resolution
   moduleNameMapper: {
