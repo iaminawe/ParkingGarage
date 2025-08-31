@@ -12,7 +12,7 @@ module.exports = {
     '!src/**/*.spec.js'
   ],
   coverageReporters: ['text', 'lcov', 'html'],
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       branches: 80,
       functions: 80,
@@ -37,11 +37,8 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js'],
 
   // Transform settings
-  transform: {
-    '^.+\\.js$': ['babel-jest', {
-      presets: [['@babel/preset-env', { targets: { node: 'current' } }]]
-    }]
-  },
+  // No transform needed for plain Node.js
+  transform: {},
 
   // Module resolution
   moduleNameMapper: {
@@ -70,18 +67,7 @@ module.exports = {
   ],
 
   // Reporters
-  reporters: [
-    'default',
-    ['jest-junit', {
-      outputDirectory: './test-results',
-      outputName: 'junit.xml',
-      ancestorSeparator: ' › ',
-      uniqueOutputName: 'false',
-      suiteNameTemplate: '{filepath}',
-      classNameTemplate: '{classname}',
-      titleTemplate: '{title}'
-    }]
-  ],
+  reporters: ['default'],
 
   // Global settings
   globals: {

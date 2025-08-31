@@ -1,0 +1,1036 @@
+openapi: 3.0.3
+info:
+  title: Parking Garage Management API
+  description: |
+    RESTful API for managing parking garage operations including vehicle check-in/out, 
+    spot management, and garage configuration.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@parkinggarage.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+  - url: http://localhost:3000/api
+    description: Legacy API endpoint
+
+tags:
+  - name: Garage
+    description: Garage configuration and management
+  - name: Spots
+    description: Parking spot operations
+  - name: Check-in
+    description: Vehicle check-in operations
+
+paths:
+  /garage:
+    get:
+      tags:
+        - Garage
+      summary: Get garage configuration
+      description: Retrieve current garage configuration including floors, bays, and spots
+      operationId: getGarageConfig
+      parameters:
+        - name: includeStats
+          in: query
+          description: Include statistics in response
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: includeSpots
+          in: query
+          description: Include spot details in response
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Garage configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GarageConfiguration'
+        '404':
+          description: Garage not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /garage/initialize:
+    post:
+      tags:
+        - Garage
+      summary: Initialize garage
+      description: Initialize a new parking garage with floors and spots
+      operationId: initializeGarage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GarageInitializationRequest'
+      responses:
+        '201':
+          description: Garage initialized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GarageConfiguration'
+        '400':
+          description: Invalid initialization data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Garage already initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /garage/rates:
+    get:
+      tags:
+        - Garage
+      summary: Get current parking rates
+      description: Retrieve current parking rates for all vehicle types
+      operationId: getRates
+      responses:
+        '200':
+          description: Rates retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RatesResponse'
+        '404':
+          description: Garage not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    put:
+      tags:
+        - Garage
+      summary: Update parking rates
+      description: Update parking rates for different vehicle types
+      operationId: updateRates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatesUpdateRequest'
+      responses:
+        '200':
+          description: Rates updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RatesResponse'
+        '400':
+          description: Invalid rate data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Garage not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /garage/statistics:
+    get:
+      tags:
+        - Garage
+      summary: Get garage statistics
+      description: Retrieve detailed statistics about garage usage
+      operationId: getStatistics
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatisticsResponse'
+        '404':
+          description: Garage not initialized
+
+  /garage/status:
+    get:
+      tags:
+        - Garage
+      summary: Get garage status
+      description: Retrieve current operational status of the garage
+      operationId: getStatus
+      responses:
+        '200':
+          description: Status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /garage/capacity:
+    get:
+      tags:
+        - Garage
+      summary: Get capacity information
+      description: Retrieve current capacity and availability
+      operationId: getCapacity
+      responses:
+        '200':
+          description: Capacity information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapacityResponse'
+
+  /garage/reset:
+    delete:
+      tags:
+        - Garage
+      summary: Reset garage (Development only)
+      description: Reset entire garage to initial state. Only available in development mode.
+      operationId: resetGarage
+      responses:
+        '200':
+          description: Garage reset successfully
+        '403':
+          description: Operation not allowed in production
+
+  /spots:
+    get:
+      tags:
+        - Spots
+      summary: List parking spots
+      description: Retrieve list of parking spots with filtering and pagination
+      operationId: listSpots
+      parameters:
+        - name: status
+          in: query
+          description: Filter by spot status
+          required: false
+          schema:
+            type: string
+            enum: [available, occupied]
+        - name: type
+          in: query
+          description: Filter by spot type
+          required: false
+          schema:
+            type: string
+            enum: [compact, standard, oversized]
+        - name: floor
+          in: query
+          description: Filter by floor number
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: bay
+          in: query
+          description: Filter by bay number
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: limit
+          in: query
+          description: Maximum number of spots to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of spots to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: sort
+          in: query
+          description: Sort field
+          required: false
+          schema:
+            type: string
+            enum: [id, floor, bay, type, status, updatedAt]
+            default: id
+        - name: order
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: include
+          in: query
+          description: Additional data to include (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: metadata,features,occupancy
+      responses:
+        '200':
+          description: Spots retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotsListResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /spots/statistics:
+    get:
+      tags:
+        - Spots
+      summary: Get spot statistics
+      description: Retrieve statistics about parking spot usage
+      operationId: getSpotStatistics
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotStatisticsResponse'
+
+  /spots/available:
+    get:
+      tags:
+        - Spots
+      summary: Get available spots
+      description: Retrieve only available parking spots
+      operationId: getAvailableSpots
+      parameters:
+        - name: type
+          in: query
+          description: Filter by spot type
+          required: false
+          schema:
+            type: string
+            enum: [compact, standard, oversized]
+      responses:
+        '200':
+          description: Available spots retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotsListResponse'
+
+  /spots/occupied:
+    get:
+      tags:
+        - Spots
+      summary: Get occupied spots
+      description: Retrieve only occupied parking spots
+      operationId: getOccupiedSpots
+      responses:
+        '200':
+          description: Occupied spots retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotsListResponse'
+
+  /spots/{spotId}:
+    get:
+      tags:
+        - Spots
+      summary: Get spot by ID
+      description: Retrieve details of a specific parking spot
+      operationId: getSpotById
+      parameters:
+        - name: spotId
+          in: path
+          description: Spot ID in format F{floor}-B{bay}-S{spot}
+          required: true
+          schema:
+            type: string
+            pattern: '^F\d+-B\d+-S\d{3}$'
+            example: F1-B2-S003
+      responses:
+        '200':
+          description: Spot details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotDetails'
+        '400':
+          description: Invalid spot ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Spot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    patch:
+      tags:
+        - Spots
+      summary: Update spot
+      description: Update spot status, type, or features
+      operationId: updateSpot
+      parameters:
+        - name: spotId
+          in: path
+          description: Spot ID in format F{floor}-B{bay}-S{spot}
+          required: true
+          schema:
+            type: string
+            pattern: '^F\d+-B\d+-S\d{3}$'
+            example: F1-B2-S003
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpotUpdateRequest'
+      responses:
+        '200':
+          description: Spot updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpotDetails'
+        '400':
+          description: Invalid update data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Spot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /checkin:
+    post:
+      tags:
+        - Check-in
+      summary: Check in vehicle
+      description: Check in a vehicle and assign a parking spot
+      operationId: checkinVehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinRequest'
+      responses:
+        '201':
+          description: Vehicle checked in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinResponse'
+        '400':
+          description: Invalid check-in data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No available spots for vehicle type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Vehicle already checked in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /checkin/simulate:
+    post:
+      tags:
+        - Check-in
+      summary: Simulate check-in
+      description: Simulate a check-in without actually reserving a spot
+      operationId: simulateCheckin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinRequest'
+      responses:
+        '200':
+          description: Simulation completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationResponse'
+        '400':
+          description: Invalid simulation data
+
+  /checkin/availability:
+    get:
+      tags:
+        - Check-in
+      summary: Get general availability
+      description: Get availability information for all vehicle types
+      operationId: getAvailability
+      responses:
+        '200':
+          description: Availability information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+
+  /checkin/availability/{vehicleType}:
+    get:
+      tags:
+        - Check-in
+      summary: Get availability by vehicle type
+      description: Get availability for specific vehicle type
+      operationId: getAvailabilityByType
+      parameters:
+        - name: vehicleType
+          in: path
+          description: Type of vehicle
+          required: true
+          schema:
+            type: string
+            enum: [compact, standard, oversized]
+      responses:
+        '200':
+          description: Availability information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypeAvailabilityResponse'
+        '400':
+          description: Invalid vehicle type
+
+  /checkin/stats:
+    get:
+      tags:
+        - Check-in
+      summary: Get check-in statistics
+      description: Retrieve statistics about check-in operations
+      operationId: getCheckinStats
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinStatsResponse'
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          default: false
+        message:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          items:
+            type: string
+          description: Detailed error messages
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the error
+
+    GarageConfiguration:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          default: true
+        data:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Garage name
+            floors:
+              type: array
+              items:
+                $ref: '#/components/schemas/FloorConfiguration'
+            totalSpots:
+              type: integer
+              description: Total number of spots
+            availableSpots:
+              type: integer
+              description: Number of available spots
+            occupiedSpots:
+              type: integer
+              description: Number of occupied spots
+            statistics:
+              $ref: '#/components/schemas/StatisticsResponse'
+            spots:
+              type: array
+              items:
+                $ref: '#/components/schemas/SpotDetails'
+
+    FloorConfiguration:
+      type: object
+      required:
+        - number
+        - bays
+        - spotsPerBay
+      properties:
+        number:
+          type: integer
+          minimum: 1
+          description: Floor number
+        bays:
+          type: integer
+          minimum: 1
+          maximum: 50
+          description: Number of bays on floor
+        spotsPerBay:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Number of spots per bay
+        totalSpots:
+          type: integer
+          description: Total spots on floor
+
+    GarageInitializationRequest:
+      type: object
+      required:
+        - name
+        - floors
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Garage name
+        floors:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+              - number
+              - bays
+              - spotsPerBay
+            properties:
+              number:
+                type: integer
+                minimum: 1
+                description: Floor number
+              bays:
+                type: integer
+                minimum: 1
+                maximum: 50
+                description: Number of bays
+              spotsPerBay:
+                type: integer
+                minimum: 1
+                maximum: 100
+                description: Spots per bay
+
+    RatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            standard:
+              type: number
+              minimum: 0
+              maximum: 1000
+              description: Standard vehicle rate per hour
+            compact:
+              type: number
+              minimum: 0
+              maximum: 1000
+              description: Compact vehicle rate per hour
+            oversized:
+              type: number
+              minimum: 0
+              maximum: 1000
+              description: Oversized vehicle rate per hour
+            ev_charging:
+              type: number
+              minimum: 0
+              maximum: 1000
+              description: EV charging rate per hour
+
+    RatesUpdateRequest:
+      type: object
+      properties:
+        standard:
+          type: number
+          minimum: 0
+          maximum: 1000
+        compact:
+          type: number
+          minimum: 0
+          maximum: 1000
+        oversized:
+          type: number
+          minimum: 0
+          maximum: 1000
+        ev_charging:
+          type: number
+          minimum: 0
+          maximum: 1000
+
+    StatisticsResponse:
+      type: object
+      properties:
+        totalSpots:
+          type: integer
+        occupancyRate:
+          type: number
+          format: float
+        availableByType:
+          type: object
+          properties:
+            compact:
+              type: integer
+            standard:
+              type: integer
+            oversized:
+              type: integer
+        occupiedByType:
+          type: object
+          properties:
+            compact:
+              type: integer
+            standard:
+              type: integer
+            oversized:
+              type: integer
+        revenueToday:
+          type: number
+          format: float
+        checkinsToday:
+          type: integer
+
+    StatusResponse:
+      type: object
+      properties:
+        operational:
+          type: boolean
+        maintenanceMode:
+          type: boolean
+        lastUpdated:
+          type: string
+          format: date-time
+
+    CapacityResponse:
+      type: object
+      properties:
+        totalCapacity:
+          type: integer
+        currentOccupancy:
+          type: integer
+        availableCapacity:
+          type: integer
+        percentageFull:
+          type: number
+          format: float
+
+    SpotsListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpotDetails'
+        metadata:
+          type: object
+          properties:
+            total:
+              type: integer
+            limit:
+              type: integer
+            offset:
+              type: integer
+            hasMore:
+              type: boolean
+
+    SpotDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^F\d+-B\d+-S\d{3}$'
+          example: F1-B2-S003
+        floor:
+          type: integer
+        bay:
+          type: integer
+        number:
+          type: integer
+        type:
+          type: string
+          enum: [compact, standard, oversized]
+        status:
+          type: string
+          enum: [available, occupied]
+        features:
+          type: array
+          items:
+            type: string
+            enum: [ev_charging, handicap]
+        occupancy:
+          type: object
+          properties:
+            vehicleId:
+              type: string
+            licensePlate:
+              type: string
+            checkinTime:
+              type: string
+              format: date-time
+            duration:
+              type: string
+        updatedAt:
+          type: string
+          format: date-time
+
+    SpotUpdateRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [available, occupied]
+        type:
+          type: string
+          enum: [compact, standard, oversized]
+        features:
+          type: array
+          items:
+            type: string
+            enum: [ev_charging, handicap]
+
+    SpotStatisticsResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        byStatus:
+          type: object
+          properties:
+            available:
+              type: integer
+            occupied:
+              type: integer
+        byType:
+          type: object
+          properties:
+            compact:
+              type: integer
+            standard:
+              type: integer
+            oversized:
+              type: integer
+        byFloor:
+          type: array
+          items:
+            type: object
+            properties:
+              floor:
+                type: integer
+              available:
+                type: integer
+              occupied:
+                type: integer
+
+    CheckinRequest:
+      type: object
+      required:
+        - licensePlate
+        - vehicleType
+      properties:
+        licensePlate:
+          type: string
+          minLength: 2
+          maxLength: 10
+          description: Vehicle license plate
+        vehicleType:
+          type: string
+          enum: [compact, standard, oversized]
+          description: Type of vehicle
+        rateType:
+          type: string
+          enum: [hourly, daily, monthly]
+          description: Rate type (optional)
+
+    CheckinResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            ticketId:
+              type: string
+              description: Unique ticket identifier
+            spotId:
+              type: string
+              description: Assigned spot ID
+            licensePlate:
+              type: string
+            vehicleType:
+              type: string
+            checkinTime:
+              type: string
+              format: date-time
+            rate:
+              type: number
+              description: Hourly rate
+            location:
+              type: object
+              properties:
+                floor:
+                  type: integer
+                bay:
+                  type: integer
+                spot:
+                  type: integer
+
+    SimulationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            availableSpots:
+              type: integer
+            estimatedSpotId:
+              type: string
+            rate:
+              type: number
+            message:
+              type: string
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            totalAvailable:
+              type: integer
+            byType:
+              type: object
+              properties:
+                compact:
+                  type: integer
+                standard:
+                  type: integer
+                oversized:
+                  type: integer
+
+    TypeAvailabilityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            vehicleType:
+              type: string
+            available:
+              type: integer
+            total:
+              type: integer
+            locations:
+              type: array
+              items:
+                type: object
+                properties:
+                  spotId:
+                    type: string
+                  floor:
+                    type: integer
+                  bay:
+                    type: integer
+
+    CheckinStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            todayCheckins:
+              type: integer
+            activeCheckins:
+              type: integer
+            averageDuration:
+              type: number
+            peakHour:
+              type: string
+            revenueToday:
+              type: number
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (not yet implemented)
+
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication (not yet implemented)

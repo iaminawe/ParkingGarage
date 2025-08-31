@@ -38,23 +38,5 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "coverageDirectory": "coverage",
-    "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/server.js"
-    ],
-    "testMatch": [
-      "**/tests/**/*.test.js"
-    ],
-    "setupFilesAfterEnv": [
-      "./tests/helpers/setup.js"
-    ],
-    "verbose": true,
-    "clearMocks": true,
-    "resetMocks": true,
-    "restoreMocks": true
   }
 }

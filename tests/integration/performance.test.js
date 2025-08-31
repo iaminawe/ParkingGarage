@@ -15,7 +15,7 @@ describe('Performance and Load Tests', () => {
       const startTime = Date.now();
       const vehiclesPerHour = 100;
       const testDuration = 5000; // 5 seconds test
-      const vehiclesToProcess = Math.floor(vehiclesPerHour * (testDuration / 3600000));
+      const vehiclesToProcess = Math.max(10, Math.floor(vehiclesPerHour * (testDuration / 3600000))); // At least 10 vehicles
 
       const checkIns = [];
       const checkOuts = [];
