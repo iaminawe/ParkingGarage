@@ -24,7 +24,8 @@ A **production-ready** RESTful API for managing parking garage operations, track
 ### **Production Documentation**
 - **[Production Deployment Guide](./docs/PRODUCTION_DEPLOYMENT.md)** - Complete deployment instructions
 - **[Test Results Summary](./docs/TEST_RESULTS_SUMMARY.md)** - Comprehensive test validation report
-- **[Interactive API Documentation](http://localhost:3000/api-docs)** - Swagger UI (when running)
+- **[Enhanced API Interface](http://127.0.0.1:9000/api-test.html)** - 🆕 Modern interactive documentation with dark mode
+- **[Interactive API Documentation](http://localhost:3000/api-docs)** - Standard Swagger UI (when running)
 - **[OpenAPI Specification](http://localhost:3000/api-docs/swagger.json)** - Machine-readable API spec
 
 ### **Additional Resources**
@@ -104,6 +105,51 @@ Based on the initial brief requirements, the following features are fully implem
    ```
 
 The API will be available at `http://localhost:3000`
+
+## 🎨 Enhanced API Interface
+
+We've created a **modern, interactive API documentation interface** that goes beyond standard Swagger UI:
+
+### 🌟 Features
+- **🌙 Dark/Light Mode Toggle** - Switch themes with one click
+- **📱 Mobile-Responsive Design** - Works perfectly on all devices
+- **⚡ Real-Time Connection Status** - Live server monitoring with response times
+- **🎯 Environment Switching** - Easy switch between Dev/Staging/Production
+- **💬 Toast Notifications** - Instant feedback for all actions
+- **⌨️ Keyboard Shortcuts** - `Ctrl+T` (theme), `Ctrl+K` (connection test)
+- **🚨 Enhanced Error Handling** - Smart error categorization with troubleshooting guides
+- **📊 Performance Metrics** - Response time visualization (fast/slow indicators)
+
+### 🚀 Access the Enhanced Interface
+
+1. **Start the API server** (if not already running):
+   ```bash
+   npm start
+   ```
+
+2. **Start the documentation server** (in a new terminal):
+   ```bash
+   cd docs
+   python3 -m http.server 9000
+   ```
+
+3. **Open the enhanced interface**:
+   ```
+   http://127.0.0.1:9000/api-test.html
+   ```
+
+### 🎯 Quick Demo
+
+The enhanced interface automatically connects to your API server and provides:
+- **Interactive Documentation** powered by Stoplight Elements
+- **Try It Out** functionality with enhanced error handling
+- **Environment presets** for different deployment stages
+- **Auto-save settings** with localStorage persistence
+
+### ⚡ Keyboard Shortcuts
+- `Ctrl/Cmd + T` - Toggle dark/light mode
+- `Ctrl/Cmd + K` - Test API connection
+- `Escape` - Close error dialogs
 
 ## 🔌 API Endpoints (Currently Working)
 
