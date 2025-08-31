@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
+const { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } = require('./docs/swagger');
 
 const app = express();
 
@@ -26,7 +27,11 @@ app.use(limiter);
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      'http://localhost:3000',
+      'http://127.0.0.1:9000',
+      'http://localhost:9000'
+    ],
     credentials: true
   })
 );
@@ -41,6 +46,14 @@ app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
+
+// API Documentation (Swagger UI)
+const swagger = createSwaggerMiddleware();
+app.use('/api-docs', ...swagger.serve, swagger.setup);
+
+// OpenAPI Specification endpoints
+app.get('/api-docs/swagger.json', getOpenApiSpec);
+app.get('/api-docs/openapi.yaml', downloadOpenApiSpec);
 
 // Routes
 app.use('/api', routes);
