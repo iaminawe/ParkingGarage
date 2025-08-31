@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Garage API - Interactive Documentation</title>
+    
+    <!-- Stoplight Elements CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements@8/styles.min.css">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-color, #f8fafc);
+            color: var(--text-color, #1a202c);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* CSS Custom Properties for theming */
+        :root {
+            --bg-color: #f8fafc;
+            --text-color: #1a202c;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --primary-color: #667eea;
+            --primary-hover: #5a67d8;
+            --success-color: #48bb78;
+            --error-color: #f56565;
+            --warning-color: #ed8936;
+            --info-color: #4299e1;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Dark mode theme */
+        [data-theme='dark'] {
+            --bg-color: #1a202c;
+            --text-color: #f7fafc;
+            --card-bg: #2d3748;
+            --border-color: #4a5568;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23ffffff" opacity="0.03"/><circle cx="75" cy="75" r="1" fill="%23ffffff" opacity="0.03"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+            pointer-events: none;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: clamp(24px, 4vw, 32px);
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header p {
+            margin: 6px 0 0 0;
+            opacity: 0.9;
+            font-size: 15px;
+            font-weight: 400;
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .controls {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .controls:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        .controls h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: var(--text-color);
+        }
+
+        .server-config {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .server-config {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            
+            .server-config > div {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+        }
+        
+        .server-config label {
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .server-config input {
+            padding: 10px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            width: 280px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .server-config input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .server-config input {
+                width: 100%;
+            }
+        }
+        
+        .server-config button {
+            padding: 10px 24px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .server-config button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .server-config button:active {
+            transform: translateY(0);
+        }
+
+        .server-config button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .server-config select {
+            padding: 10px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .server-config select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Loading States and Status Indicators */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-indicator.online {
+            background: rgba(72, 187, 120, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(72, 187, 120, 0.3);
+        }
+
+        .status-indicator.offline {
+            background: rgba(245, 101, 101, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(245, 101, 101, 0.3);
+        }
+
+        .status-indicator.loading {
+            background: rgba(66, 153, 225, 0.1);
+            color: var(--info-color);
+            border: 1px solid rgba(66, 153, 225, 0.3);
+        }
+
+        .status-indicator::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .status-indicator.loading::before {
+            animation: pulse 2s infinite;
+        }
+
+        /* Response Time Indicator */
+        .response-time {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+
+        .response-time.fast {
+            color: var(--success-color);
+        }
+
+        .response-time.slow {
+            color: var(--warning-color);
+        }
+
+        .response-time.very-slow {
+            color: var(--error-color);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--error-color);
+        }
+
+        .toast.warning {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--info-color);
+        }
+
+        .toast-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            opacity: 0.7;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+            background: var(--border-color);
+        }
+
+        .environment-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .environment-indicator.development {
+            background: rgba(66, 153, 225, 0.1);
+            color: var(--info-color);
+            border: 1px solid rgba(66, 153, 225, 0.3);
+        }
+
+        .environment-indicator.staging {
+            background: rgba(237, 137, 54, 0.1);
+            color: var(--warning-color);
+            border: 1px solid rgba(237, 137, 54, 0.3);
+        }
+
+        .environment-indicator.production {
+            background: rgba(245, 101, 101, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(245, 101, 101, 0.3);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <div>
+                    <h1>🚗 Parking Garage Management API</h1>
+                    <p>Interactive API Documentation & Testing Interface powered by Stoplight Elements</p>
+                </div>
+                <div>
+                    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+                        🌙 Dark Mode
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Server Configuration -->
+        <div class="controls">
+            <h2>Server Configuration</h2>
+            <div class="server-config">
+                <label for="environmentSelect">Environment:</label>
+                <select id="environmentSelect" onchange="switchEnvironment()">
+                    <option value="development">Development</option>
+                    <option value="staging">Staging</option>
+                    <option value="production">Production</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <span id="environmentIndicator" class="environment-indicator development">Dev</span>
+                
+                <label for="apiServer" style="margin-left: 20px;">API Server:</label>
+                <input type="text" id="apiServer" value="http://localhost:3000" placeholder="http://localhost:3000">
+                <button onclick="updateServer()" id="updateServerBtn">Update Server</button>
+                <span id="connectionStatus" class="status-indicator offline">Disconnected</span>
+                <span id="responseTime" class="response-time" style="display: none;"></span>
+            </div>
+        </div>
+
+        <!-- API Documentation -->
+        <div class="controls">
+            <h2>API Documentation</h2>
+            <div id="api-documentation"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Stoplight Elements JavaScript -->
+    <script src="https://unpkg.com/@stoplight/elements@8/web-components.min.js"></script>
+
+    <script>
+        // Global API server variable and environment configuration
+        let apiServer = 'http://localhost:3000';
+        let currentEnvironment = 'development';
+        
+        // Environment presets
+        const environmentPresets = {
+            development: {
+                url: 'http://localhost:3000',
+                name: 'Development',
+                indicator: 'Dev',
+                description: 'Local development server'
+            },
+            staging: {
+                url: 'https://staging-api.parkinggarage.com',
+                name: 'Staging',
+                indicator: 'Staging',
+                description: 'Staging environment for testing'
+            },
+            production: {
+                url: 'https://api.parkinggarage.com',
+                name: 'Production',
+                indicator: 'Prod',
+                description: 'Production environment'
+            },
+            custom: {
+                url: apiServer,
+                name: 'Custom',
+                indicator: 'Custom',
+                description: 'Custom server URL'
+            }
+        };
+        
+        // UI State Management
+        let currentTheme = localStorage.getItem('theme') || 'light';
+        let connectionStatus = 'offline';
+        let lastResponseTime = 0;
+
+        // Theme Management
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            localStorage.setItem('theme', currentTheme);
+            
+            const toggle = document.getElementById('themeToggle');
+            toggle.textContent = currentTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+            
+            showToast(`Switched to ${currentTheme} mode`, 'success');
+        }
+
+        function initializeTheme() {
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            const toggle = document.getElementById('themeToggle');
+            toggle.textContent = currentTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '✓',
+                error: '✗', 
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-message">${message}</div>
+                <button class="toast-close" onclick="removeToast(this)">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto-remove after duration
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    removeToast(toast.querySelector('.toast-close'));
+                }
+            }, duration);
+        }
+
+        function removeToast(button) {
+            const toast = button.closest('.toast');
+            toast.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }
+
+        // Status Indicators
+        function updateConnectionStatus(status, responseTime = null) {
+            const indicator = document.getElementById('connectionStatus');
+            const timeElement = document.getElementById('responseTime');
+            
+            connectionStatus = status;
+            lastResponseTime = responseTime;
+            
+            indicator.className = `status-indicator ${status}`;
+            indicator.textContent = {
+                'online': 'Connected',
+                'offline': 'Disconnected', 
+                'loading': 'Connecting...'
+            }[status] || 'Unknown';
+            
+            if (responseTime && status === 'online') {
+                timeElement.style.display = 'inline-flex';
+                const timeClass = responseTime < 200 ? 'fast' : responseTime < 1000 ? 'slow' : 'very-slow';
+                timeElement.className = `response-time ${timeClass}`;
+                timeElement.textContent = `${responseTime}ms`;
+            } else {
+                timeElement.style.display = 'none';
+            }
+        }
+
+        function showLoading(button) {
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.innerHTML = '<span class="loading-spinner"></span>' + originalText;
+            return () => {
+                button.disabled = false;
+                button.textContent = originalText;
+            };
+        }
+
+        // Enhanced API Connection Test
+        async function testConnection() {
+            updateConnectionStatus('loading');
+            
+            try {
+                const start = performance.now();
+                const response = await fetch(`${apiServer}/health`);
+                const end = performance.now();
+                const responseTime = Math.round(end - start);
+                
+                if (response.ok) {
+                    updateConnectionStatus('online', responseTime);
+                    showToast(`Connected to ${apiServer}`, 'success', 2000);
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                updateConnectionStatus('offline');
+                console.log('Connection test failed:', error.message);
+            }
+        }
+
+        // Enhanced updateServer function with loading state
+        async function updateServer() {
+            const button = document.getElementById('updateServerBtn');
+            const hideLoading = showLoading(button);
+            
+            try {
+                const newServer = document.getElementById('apiServer').value.trim();
+                if (!newServer) {
+                    showToast('Please enter a server URL', 'warning');
+                    return;
+                }
+                
+                apiServer = newServer;
+                showToast('Server updated, testing connection...', 'info', 2000);
+                
+                await testConnection();
+                
+                // Update Elements with new server
+                initializeElements();
+                
+                showToast('Server updated successfully!', 'success');
+            } catch (error) {
+                showToast('Failed to update server', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Environment switching
+        function switchEnvironment() {
+            const select = document.getElementById('environmentSelect');
+            const indicator = document.getElementById('environmentIndicator');
+            const serverInput = document.getElementById('apiServer');
+            
+            currentEnvironment = select.value;
+            const env = environmentPresets[currentEnvironment];
+            
+            if (currentEnvironment !== 'custom') {
+                serverInput.value = env.url;
+                apiServer = env.url;
+            }
+            
+            indicator.textContent = env.indicator;
+            indicator.className = `environment-indicator ${currentEnvironment}`;
+            
+            showToast(`Switched to ${env.name} environment`, 'info');
+        }
+
+        // Keyboard Shortcuts
+        function initializeKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + K for connection test
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    testConnection();
+                }
+                
+                // Ctrl/Cmd + T for theme toggle
+                if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+                    e.preventDefault();
+                    toggleTheme();
+                }
+            });
+        }
+
+        // Initialize Stoplight Elements
+        function initializeElements() {
+            const docsContainer = document.getElementById('api-documentation');
+            docsContainer.innerHTML = `
+                <elements-api
+                    apiDescriptionUrl="./openapi.yaml"
+                    router="hash"
+                    layout="sidebar"
+                    hideInternal="false"
+                    tryItCredentialsPolicy="include"
+                />
+            `;
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeTheme();
+            initializeElements();
+            initializeKeyboardShortcuts();
+            testConnection();
+        });
+    </script>
+</body>
+</html>

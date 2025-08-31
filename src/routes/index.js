@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
       spots: '/api/spots',
       checkin: '/api/checkin',
       checkout: '/api/checkout',
-      documentation: '/api/docs (coming soon)'
+      documentation: '/api-docs'
     },
     timestamp: new Date().toISOString()
   });

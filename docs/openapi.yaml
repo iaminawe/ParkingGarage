@@ -13,10 +13,10 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:3000/api/v1
-    description: Development server
   - url: http://localhost:3000/api
-    description: Legacy API endpoint
+    description: Development server
+  - url: http://localhost:3000/api/v1
+    description: Future versioned API endpoint
 
 tags:
   - name: Garage
