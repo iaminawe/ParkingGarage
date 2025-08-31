@@ -16,10 +16,12 @@ router.get('/', (req, res) => {
   });
 });
 
+// API route modules
+router.use('/garage', require('./garage'));
+
 // Placeholder for future route modules
 // router.use('/auth', require('./auth'));
 // router.use('/users', require('./users'));
-// router.use('/garages', require('./garages'));
 // router.use('/spaces', require('./spaces'));
 // router.use('/reservations', require('./reservations'));
 // router.use('/payments', require('./payments'));
