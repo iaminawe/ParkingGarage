@@ -323,6 +323,33 @@
             gap: 8px;
         }
 
+        /* Screen reader only text */
+        .sr-only {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            padding: 0 !important;
+            margin: -1px !important;
+            overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
+        }
+
+        /* Focus indicators for accessibility */
+        .toast-close:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        .theme-toggle:focus,
+        .server-config button:focus,
+        .server-config input:focus,
+        .server-config select:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
         .toast {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -448,7 +475,7 @@
                     <p>Interactive API Documentation & Testing Interface powered by Stoplight Elements</p>
                 </div>
                 <div>
-                    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+                    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle" aria-label="Toggle dark/light theme">
                         🌙 Dark Mode
                     </button>
                 </div>
@@ -462,19 +489,19 @@
             <h2>Server Configuration</h2>
             <div class="server-config">
                 <label for="environmentSelect">Environment:</label>
-                <select id="environmentSelect" onchange="switchEnvironment()">
+                <select id="environmentSelect" onchange="switchEnvironment()" aria-describedby="environmentIndicator">
                     <option value="development">Development</option>
                     <option value="staging">Staging</option>
                     <option value="production">Production</option>
                     <option value="custom">Custom</option>
                 </select>
-                <span id="environmentIndicator" class="environment-indicator development">Dev</span>
+                <span id="environmentIndicator" class="environment-indicator development" role="status" aria-label="Current environment">Dev</span>
                 
                 <label for="apiServer" style="margin-left: 20px;">API Server:</label>
-                <input type="text" id="apiServer" value="http://localhost:3000" placeholder="http://localhost:3000">
-                <button onclick="updateServer()" id="updateServerBtn">Update Server</button>
-                <span id="connectionStatus" class="status-indicator offline">Disconnected</span>
-                <span id="responseTime" class="response-time" style="display: none;"></span>
+                <input type="text" id="apiServer" value="http://localhost:3000" placeholder="http://localhost:3000" aria-describedby="connectionStatus">
+                <button onclick="updateServer()" id="updateServerBtn" aria-describedby="connectionStatus">Update Server</button>
+                <span id="connectionStatus" class="status-indicator offline" role="status" aria-live="polite">Disconnected</span>
+                <span id="responseTime" class="response-time" style="display: none;" role="status"></span>
             </div>
         </div>
 
@@ -486,7 +513,7 @@
     </div>
 
     <!-- Toast Container -->
-    <div class="toast-container" id="toastContainer"></div>
+    <div class="toast-container" id="toastContainer" aria-live="polite" aria-label="Notifications"></div>
 
     <!-- Stoplight Elements JavaScript -->
     <script src="https://unpkg.com/@stoplight/elements@8/web-components.min.js"></script>
@@ -528,6 +555,10 @@
         let currentTheme = localStorage.getItem('theme') || 'light';
         let connectionStatus = 'offline';
         let lastResponseTime = 0;
+        
+        // Performance optimization
+        let testConnectionTimeout = null;
+        const MAX_TOASTS = 5; // Limit toast notifications
 
         // Theme Management
         function toggleTheme() {
@@ -550,6 +581,16 @@
         // Toast Notifications
         function showToast(message, type = 'info', duration = 4000) {
             const container = document.getElementById('toastContainer');
+            
+            // Limit number of toasts to prevent performance issues
+            const existingToasts = container.querySelectorAll('.toast');
+            if (existingToasts.length >= MAX_TOASTS) {
+                // Remove oldest toast
+                const oldestToast = existingToasts[0];
+                if (oldestToast) {
+                    removeToast(oldestToast.querySelector('.toast-close'));
+                }
+            }
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             
@@ -560,28 +601,69 @@
                 info: 'ℹ'
             };
             
-            toast.innerHTML = `
-                <div class="toast-icon">${icons[type] || icons.info}</div>
-                <div class="toast-message">${message}</div>
-                <button class="toast-close" onclick="removeToast(this)">×</button>
-            `;
+            // Create elements safely to prevent XSS
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'toast-icon';
+            iconDiv.textContent = icons[type] || icons.info;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'toast-message';
+            messageDiv.textContent = message; // Use textContent to prevent XSS
+            
+            const closeButton = document.createElement('button');
+            closeButton.className = 'toast-close';
+            closeButton.textContent = '×';
+            closeButton.onclick = () => removeToast(closeButton);
+            closeButton.setAttribute('aria-label', 'Close notification');
+            closeButton.setAttribute('title', 'Close notification');
+            
+            // Add ARIA attributes to toast container
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            
+            // Add screen reader text for notification type
+            const srText = document.createElement('span');
+            srText.className = 'sr-only';
+            srText.textContent = `${type} notification: `;
+            toast.appendChild(srText);
+            
+            toast.appendChild(iconDiv);
+            toast.appendChild(messageDiv);
+            toast.appendChild(closeButton);
             
             container.appendChild(toast);
             
-            // Auto-remove after duration
-            setTimeout(() => {
+            // Auto-remove after duration with proper cleanup
+            const timeoutId = setTimeout(() => {
                 if (toast.parentNode) {
-                    removeToast(toast.querySelector('.toast-close'));
+                    removeToast(closeButton);
                 }
             }, duration);
+            
+            // Store timeout ID for potential cleanup
+            toast.timeoutId = timeoutId;
         }
 
         function removeToast(button) {
             const toast = button.closest('.toast');
+            if (!toast) return;
+            
+            // Clear the auto-remove timeout to prevent memory leaks
+            if (toast.timeoutId) {
+                clearTimeout(toast.timeoutId);
+                toast.timeoutId = null;
+            }
+            
             toast.style.animation = 'fadeOut 0.3s ease-out';
             setTimeout(() => {
                 if (toast.parentNode) {
                     toast.parentNode.removeChild(toast);
+                    // Clean up any remaining references
+                    toast.onclick = null;
+                    if (toast.timeoutId) {
+                        clearTimeout(toast.timeoutId);
+                    }
                 }
             }, 300);
         }
@@ -621,26 +703,35 @@
             };
         }
 
-        // Enhanced API Connection Test
+        // Enhanced API Connection Test with debouncing
         async function testConnection() {
-            updateConnectionStatus('loading');
-            
-            try {
-                const start = performance.now();
-                const response = await fetch(`${apiServer}/health`);
-                const end = performance.now();
-                const responseTime = Math.round(end - start);
-                
-                if (response.ok) {
-                    updateConnectionStatus('online', responseTime);
-                    showToast(`Connected to ${apiServer}`, 'success', 2000);
-                } else {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-            } catch (error) {
-                updateConnectionStatus('offline');
-                console.log('Connection test failed:', error.message);
+            // Debounce rapid connection tests
+            if (testConnectionTimeout) {
+                clearTimeout(testConnectionTimeout);
             }
+            
+            testConnectionTimeout = setTimeout(async () => {
+                updateConnectionStatus('loading');
+                
+                try {
+                    const start = performance.now();
+                    const response = await fetch(`${apiServer}/health`);
+                    const end = performance.now();
+                    const responseTime = Math.round(end - start);
+                    
+                    if (response.ok) {
+                        updateConnectionStatus('online', responseTime);
+                        showToast(`Connected to ${apiServer}`, 'success', 2000);
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    updateConnectionStatus('offline');
+                    console.log('Connection test failed:', error.message);
+                } finally {
+                    testConnectionTimeout = null;
+                }
+            }, 300); // 300ms debounce
         }
 
         // Enhanced updateServer function with loading state
