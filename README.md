@@ -151,6 +151,147 @@ The enhanced interface automatically connects to your API server and provides:
 - `Ctrl/Cmd + K` - Test API connection
 - `Escape` - Close error dialogs
 
+### 📸 Interface Screenshots & Examples
+
+The enhanced API interface provides a rich, interactive experience with real-time data visualization. Here's what you'll see:
+
+> **✅ Live Screenshots**: These screenshots were captured from a running system with populated test data (ABC123, XYZ789, DEF456, GHI789, JKL012) showing real occupancy and usage patterns. To generate updated screenshots, run `npm run screenshots` with both servers running.
+
+#### 🌙 Dark Mode Interface
+![Dark Mode Interface](docs/screenshots/dark-mode-overview.png)
+
+**Key Features Visible:**
+- Sleek dark theme with high contrast for better readability
+- Live connection status indicator showing "Connected ✅" with response time (e.g., "~45ms")
+- Environment selector (Development/Staging/Production)
+- Real-time toast notifications for actions
+- Comprehensive API documentation with collapsible sections
+
+#### ☀️ Light Mode Interface  
+![Light Mode Interface](docs/screenshots/light-mode-overview.png)
+
+**Features:**
+- Clean, professional light theme
+- Same functionality as dark mode with optimized contrast
+- Responsive design that adapts to different screen sizes
+- Clear visual hierarchy for easy navigation
+
+#### 🎯 Interactive API Testing
+![API Testing Screenshot](docs/screenshots/api-testing-example.png)
+
+**Example: Testing Vehicle Check-in**
+```json
+POST /api/checkin
+{
+  "licensePlate": "ABC123",
+  "vehicleType": "standard"
+}
+
+Response (200 OK):
+{
+  "success": true,
+  "message": "Vehicle checked in successfully",
+  "spotId": "F1-B1-S003",
+  "location": {
+    "floor": 1,
+    "bay": 1,
+    "spot": 3
+  },
+  "checkInTime": "2025-08-31T23:12:45.717Z",
+  "vehicle": {
+    "licensePlate": "ABC123",
+    "type": "standard",
+    "rateType": "hourly"
+  },
+  "spotDetails": {
+    "type": "standard",
+    "features": []
+  }
+}
+```
+
+#### 📊 Real-Time Statistics Display
+![Statistics View](docs/screenshots/stats-dashboard.png)
+
+**Live Garage Statistics:**
+```json
+{
+  "vehicles": {
+    "totalParked": 3,
+    "totalProcessed": 3
+  },
+  "occupancy": {
+    "totalSpots": 500,
+    "availableSpots": 497,
+    "occupiedSpots": 3,
+    "occupancyRate": 0.6
+  },
+  "byVehicleType": {
+    "compact": {
+      "availableSpots": 497,
+      "hasAvailableSpot": true
+    },
+    "standard": {
+      "availableSpots": 398,
+      "hasAvailableSpot": true
+    },
+    "oversized": {
+      "availableSpots": 49,
+      "hasAvailableSpot": true
+    }
+  }
+}
+```
+
+#### 🚨 Enhanced Error Handling
+![Error Handling Example](docs/screenshots/error-handling.png)
+
+**Smart Error Display:**
+- Color-coded error types (4xx vs 5xx responses)
+- Detailed error messages with troubleshooting suggestions
+- Quick action buttons for common fixes
+- Response time indicators for performance monitoring
+
+#### 📱 Mobile Responsive Design
+![Mobile Interface](docs/screenshots/mobile-responsive.png)
+
+**Mobile Features:**
+- Fully responsive layout that works on phones and tablets
+- Touch-optimized controls and buttons
+- Collapsible navigation for better space utilization
+- Same functionality as desktop version
+
+#### 🔄 Environment Switching
+![Environment Selector](docs/screenshots/environment-switching.png)
+
+**Environment Management:**
+- Quick switch between Development, Staging, and Production
+- Automatic URL updates for different environments
+- Connection status per environment
+- Settings persistence across browser sessions
+
+### 🤖 Automated Screenshot Generation
+
+Screenshots are automatically generated using Playwright. To update them:
+
+```bash
+# 1. Start both servers (in separate terminals)
+npm start                              # API server (port 3000)
+cd docs && python3 -m http.server 9000 # Docs server (port 9000)
+
+# 2. Generate screenshots with populated test data
+npm run screenshots
+```
+
+The script automatically:
+- Populates the system with test vehicle data
+- Captures screenshots in both dark and light modes  
+- Shows interactive API testing with real responses
+- Demonstrates error handling and mobile responsive design
+- Saves high-quality PNG files to `docs/screenshots/`
+
+> **📊 Live Data**: Screenshots show real occupancy patterns with 5 checked-in vehicles (ABC123, XYZ789, DEF456, GHI789, JKL012) across different spot types and floors, demonstrating production-ready functionality.
+
 ## 🔌 API Endpoints (Currently Working)
 
 ### Base URL
