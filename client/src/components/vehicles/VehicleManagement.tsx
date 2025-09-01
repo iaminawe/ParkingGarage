@@ -46,9 +46,8 @@ import {
   Calendar
 } from 'lucide-react'
 import { apiService } from '@/services/api'
-import type { Vehicle, ParkingSession } from '@/types/api'
+import type { Vehicle, ParkingSession } from '@/types/api-extensions'
 import { toast } from '@/components/ui/use-toast'
-import { format } from 'date-fns'
 
 export function VehicleManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])

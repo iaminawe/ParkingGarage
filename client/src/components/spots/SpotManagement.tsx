@@ -32,7 +32,7 @@ import {
   Search
 } from 'lucide-react'
 import { apiService } from '@/services/api'
-import type { ParkingSpot, ParkingGarage } from '@/types/api'
+import type { ParkingSpot, ParkingGarage } from '@/types/api-extensions'
 import { toast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
 
