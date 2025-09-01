@@ -93,28 +93,6 @@ export function CheckInDialog({ open, onOpenChange }: CheckInDialogProps) {
     }
   }, [open])
 
-  // Auto-suggest spot when vehicle type changes
-  useEffect(() => {
-    if (licensePlate && vehicleType) {
-      suggestSpot()
-    }
-  }, [licensePlate, vehicleType])
-
-  const loadInitialData = async () => {
-    try {
-      const [availabilityRes, ratesRes] = await Promise.all([
-        apiService.getAvailability(),
-        apiService.getRates()
-      ])
-      
-      setAvailability(availabilityRes.data)
-      setRates(ratesRes.data)
-    } catch (error) {
-      console.error('Failed to load initial data:', error)
-      setError('Failed to load parking information. Please try again.')
-    }
-  }
-
   const suggestSpot = async () => {
     if (!licensePlate.trim() || !vehicleType) return
 
@@ -134,6 +112,28 @@ export function CheckInDialog({ open, onOpenChange }: CheckInDialogProps) {
     }
   }
 
+  // Auto-suggest spot when vehicle type changes
+  useEffect(() => {
+    if (licensePlate && vehicleType) {
+      suggestSpot()
+    }
+  }, [licensePlate, vehicleType])
+
+  const loadInitialData = async () => {
+    try {
+      const [availabilityRes, ratesRes] = await Promise.all([
+        apiService.getAvailability('default'),
+        apiService.getRates('default')
+      ])
+      
+      setAvailability(availabilityRes.data)
+      setRates(ratesRes.data)
+    } catch (error) {
+      console.error('Failed to load initial data:', error)
+      setError('Failed to load parking information. Please try again.')
+    }
+  }
+
   const validateLicensePlate = (plate: string): boolean => {
     const trimmed = plate.trim()
     if (!trimmed) {
@@ -144,7 +144,7 @@ export function CheckInDialog({ open, onOpenChange }: CheckInDialogProps) {
       setLicensePlateError('License plate must be between 2-15 characters')
       return false
     }
-    if (!/^[A-Za-z0-9\s\-]+$/.test(trimmed)) {
+    if (!/^[A-Za-z0-9\s-]+$/.test(trimmed)) {
       setLicensePlateError('License plate can only contain letters, numbers, spaces, and hyphens')
       return false
     }
@@ -190,9 +190,9 @@ export function CheckInDialog({ open, onOpenChange }: CheckInDialogProps) {
         licensePlate: licensePlate.trim(),
         checkInTime: result.data.checkInTime
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Check-in failed:', error)
-      setError(error.response?.data?.message || 'Check-in failed. Please try again.')
+      setError((error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Check-in failed. Please try again.')
       setStep('form')
     } finally {
       setLoading(false)

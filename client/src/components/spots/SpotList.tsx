@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DataTable, Column } from '@/components/ui/data-table'
+import { DataTable } from '@/components/ui/data-table'
+import type { Column } from '@/components/ui/data-table'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { 
@@ -40,8 +41,8 @@ export const SpotList: React.FC<SpotListProps> = ({
   onSpotEdit,
   onSpotSelect,
   selectedSpots = [],
-  filters = {},
-  onFiltersChange,
+  // filters = {},
+  // onFiltersChange,
   onBulkOperation,
   className
 }) => {
@@ -79,13 +80,13 @@ export const SpotList: React.FC<SpotListProps> = ({
     }).format(amount)
   }
 
-  // Format duration
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) return `${minutes}m`
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
-  }
+  // Format duration (commented out as it's not used currently)
+  // const formatDuration = (minutes: number) => {
+  //   if (minutes < 60) return `${minutes}m`
+  //   const hours = Math.floor(minutes / 60)
+  //   const mins = minutes % 60
+  //   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+  // }
 
   // Format time
   const formatTime = (dateString?: string) => {
@@ -123,7 +124,7 @@ export const SpotList: React.FC<SpotListProps> = ({
       sortable: true,
       width: 120,
       accessor: (spot) => `Floor ${spot.floor}${spot.bay ? `, Bay ${spot.bay}` : ''}`,
-      render: (value, spot) => (
+      render: (_value, spot) => (
         <div className="flex items-center gap-1 text-sm">
           <MapPin className="h-3 w-3 text-muted-foreground" />
           <span>Floor {spot.floor}</span>
@@ -158,7 +159,7 @@ export const SpotList: React.FC<SpotListProps> = ({
       key: 'currentVehicle',
       header: 'Current Vehicle',
       width: 150,
-      render: (value, spot) => {
+      render: (_value, spot) => {
         if (!spot.currentVehicle) return '-'
         return (
           <TooltipProvider>
@@ -187,7 +188,7 @@ export const SpotList: React.FC<SpotListProps> = ({
       key: 'usageStats',
       header: 'Usage',
       width: 120,
-      render: (value, spot) => {
+      render: (_value, spot) => {
         if (!spot.usageStats) return '-'
         return (
           <div className="text-sm">
@@ -208,7 +209,7 @@ export const SpotList: React.FC<SpotListProps> = ({
       sortable: true,
       width: 100,
       accessor: (spot) => spot.usageStats?.utilizationRate || 0,
-      render: (value, spot) => {
+      render: (_value, spot) => {
         const rate = spot.usageStats?.utilizationRate || 0
         return (
           <div className="flex items-center gap-2">
@@ -233,7 +234,7 @@ export const SpotList: React.FC<SpotListProps> = ({
       key: 'pricing',
       header: 'Pricing',
       width: 100,
-      render: (value, spot) => (
+      render: (_value, spot) => (
         <div className="text-sm">
           {spot.priceOverride ? (
             <div>
@@ -252,7 +253,7 @@ export const SpotList: React.FC<SpotListProps> = ({
       key: 'maintenance',
       header: 'Maintenance',
       width: 120,
-      render: (value, spot) => {
+      render: (_value, spot) => {
         const scheduledMaintenance = spot.maintenanceSchedule?.filter(m => m.status === 'scheduled').length || 0
         const inProgressMaintenance = spot.maintenanceSchedule?.filter(m => m.status === 'in-progress').length || 0
         
@@ -291,7 +292,7 @@ export const SpotList: React.FC<SpotListProps> = ({
       key: 'actions',
       header: 'Actions',
       width: 80,
-      render: (value, spot) => (
+      render: (_value, spot) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">

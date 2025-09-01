@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn'
 interface PopoverContextValue {
   open: boolean
   setOpen: (open: boolean) => void
-  triggerRef: React.RefObject<HTMLElement>
+  triggerRef: React.RefObject<HTMLElement | null>
 }
 
 const PopoverContext = createContext<PopoverContextValue | undefined>(undefined)
@@ -21,7 +21,7 @@ export const Popover: React.FC<PopoverProps> = ({
   onOpenChange
 }) => {
   const [internalOpen, setInternalOpen] = useState(false)
-  const triggerRef = useRef<HTMLElement>(null)
+  const triggerRef = useRef<HTMLElement | null>(null)
 
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
@@ -85,7 +85,7 @@ export const PopoverTrigger: React.FC<PopoverTriggerProps> = ({
       onClick: handleClick,
       'aria-expanded': open,
       'aria-haspopup': 'dialog'
-    })
+    } as any)
   }
 
   return (

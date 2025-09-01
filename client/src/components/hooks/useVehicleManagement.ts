@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiService } from '@/services/api'
-import { exportVehicleData, VehicleExportData } from '@/utils/export'
-import { formatCurrency, formatDuration } from '@/utils/formatting'
+import { exportVehicleData, type VehicleExportData } from '@/utils/export'
 import type { 
   VehicleWithParkingInfo, 
-  VehicleFilters, 
-  PaginatedResponse,
+  VehicleFilters,
   Vehicle 
 } from '@/types/api'
 
@@ -252,7 +250,7 @@ export const useVehicleManagement = (
   }, [])
 
   // Export vehicles
-  const exportVehicles = useCallback(async (exportFilters: VehicleFilters = {}) => {
+  const exportVehicles = useCallback(async () => {
     setError(null)
 
     try {
@@ -326,6 +324,6 @@ export const useVehicleManagement = (
     refreshVehicles,
     setPage,
     setPageSize,
-    setSorting: setSorting,
+    setSorting,
   }
 }

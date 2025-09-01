@@ -24,7 +24,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -68,12 +68,12 @@ class ApiService {
     return response.data
   }
 
-  private async post<T>(url: string, data?: any): Promise<T> {
+  private async post<T>(url: string, data?: unknown): Promise<T> {
     const response = await this.api.post<T>(url, data)
     return response.data
   }
 
-  private async put<T>(url: string, data?: any): Promise<T> {
+  private async put<T>(url: string, data?: unknown): Promise<T> {
     const response = await this.api.put<T>(url, data)
     return response.data
   }
@@ -173,7 +173,13 @@ class ApiService {
     totalSessions: number
     recentlyAdded: Vehicle[]
   }>> {
-    return this.get<ApiResponse<any>>('/vehicles/metrics')
+    return this.get<ApiResponse<{
+      totalVehicles: number
+      activeVehicles: number
+      currentlyParked: number
+      totalSessions: number
+      recentlyAdded: Vehicle[]
+    }>>('/vehicles/metrics')
   }
 
   async exportVehicles(params?: {
@@ -432,6 +438,147 @@ class ApiService {
     })
     
     return response.data
+  }
+
+  // Check-in/Check-out API methods
+  async getAvailability(garageId: string): Promise<ApiResponse<{
+    overall: {
+      total: number
+      available: number
+      occupied: number
+      occupancyRate: number
+    }
+    byVehicleType: {
+      compact: { available: number; total: number }
+      standard: { available: number; total: number }
+      oversized: { available: number; total: number }
+    }
+  }>> {
+    return this.get<ApiResponse<any>>(`/parking/availability/${garageId}`)
+  }
+
+  async getRates(garageId: string): Promise<ApiResponse<{
+    standard: number
+    compact: number
+    oversized: number
+    ev_charging: number
+  }>> {
+    return this.get<ApiResponse<any>>(`/parking/rates/${garageId}`)
+  }
+
+  async simulateCheckIn(data: {
+    licensePlate: string
+    vehicleType: 'compact' | 'standard' | 'oversized'
+  }): Promise<ApiResponse<{
+    success: boolean
+    wouldAssignSpot?: string
+    spotLocation?: {
+      floor: number
+      bay: string
+      spotNumber: number
+    }
+    rate?: number
+  }>> {
+    return this.post<ApiResponse<any>>('/parking/simulate-checkin', data)
+  }
+
+  async checkIn(data: {
+    licensePlate: string
+    vehicleType: 'compact' | 'standard' | 'oversized'
+  }): Promise<ApiResponse<{
+    success: boolean
+    spotId: string
+    location: {
+      floor: number
+      bay: string
+      spotNumber: number
+    }
+    checkInTime: string
+    rate: number
+  }>> {
+    return this.post<ApiResponse<any>>('/parking/checkin', data)
+  }
+
+  async getCheckoutEstimate(sessionId: string): Promise<ApiResponse<{
+    sessionId: string
+    estimate: {
+      checkInTime: string
+      currentTime: string
+      duration: string
+      durationMinutes: number
+      rate: number
+      estimatedCost: number
+      spotId: string
+      location: {
+        floor: number
+        bay: string
+        spotNumber: number
+      }
+    }
+  }>> {
+    return this.get<ApiResponse<any>>(`/sessions/${sessionId}/checkout-estimate`)
+  }
+
+  async checkOut(sessionId: string): Promise<ApiResponse<{
+    success: boolean
+    sessionId: string
+    spotId: string
+    timing: {
+      checkInTime: string
+      checkOutTime: string
+      duration: string
+      durationMinutes: number
+    }
+    billing: {
+      rate: number
+      totalCost: number
+      gracePeriodApplied: boolean
+    }
+  }>> {
+    return this.post<ApiResponse<any>>(`/sessions/${sessionId}/checkout`)
+  }
+
+  // Legacy license plate-based methods for backward compatibility
+  async getCheckoutEstimateByLicensePlate(licensePlate: string): Promise<ApiResponse<{
+    licensePlate: string
+    estimate: {
+      checkInTime: string
+      currentTime: string
+      duration: string
+      durationMinutes: number
+      rate: number
+      estimatedCost: number
+      spotId: string
+      location: {
+        floor: number
+        bay: string
+        spotNumber: number
+      }
+    }
+  }>> {
+    return this.get<ApiResponse<any>>(`/parking/checkout-estimate/${encodeURIComponent(licensePlate)}`)
+  }
+
+  async checkOutByLicensePlate(data: {
+    licensePlate: string
+    applyGracePeriod?: boolean
+  }): Promise<ApiResponse<{
+    success: boolean
+    licensePlate: string
+    spotId: string
+    timing: {
+      checkInTime: string
+      checkOutTime: string
+      duration: string
+      durationMinutes: number
+    }
+    billing: {
+      rate: number
+      totalCost: number
+      gracePeriodApplied: boolean
+    }
+  }>> {
+    return this.post<ApiResponse<any>>('/parking/checkout', data)
   }
 }
 

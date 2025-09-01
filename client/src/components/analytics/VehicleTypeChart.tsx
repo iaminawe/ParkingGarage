@@ -43,7 +43,7 @@ const VehicleTypeChart: React.FC<VehicleTypeChartProps> = ({ filters }) => {
   })
 
   // Color scheme for different vehicle types
-  const colorScheme = {
+  const colorScheme = useMemo(() => ({
     'sedan': '#3b82f6',      // Blue
     'suv': '#10b981',        // Green
     'truck': '#f59e0b',      // Amber
@@ -53,7 +53,7 @@ const VehicleTypeChart: React.FC<VehicleTypeChartProps> = ({ filters }) => {
     'van': '#84cc16',        // Lime
     'luxury': '#f97316',     // Orange
     'other': '#6b7280'       // Gray
-  }
+  }), [])
 
   // Process data with colors and visibility
   const processedData = useMemo(() => {
@@ -66,7 +66,7 @@ const VehicleTypeChart: React.FC<VehicleTypeChartProps> = ({ filters }) => {
         visible: !hiddenTypes.has(item.type)
       }))
       .filter(item => item.visible)
-  }, [vehicleTypeData?.data, hiddenTypes])
+  }, [vehicleTypeData?.data, hiddenTypes, colorScheme])
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -106,7 +106,10 @@ const VehicleTypeChart: React.FC<VehicleTypeChartProps> = ({ filters }) => {
   }
 
   // Custom tooltip for charts
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: {
+    active?: boolean
+    payload?: Array<{ payload: VehicleTypeData }>
+  }) => {
     if (!active || !payload?.length) return null
 
     const data = payload[0].payload
@@ -132,7 +135,14 @@ const VehicleTypeChart: React.FC<VehicleTypeChartProps> = ({ filters }) => {
   }
 
   // Custom label for pie/donut charts
-  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, type }: any) => {
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: {
+    cx: number
+    cy: number
+    midAngle: number
+    innerRadius: number
+    outerRadius: number
+    percent: number
+  }) => {
     if (!showPercentages || percent < 0.05) return null // Don't show labels for very small slices
 
     const RADIAN = Math.PI / 180

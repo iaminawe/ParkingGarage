@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react'
-import { Edit, Trash2, Eye, History, Car, Motorcycle, Truck } from 'lucide-react'
+import { Edit, Trash2, Eye, History, Car, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { DataTable, Column } from '@/components/ui/data-table'
+import { DataTable } from '@/components/ui/data-table'
+import type { Column } from '@/components/ui/data-table'
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -39,7 +40,7 @@ interface VehicleListProps {
 const getVehicleTypeIcon = (type: VehicleType) => {
   switch (type) {
     case 'motorcycle':
-      return <Motorcycle className="h-4 w-4" />
+      return <Car className="h-4 w-4" />
     case 'truck':
     case 'van':
     case 'bus':
@@ -116,7 +117,7 @@ export const VehicleList: React.FC<VehicleListProps> = ({
     {
       key: 'make',
       header: 'Make & Model',
-      render: (value, vehicle) => (
+      render: (_, vehicle) => (
         <div>
           <div className="font-medium">{vehicle.make}</div>
           <div className="text-sm text-muted-foreground">{vehicle.model}</div>

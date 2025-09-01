@@ -114,7 +114,11 @@ const OccupancyTrendChart: React.FC<OccupancyTrendChartProps> = ({ filters }) =>
   }
 
   // Custom tooltip for the chart
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean
+    payload?: Array<{ payload: OccupancyTrendData }>
+    label?: string
+  }) => {
     if (!active || !payload?.length) return null
 
     const data = payload[0].payload

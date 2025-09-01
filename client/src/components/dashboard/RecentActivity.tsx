@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ParkingSession } from '@/types/api'
+import type { ParkingSession } from '@/types/api'
 import { apiService } from '@/services/api'
 
 interface RecentActivityProps {

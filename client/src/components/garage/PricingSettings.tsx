@@ -16,8 +16,8 @@ import {
   AlertTriangle,
   Plus,
   Trash2,
-  Car,
-  Truck
+  Truck,
+  Car
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { PricingConfig, VehicleType } from '@/types/api'
@@ -42,15 +42,7 @@ const DISCOUNT_TYPES = [
   { value: 'fixed', label: 'Fixed Amount' }
 ]
 
-const DAYS_OF_WEEK = [
-  { value: 0, label: 'Sunday' },
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' }
-]
+// Removed unused DAYS_OF_WEEK constant
 
 export const PricingSettings: React.FC<PricingSettingsProps> = ({
   config,
@@ -66,16 +58,18 @@ export const PricingSettings: React.FC<PricingSettingsProps> = ({
     value: number,
     isPeakRate: boolean = false
   ) => {
-    const rateKey = isPeakRate ? 'peakRates' : 'defaultRates'
+    const rates = isPeakRate ? localConfig.peakRates : localConfig.defaultRates
+    const updatedRates = {
+      ...rates,
+      [vehicleType]: {
+        ...(rates?.[vehicleType] || {}),
+        [period]: value
+      }
+    }
+    
     const updatedConfig = {
       ...localConfig,
-      [rateKey]: {
-        ...localConfig[rateKey as keyof PricingConfig],
-        [vehicleType]: {
-          ...localConfig[rateKey as keyof PricingConfig]?.[vehicleType],
-          [period]: value
-        }
-      }
+      [isPeakRate ? 'peakRates' : 'defaultRates']: updatedRates
     }
     
     setLocalConfig(updatedConfig)
@@ -122,15 +116,17 @@ export const PricingSettings: React.FC<PricingSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleDiscountChange = (index: number, field: string, value: any) => {
+  const handleDiscountChange = (index: number, field: string, value: string | number | boolean | undefined) => {
     const updatedDiscounts = [...localConfig.discounts]
     
     if (field.includes('.')) {
       const [parent, child] = field.split('.')
+      const parentKey = parent as keyof typeof updatedDiscounts[0]
+      const existingParent = updatedDiscounts[index][parentKey]
       updatedDiscounts[index] = {
         ...updatedDiscounts[index],
         [parent]: {
-          ...updatedDiscounts[index][parent as keyof typeof updatedDiscounts[0]],
+          ...(existingParent as Record<string, unknown>),
           [child]: value
         }
       }
@@ -180,7 +176,7 @@ export const PricingSettings: React.FC<PricingSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleFreeParkingChange = (field: string, value: any) => {
+  const handleFreeParkingChange = (field: string, value: boolean | number) => {
     const updatedConfig = {
       ...localConfig,
       freeParking: {
@@ -193,7 +189,7 @@ export const PricingSettings: React.FC<PricingSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleOvertimeChargesChange = (field: string, value: any) => {
+  const handleOvertimeChargesChange = (field: string, value: boolean | number) => {
     const updatedConfig = {
       ...localConfig,
       overtimeCharges: {
@@ -457,7 +453,7 @@ export const PricingSettings: React.FC<PricingSettingsProps> = ({
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={discount.active}
-                        onChange={(checked) => handleDiscountChange(index, 'active', checked)}
+                        onCheckedChange={(checked) => handleDiscountChange(index, 'active', checked)}
                       />
                       <Label>Active</Label>
                       <Button
@@ -475,7 +471,7 @@ export const PricingSettings: React.FC<PricingSettingsProps> = ({
                       <Label>Discount Type</Label>
                       <Select
                         value={discount.type}
-                        onValueChange={(value) => handleDiscountChange(index, 'type', value)}
+                        onValueChange={(value: 'percentage' | 'fixed') => handleDiscountChange(index, 'type', value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -544,7 +540,7 @@ export const PricingSettings: React.FC<PricingSettingsProps> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   checked={localConfig.freeParking.enabled}
-                  onChange={(checked) => handleFreeParkingChange('enabled', checked)}
+                  onCheckedChange={(checked: boolean) => handleFreeParkingChange('enabled', checked)}
                 />
                 <Label>Enable free parking period</Label>
               </div>
@@ -579,7 +575,7 @@ export const PricingSettings: React.FC<PricingSettingsProps> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   checked={localConfig.overtimeCharges.enabled}
-                  onChange={(checked) => handleOvertimeChargesChange('enabled', checked)}
+                  onCheckedChange={(checked: boolean) => handleOvertimeChargesChange('enabled', checked)}
                 />
                 <Label>Enable overtime charges</Label>
               </div>

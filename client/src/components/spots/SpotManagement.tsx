@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Card, 
   CardContent, 
@@ -24,7 +24,6 @@ import {
   Accessibility,
   Car,
   Truck,
-  Bike,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -33,7 +32,7 @@ import {
 } from 'lucide-react'
 import { apiService } from '@/services/api'
 import type { ParkingSpot, ParkingGarage } from '@/types/api-extensions'
-import { toast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
 interface SpotFilters {
@@ -44,11 +43,8 @@ interface SpotFilters {
   search: string
 }
 
-interface SpotManagementProps {
-  garageId?: string
-}
-
-export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {}) {
+export function SpotManagement() {
+  const { toast } = useToast()
   const [spots, setSpots] = useState<ParkingSpot[]>([])
   const [garages, setGarages] = useState<ParkingGarage[]>([])
   const [selectedGarage, setSelectedGarage] = useState<string>('')
@@ -131,13 +127,11 @@ export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {
         return <Car className="h-4 w-4" />
       case 'standard':
         return <ParkingSquare className="h-4 w-4" />
-      case 'large':
+      case 'oversized':
         return <Truck className="h-4 w-4" />
-      case 'motorcycle':
-        return <Bike className="h-4 w-4" />
-      case 'electric':
+      case 'ev':
         return <Zap className="h-4 w-4" />
-      case 'handicapped':
+      case 'handicap':
         return <Accessibility className="h-4 w-4" />
       default:
         return <ParkingSquare className="h-4 w-4" />
@@ -177,14 +171,14 @@ export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {
   const filteredSpots = spots.filter(spot => {
     if (filters.status !== 'all' && spot.status !== filters.status) return false
     if (filters.type !== 'all' && spot.type !== filters.type) return false
-    if (filters.floor !== 'all' && spot.floor !== filters.floor) return false
+    if (filters.floor !== 'all' && spot.floor.toString() !== filters.floor) return false
     if (filters.bay !== 'all' && spot.bay !== filters.bay) return false
-    if (filters.search && !spot.spotNumber.toLowerCase().includes(filters.search.toLowerCase())) return false
+    if (filters.search && !spot.spotNumber?.toLowerCase().includes(filters.search.toLowerCase())) return false
     return true
   })
 
   const floors = [...new Set(spots.map(s => s.floor))].sort()
-  const bays = [...new Set(spots.filter(s => filters.floor === 'all' || s.floor === filters.floor).map(s => s.bay))].sort()
+  const bays = [...new Set(spots.filter(s => filters.floor === 'all' || s.floor.toString() === filters.floor).map(s => s.bay))].sort()
 
   const spotStats = {
     total: spots.length,
@@ -295,7 +289,7 @@ export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {
             <div className="flex gap-4">
               <Select 
                 value={filters.status} 
-                onValueChange={(value: any) => setFilters({...filters, status: value})}
+                onValueChange={(value: 'all' | ParkingSpot['status']) => setFilters({...filters, status: value})}
               >
                 <SelectTrigger className="w-[180px]">
                   <Filter className="h-4 w-4 mr-2" />
@@ -312,7 +306,7 @@ export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {
 
               <Select 
                 value={filters.type} 
-                onValueChange={(value: any) => setFilters({...filters, type: value})}
+                onValueChange={(value: 'all' | ParkingSpot['type']) => setFilters({...filters, type: value})}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by type" />
@@ -321,16 +315,15 @@ export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="compact">Compact</SelectItem>
                   <SelectItem value="standard">Standard</SelectItem>
-                  <SelectItem value="large">Large</SelectItem>
-                  <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                  <SelectItem value="electric">Electric</SelectItem>
-                  <SelectItem value="handicapped">Handicapped</SelectItem>
+                  <SelectItem value="oversized">Oversized</SelectItem>
+                  <SelectItem value="ev">EV</SelectItem>
+                  <SelectItem value="handicap">Handicap</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select 
                 value={filters.floor} 
-                onValueChange={(value) => setFilters({...filters, floor: value, bay: 'all'})}
+                onValueChange={(value: string) => setFilters({...filters, floor: value, bay: 'all'})}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by floor" />
@@ -345,7 +338,7 @@ export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {
 
               <Select 
                 value={filters.bay} 
-                onValueChange={(value) => setFilters({...filters, bay: value})}
+                onValueChange={(value: string) => setFilters({...filters, bay: value})}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by bay" />
@@ -440,7 +433,7 @@ export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {
                           {spot.status}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3">${spot.hourlyRate}/hr</td>
+                      <td className="px-4 py-3">${spot.priceOverride || 5}/hr</td>
                       <td className="px-4 py-3">
                         <Select 
                           value={spot.status}
@@ -473,3 +466,5 @@ export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {
     </div>
   )
 }
+
+export default SpotManagement

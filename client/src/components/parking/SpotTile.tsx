@@ -1,4 +1,3 @@
-import React from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/utils/cn'
@@ -68,12 +67,12 @@ const formatTime = (dateString: string) => {
   })
 }
 
-export const SpotTile: React.FC<SpotTileProps> = ({ 
+export const SpotTile = ({ 
   spot, 
   onClick, 
   className, 
   size = 'md' 
-}) => {
+}: SpotTileProps) => {
   const statusColor = getStatusColor(spot.status)
   const typeRing = getTypeColor(spot.type)
   const typeIcon = getTypeIcon(spot.type, spot.features)

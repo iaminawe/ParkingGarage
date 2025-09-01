@@ -35,14 +35,12 @@ import {
   MapPin,
   CheckCircle,
   XCircle,
-  AlertCircle,
-  TrendingUp,
-  TrendingDown
+  AlertCircle
 } from 'lucide-react'
 import { apiService } from '@/services/api'
-import type { ParkingSession, Vehicle, ParkingSpot } from '@/types/api-extensions'
+import type { ParkingSession } from '@/types/api-extensions'
 import { useToast } from '@/hooks/use-toast'
-import { format, formatDistanceToNow, parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 
 interface SessionFilters {
   status: 'all' | 'active' | 'completed' | 'cancelled'
@@ -138,11 +136,11 @@ export function SessionManagement() {
       if (response.success) {
         toast({
           title: 'Success',
-          description: `Session ended. Total: $${response.data.totalAmount || 0}`
+          description: `Session ended. Total: $${response.data.totalCost || 0}`
         })
         fetchSessions()
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to end session',
@@ -164,7 +162,7 @@ export function SessionManagement() {
         })
         fetchSessions()
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to cancel session',
@@ -223,18 +221,21 @@ export function SessionManagement() {
     // Date range filter
     const now = new Date()
     switch (filters.dateRange) {
-      case 'today':
+      case 'today': {
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
         filtered = filtered.filter(s => new Date(s.entryTime) >= todayStart)
         break
-      case 'week':
+      }
+      case 'week': {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         filtered = filtered.filter(s => new Date(s.entryTime) >= weekAgo)
         break
-      case 'month':
+      }
+      case 'month': {
         const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
         filtered = filtered.filter(s => new Date(s.entryTime) >= monthAgo)
         break
+      }
     }
     
     // Search filter
@@ -368,7 +369,7 @@ export function SessionManagement() {
             </div>
             <Select 
               value={filters.status} 
-              onValueChange={(value: any) => setFilters({...filters, status: value})}
+              onValueChange={(value: "active" | "completed" | "cancelled" | "all") => setFilters({...filters, status: value})}
             >
               <SelectTrigger className="w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
@@ -383,7 +384,7 @@ export function SessionManagement() {
             </Select>
             <Select 
               value={filters.dateRange} 
-              onValueChange={(value: any) => setFilters({...filters, dateRange: value})}
+              onValueChange={(value: "today" | "week" | "month" | "all") => setFilters({...filters, dateRange: value})}
             >
               <SelectTrigger className="w-[180px]">
                 <Calendar className="h-4 w-4 mr-2" />

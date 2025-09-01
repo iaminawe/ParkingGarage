@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Edit, History, MapPin, Clock, DollarSign, Calendar, Phone, Mail, User, Car } from 'lucide-react'
+import { Edit, History, MapPin, Phone, Mail, User, Car } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Loading } from '@/components/ui/loading'
+import { Spinner } from '@/components/ui/loading'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { formatDate, formatCurrency, formatDuration } from '@/utils/formatting'
 import { apiService } from '@/services/api'
@@ -227,7 +227,7 @@ export const VehicleDetails: React.FC<VehicleDetailsProps> = ({
               <CardContent>
                 {loading ? (
                   <div className="flex items-center justify-center py-4">
-                    <Loading size="sm" />
+                    <Spinner size="sm" />
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -282,7 +282,7 @@ export const VehicleDetails: React.FC<VehicleDetailsProps> = ({
             <CardContent>
               {loading ? (
                 <div className="flex items-center justify-center py-4">
-                  <Loading size="sm" />
+                  <Spinner size="sm" />
                 </div>
               ) : recentSessions.length > 0 ? (
                 <div className="space-y-3">

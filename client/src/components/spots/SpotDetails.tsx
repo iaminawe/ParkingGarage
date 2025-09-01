@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { 
   Edit,
@@ -19,9 +18,6 @@ import {
   Accessibility,
   Shield,
   Ruler,
-  User,
-  Phone,
-  Mail,
   History,
   BarChart3,
   AlertTriangle,

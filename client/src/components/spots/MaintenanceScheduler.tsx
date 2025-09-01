@@ -9,28 +9,20 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { DataTable, Column } from '@/components/ui/data-table'
+import { DataTable, type Column } from '@/components/ui/data-table'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import { 
   Calendar,
-  Clock,
   Plus,
   Edit,
-  Trash2,
   CheckCircle,
-  XCircle,
   AlertTriangle,
-  Filter,
   Search,
-  Users,
   Wrench,
-  RotateCcw,
   PlayCircle,
-  PauseCircle,
-  History,
-  TrendingUp
+  History
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { ParkingSpot, MaintenanceSchedule, MaintenanceType } from '@/types/api'
@@ -85,6 +77,8 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
   const [activeTab, setActiveTab] = useState('schedule')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedMaintenance, setSelectedMaintenance] = useState<MaintenanceSchedule | null>(null)
+  // Log selected maintenance for debugging
+  console.log('Selected maintenance:', selectedMaintenance)
   const [formData, setFormData] = useState<MaintenanceFormData>({
     spotIds: [],
     type: 'cleaning',
@@ -163,7 +157,7 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
         const search = filters.search.toLowerCase()
         if (!maintenance.description.toLowerCase().includes(search) &&
             !spotNumber.toLowerCase().includes(search) &&
-            !maintenance.assignedTo.toLowerCase().includes(search)) {
+            !(maintenance.assignedTo || '').toLowerCase().includes(search)) {
           return false
         }
       }
@@ -185,7 +179,7 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
   }, [maintenanceSchedule])
 
   // Handle form changes
-  const handleFormChange = (field: keyof MaintenanceFormData, value: any) => {
+  const handleFormChange = (field: keyof MaintenanceFormData, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     
     // Auto-update estimated duration based on type
@@ -197,9 +191,10 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
     }
   }
 
-  const handleSpotSelection = (spotIds: string[]) => {
-    setFormData(prev => ({ ...prev, spotIds }))
-  }
+  // const handleSpotSelection = (spotIds: string[]) => {
+  //   setFormData(prev => ({ ...prev, spotIds }))
+  //   console.log('Selected spots:', spotIds) // Log for debugging
+  // }
 
   // Submit maintenance schedule
   const handleSubmit = async () => {
@@ -490,7 +485,7 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
             </div>
             <Select 
               value={filters.status} 
-              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+              onValueChange={(value: string) => setFilters(prev => ({ ...prev, status: value }))}
             >
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Status" />
@@ -505,7 +500,7 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
             </Select>
             <Select 
               value={filters.type} 
-              onValueChange={(value) => setFilters(prev => ({ ...prev, type: value }))}
+              onValueChange={(value: string) => setFilters(prev => ({ ...prev, type: value }))}
             >
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Type" />
@@ -519,7 +514,7 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
             </Select>
             <Select 
               value={filters.assignedTo} 
-              onValueChange={(value) => setFilters(prev => ({ ...prev, assignedTo: value }))}
+              onValueChange={(value: string) => setFilters(prev => ({ ...prev, assignedTo: value }))}
             >
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Assigned To" />
@@ -652,7 +647,7 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
                 <Label>Maintenance Type *</Label>
                 <Select 
                   value={formData.type} 
-                  onValueChange={(value) => handleFormChange('type', value as MaintenanceType)}
+                  onValueChange={(value: string) => handleFormChange('type', value as MaintenanceType)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -706,7 +701,7 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
                 <Label>Assign To *</Label>
                 <Select 
                   value={formData.assignedTo} 
-                  onValueChange={(value) => handleFormChange('assignedTo', value)}
+                  onValueChange={(value: string) => handleFormChange('assignedTo', value)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -724,7 +719,7 @@ export const MaintenanceScheduler: React.FC<MaintenanceSchedulerProps> = ({
                 <Label>Priority</Label>
                 <Select 
                   value={formData.priority} 
-                  onValueChange={(value) => handleFormChange('priority', value)}
+                  onValueChange={(value: string) => handleFormChange('priority', value)}
                 >
                   <SelectTrigger>
                     <SelectValue />

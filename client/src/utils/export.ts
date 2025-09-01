@@ -36,7 +36,7 @@ export const exportToCsv = (data: Record<string, any>[], filename: string): void
 /**
  * Convert array of objects to JSON format and trigger download
  */
-export const exportToJson = (data: any, filename: string): void => {
+export const exportToJson = (data: unknown, filename: string): void => {
   try {
     const jsonContent = JSON.stringify(data, null, 2)
     downloadFile(jsonContent, filename, 'application/json;charset=utf-8;')
@@ -49,7 +49,7 @@ export const exportToJson = (data: any, filename: string): void => {
 /**
  * Export table data to Excel format (CSV with .xlsx extension)
  */
-export const exportToExcel = (data: Record<string, any>[], filename: string): void => {
+export const exportToExcel = (data: Record<string, unknown>[], filename: string): void => {
   // For now, we'll export as CSV with .xlsx extension
   // In a real application, you might want to use a library like xlsx or exceljs
   const xlsxFilename = filename.replace(/\.[^/.]+$/, '') + '.xlsx'
@@ -97,7 +97,7 @@ const downloadFile = (content: string, filename: string, mimeType: string): void
 /**
  * Export vehicle data with formatted fields
  */
-export interface VehicleExportData {
+export interface VehicleExportData extends Record<string, unknown> {
   licensePlate: string
   type: string
   make: string
@@ -140,7 +140,7 @@ export const exportVehicleData = (
 /**
  * Export parking session data
  */
-export interface SessionExportData {
+export interface SessionExportData extends Record<string, unknown> {
   vehicleLicensePlate: string
   entryTime: string
   exitTime?: string
@@ -177,7 +177,7 @@ export const exportSessionData = (
 /**
  * Export financial report data
  */
-export interface FinancialExportData {
+export interface FinancialExportData extends Record<string, unknown> {
   date: string
   totalSessions: number
   totalRevenue: number

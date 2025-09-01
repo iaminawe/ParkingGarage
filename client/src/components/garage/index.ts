@@ -1,5 +1,5 @@
 // Garage Configuration Components
-export { default as GarageConfiguration } from './GarageConfiguration'
+export { GarageConfiguration } from './GarageConfiguration'
 export { default as GeneralSettings } from './GeneralSettings'
 export { default as PricingSettings } from './PricingSettings'
 export { default as LayoutSettings } from './LayoutSettings'

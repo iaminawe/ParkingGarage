@@ -17,7 +17,7 @@ import {
 import { format, subDays, startOfDay, endOfDay } from 'date-fns'
 import { cn } from '@/utils/cn'
 import { apiService } from '@/services/api'
-import type { AnalyticsDateRange, AnalyticsFilters, ParkingGarage } from '@/types/api'
+import type { AnalyticsDateRange, AnalyticsFilters } from '@/types/api'
 
 import OccupancyTrendChart from './OccupancyTrendChart'
 import RevenueChart from './RevenueChart'

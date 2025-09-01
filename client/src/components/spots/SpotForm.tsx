@@ -99,10 +99,10 @@ export const SpotForm: React.FC<SpotFormProps> = ({
         type: spot.type,
         status: spot.status,
         features: spot.features || [],
-        dimensions: spot.dimensions || {
-          length: 18,
-          width: 9,
-          height: 8
+        dimensions: {
+          length: spot.dimensions?.length || 18,
+          width: spot.dimensions?.width || 9,
+          height: spot.dimensions?.height || 8
         },
         priceOverride: spot.priceOverride,
         maintenanceNotes: spot.maintenanceNotes
@@ -153,12 +153,12 @@ export const SpotForm: React.FC<SpotFormProps> = ({
   }
 
   // Handle input changes
-  const handleInputChange = (field: keyof SpotFormData, value: any) => {
+  const handleInputChange = (field: keyof SpotFormData, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear validation error when user starts typing
     if (validationErrors[field]) {
       setValidationErrors(prev => {
-        const { [field]: _, ...rest } = prev
+        const { [field]: _removed, ...rest } = prev
         return rest
       })
     }
@@ -328,7 +328,7 @@ export const SpotForm: React.FC<SpotFormProps> = ({
                   <Label htmlFor="bay">Bay</Label>
                   <Select 
                     value={formData.bay} 
-                    onValueChange={(value) => handleInputChange('bay', value)}
+                    onValueChange={(value: string) => handleInputChange('bay', value)}
                   >
                     <SelectTrigger className={validationErrors.bay ? 'border-red-500' : ''}>
                       <SelectValue />
@@ -360,7 +360,7 @@ export const SpotForm: React.FC<SpotFormProps> = ({
                   <Label>Spot Type</Label>
                   <Select 
                     value={formData.type} 
-                    onValueChange={(value) => handleInputChange('type', value as SpotType)}
+                    onValueChange={(value: string) => handleInputChange('type', value as SpotType)}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -382,7 +382,7 @@ export const SpotForm: React.FC<SpotFormProps> = ({
                   <Label>Status</Label>
                   <Select 
                     value={formData.status} 
-                    onValueChange={(value) => handleInputChange('status', value as SpotStatus)}
+                    onValueChange={(value: string) => handleInputChange('status', value as SpotStatus)}
                   >
                     <SelectTrigger>
                       <SelectValue />

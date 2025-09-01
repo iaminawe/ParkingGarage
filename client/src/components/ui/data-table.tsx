@@ -46,7 +46,7 @@ export function DataTable<T>({
   loading = false,
   pagination,
   sortBy,
-  sortOrder,
+  sortOrder: initialSortOrder,
   onSort,
   onPageChange,
   onPageSizeChange,
@@ -60,7 +60,7 @@ export function DataTable<T>({
   onRowClick,
 }: DataTableProps<T>) {
   const [localSortBy, setLocalSortBy] = useState<string | undefined>(sortBy)
-  const [localSortOrder, setLocalSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [localSortOrder, setLocalSortOrder] = useState<'asc' | 'desc'>(initialSortOrder || 'asc')
 
   // Handle sorting
   const handleSort = (columnKey: string) => {
@@ -245,7 +245,7 @@ export function DataTable<T>({
             <p className="text-sm font-medium">Rows per page</p>
             <Select
               value={pagination.limit.toString()}
-              onValueChange={(value) => onPageSizeChange?.(parseInt(value))}
+              onValueChange={(value: string) => onPageSizeChange?.(parseInt(value))}
             >
               <SelectTrigger className="h-8 w-[70px]">
                 <SelectValue />

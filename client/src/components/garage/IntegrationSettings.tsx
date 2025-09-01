@@ -7,14 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
-  Zap, 
   CreditCard, 
   Mail, 
   MessageSquare, 
-  Cloud, 
   Shield, 
   Database,
   AlertTriangle,
@@ -26,7 +23,6 @@ import {
   CheckCircle,
   XCircle,
   ExternalLink,
-  Key,
   Lock
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
@@ -82,7 +78,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({})
   const [testResults, setTestResults] = useState<Record<string, 'success' | 'error' | 'testing'>>({})
 
-  const handlePaymentChange = (type: 'primary' | 'backup', field: string, value: any) => {
+  const handlePaymentChange = (type: 'primary' | 'backup', field: string, value: unknown) => {
     const updatedConfig = {
       ...localConfig,
       payments: {
@@ -98,14 +94,16 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleNotificationChange = (type: 'email' | 'sms', field: string, value: any) => {
+  const handleNotificationChange = (type: 'email' | 'sms', field: string, value: unknown) => {
     let updatedValue = value
     
     if (field.includes('.')) {
       const [parent, child] = field.split('.')
+      const parentKey = parent as keyof typeof localConfig.notifications[typeof type]
+      const parentObj = localConfig.notifications[type][parentKey]
       updatedValue = {
-        ...localConfig.notifications[type][parent as keyof typeof localConfig.notifications[typeof type]],
-        [child]: value
+        ...(typeof parentObj === 'object' && parentObj !== null ? parentObj : {}),
+        [child]: value as string
       }
       field = parent
     }
@@ -125,7 +123,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleThirdPartyChange = (index: number, field: string, value: any) => {
+  const handleThirdPartyChange = (index: number, field: string, value: unknown) => {
     const updatedApps = [...localConfig.thirdParty.parkingApps]
     updatedApps[index] = {
       ...updatedApps[index],
@@ -179,7 +177,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleBackupChange = (field: string, value: any) => {
+  const handleBackupChange = (field: string, value: unknown) => {
     const updatedConfig = {
       ...localConfig,
       backup: {
@@ -192,7 +190,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleSecurityChange = (section: 'encryption' | 'accessControl', field: string, value: any) => {
+  const handleSecurityChange = (section: 'encryption' | 'accessControl', field: string, value: unknown) => {
     const updatedConfig = {
       ...localConfig,
       security: {
@@ -324,7 +322,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
                   <Label>Provider</Label>
                   <Select
                     value={localConfig.payments.primary.provider}
-                    onValueChange={(value) => handlePaymentChange('primary', 'provider', value)}
+                    onValueChange={(value: string) => handlePaymentChange('primary', 'provider', value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -413,7 +411,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
                       <Label>Provider</Label>
                       <Select
                         value={localConfig.payments.backup.provider}
-                        onValueChange={(value) => handlePaymentChange('backup', 'provider', value)}
+                        onValueChange={(value: string) => handlePaymentChange('backup', 'provider', value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -482,7 +480,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
                       <Label>Email Provider</Label>
                       <Select
                         value={localConfig.notifications.email.provider}
-                        onValueChange={(value) => handleNotificationChange('email', 'provider', value)}
+                        onValueChange={(value: string) => handleNotificationChange('email', 'provider', value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -562,7 +560,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
                       <Label>SMS Provider</Label>
                       <Select
                         value={localConfig.notifications.sms.provider}
-                        onValueChange={(value) => handleNotificationChange('sms', 'provider', value)}
+                        onValueChange={(value: string) => handleNotificationChange('sms', 'provider', value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -708,7 +706,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
                       <Label>Backup Provider</Label>
                       <Select
                         value={localConfig.backup.provider}
-                        onValueChange={(value) => handleBackupChange('provider', value)}
+                        onValueChange={(value: string) => handleBackupChange('provider', value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -727,7 +725,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
                       <Label>Schedule</Label>
                       <Select
                         value={localConfig.backup.schedule}
-                        onValueChange={(value) => handleBackupChange('schedule', value)}
+                        onValueChange={(value: string) => handleBackupChange('schedule', value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -763,7 +761,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
                           try {
                             const config = JSON.parse(e.target.value)
                             handleBackupChange('configuration', config)
-                          } catch (err) {
+                          } catch {
                             // Invalid JSON, ignore
                           }
                         }}
@@ -795,7 +793,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   checked={localConfig.security.encryption.enabled}
-                  onChange={(checked) => handleSecurityChange('encryption', 'enabled', checked)}
+                  onCheckedChange={(checked) => handleSecurityChange('encryption', 'enabled', checked)}
                 />
                 <Label>Enable data encryption</Label>
               </div>
@@ -805,7 +803,7 @@ export const IntegrationSettings: React.FC<IntegrationSettingsProps> = ({
                   <Label>Encryption Algorithm</Label>
                   <Select
                     value={localConfig.security.encryption.algorithm}
-                    onValueChange={(value) => handleSecurityChange('encryption', 'algorithm', value)}
+                    onValueChange={(value: string) => handleSecurityChange('encryption', 'algorithm', value)}
                   >
                     <SelectTrigger>
                       <SelectValue />

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loading } from '@/components/ui/loading'
+import { Spinner } from '@/components/ui/loading'
 import {
   Select,
   SelectContent,
@@ -16,12 +16,11 @@ import { SpotTile } from './SpotTile'
 import { SpotDetailsDialog } from './SpotDetailsDialog'
 import { StatusLegend } from './StatusLegend'
 import { cn } from '@/utils/cn'
-import type { ParkingSpot } from '@/types/api'
+import type { ParkingSpot, SpotUpdate } from '@/types/api'
 import { apiService } from '@/services/api'
 import { socketService } from '@/services/socket'
 import {
   Search,
-  Filter,
   RefreshCw,
   Grid3X3,
   List,
@@ -29,8 +28,6 @@ import {
   TrendingUp,
   Eye,
   EyeOff,
-  ChevronUp,
-  ChevronDown,
 } from 'lucide-react'
 
 interface ParkingGridProps {
@@ -135,7 +132,7 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
     socketService.connect()
     socketService.joinGarage(garageId)
 
-    const handleSpotUpdate = (update: any) => {
+    const handleSpotUpdate = (update: SpotUpdate) => {
       setSpots(prev => 
         prev.map(spot => 
           spot.id === update.spotId 
@@ -186,8 +183,8 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase()
       filtered = filtered.filter(spot => 
-        spot.bay.toLowerCase().includes(query) ||
-        spot.spotNumber.toString().includes(query) ||
+        spot.bay?.toLowerCase().includes(query) ||
+        spot.spotNumber?.toString().includes(query) ||
         spot.id.toLowerCase().includes(query) ||
         spot.currentVehicle?.licensePlate.toLowerCase().includes(query)
       )
@@ -199,15 +196,16 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
   const groupedSpots = useMemo(() => {
     const groups: { [bay: string]: ParkingSpot[] } = {}
     filteredSpots.forEach(spot => {
-      if (!groups[spot.bay]) {
-        groups[spot.bay] = []
+      const bayKey = spot.bay || 'Unknown'
+      if (!groups[bayKey]) {
+        groups[bayKey] = []
       }
-      groups[spot.bay].push(spot)
+      groups[bayKey].push(spot)
     })
     
     // Sort spots within each bay by spot number
     Object.keys(groups).forEach(bay => {
-      groups[bay].sort((a, b) => a.spotNumber - b.spotNumber)
+      groups[bay].sort((a, b) => Number(a.spotNumber || 0) - Number(b.spotNumber || 0))
     })
 
     return groups
@@ -282,7 +280,7 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loading size="lg" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -411,7 +409,7 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
 
             {/* Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Select value={filters.status} onValueChange={(value) => updateFilter('status', value as any)}>
+              <Select value={filters.status} onValueChange={(value: ParkingSpot['status'] | 'all') => updateFilter('status', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
@@ -424,7 +422,7 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
                 </SelectContent>
               </Select>
 
-              <Select value={filters.type} onValueChange={(value) => updateFilter('type', value as any)}>
+              <Select value={filters.type} onValueChange={(value: ParkingSpot['type'] | 'all') => updateFilter('type', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
@@ -505,6 +503,7 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
                             key={spot.id}
                             spot={spot}
                             onClick={handleSpotClick}
+                            className=""
                             size="sm"
                           />
                         ))}
@@ -522,7 +521,7 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <SpotTile spot={spot} size="sm" />
+                          <SpotTile spot={spot} onClick={() => {}} className="" size="sm" />
                           <div>
                             <div className="font-medium text-sm">
                               Bay {spot.bay} - Spot {spot.spotNumber}
@@ -575,7 +574,7 @@ export const ParkingGrid: React.FC<ParkingGridProps> = ({
         {/* Legend Panel */}
         {showLegendPanel && (
           <div className="lg:col-span-1">
-            <StatusLegend />
+            <StatusLegend className="" />
           </div>
         )}
       </div>

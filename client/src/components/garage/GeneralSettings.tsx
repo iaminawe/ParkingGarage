@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -11,13 +10,9 @@ import {
   Building, 
   MapPin, 
   Phone, 
-  Mail, 
-  Globe, 
   Clock, 
   FileText,
-  AlertTriangle,
-  Plus,
-  Trash2
+  AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { GeneralConfig } from '@/types/api'
@@ -40,9 +35,6 @@ const TIMEZONES = [
   { value: 'UTC', label: 'UTC' }
 ]
 
-const DAYS_OF_WEEK = [
-  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
-]
 
 export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   config,
@@ -52,19 +44,19 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
 }) => {
   const [localConfig, setLocalConfig] = useState(config)
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string) => {
     const updatedConfig = { ...localConfig }
     
     // Handle nested properties
     if (field.includes('.')) {
       const parts = field.split('.')
-      let current = updatedConfig as any
+      let current = updatedConfig as Record<string, unknown>
       for (let i = 0; i < parts.length - 1; i++) {
-        current = current[parts[i]]
+        current = current[parts[i]] as Record<string, unknown>
       }
       current[parts[parts.length - 1]] = value
     } else {
-      (updatedConfig as any)[field] = value
+      (updatedConfig as Record<string, unknown>)[field] = value
     }
     
     setLocalConfig(updatedConfig)
@@ -74,7 +66,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   const handleOperatingHoursChange = (
     period: 'weekdays' | 'weekends' | 'holidays',
     field: 'open' | 'close' | 'is24Hours',
-    value: any
+    value: string | boolean
   ) => {
     const updatedHours = {
       ...localConfig.operatingHours,
@@ -121,7 +113,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
           <Checkbox
             id={`${period}-24hours`}
             checked={is24Hours}
-            onChange={(checked) => handleOperatingHoursChange(period, 'is24Hours', checked)}
+            onCheckedChange={(checked) => handleOperatingHoursChange(period, 'is24Hours', checked)}
           />
           <Label htmlFor={`${period}-24hours`} className="text-sm">
             Open 24 Hours
@@ -198,7 +190,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
               <Label htmlFor="timezone">Timezone</Label>
               <Select 
                 value={localConfig.timezone} 
-                onValueChange={(value) => handleInputChange('timezone', value)}
+                onValueChange={(value: string) => handleInputChange('timezone', value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -219,7 +211,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             <Textarea
               id="description"
               value={localConfig.description || ''}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('description', e.target.value)}
               placeholder="Enter garage description"
               rows={3}
             />

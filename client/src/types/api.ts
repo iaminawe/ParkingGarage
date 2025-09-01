@@ -20,9 +20,16 @@ export interface ParkingGarage {
   id: string
   name: string
   location: string
+  address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  phone?: string
   totalSpots: number
   availableSpots: number
   floors: number
+  totalFloors?: number
+  spotsPerFloor?: number
   pricePerHour: number
   isActive: boolean
   createdAt: string
@@ -147,6 +154,18 @@ export interface GarageAnalytics {
   dailyStats: { date: string; sessions: number; revenue: number }[]
 }
 
+export interface SystemAnalytics {
+  totalSessions: number
+  totalRevenue: number
+  averageSessionDuration: number
+  occupancyRate: number
+  peakHours: { hour: number; sessions: number }[]
+  dailyStats: { date: string; sessions: number; revenue: number }[]
+  totalGarages: number
+  totalSpots: number
+  activeGarages: number
+}
+
 export interface AnalyticsDateRange {
   startDate: string
   endDate: string
@@ -158,6 +177,7 @@ export interface OccupancyTrendData {
   occupiedSpots: number
   totalSpots: number
   occupancyRate: number
+  utilizationPercentage: number
   garageId?: string
 }
 
@@ -166,6 +186,7 @@ export interface RevenueData {
   revenue: number
   sessions: number
   averageRevenue: number
+  comparisonRevenue: number
   garageId?: string
   garageName?: string
 }
@@ -202,6 +223,7 @@ export interface SpotUtilizationData {
   averageDuration: number
   revenue: number
   efficiency: 'low' | 'medium' | 'high'
+  fullDisplayName: string
 }
 
 export interface AnalyticsFilters {
@@ -458,7 +480,7 @@ export interface IntegrationConfig {
   }
   backup: {
     provider: 'aws-s3' | 'google-cloud' | 'azure' | 'local'
-    configuration: any
+    configuration: Record<string, unknown>
     schedule: 'daily' | 'weekly' | 'monthly'
     retention: number // in days
     enabled: boolean
@@ -533,4 +555,50 @@ export interface ConfigurationBackup {
   createdBy: string
   description?: string
   size: number
+}
+
+// Authentication Types
+export interface AuthUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: 'admin' | 'operator' | 'customer'
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface SignupCredentials {
+  email: string
+  password: string
+  confirmPassword: string
+  firstName: string
+  lastName: string
+  role?: 'admin' | 'operator' | 'customer'
+}
+
+export interface AuthResponse {
+  user: AuthUser
+  token: string
+  refreshToken?: string
+}
+
+export interface AuthState {
+  user: AuthUser | null
+  token: string | null
+  isAuthenticated: boolean
+  isLoading: boolean
+}
+
+export interface AuthContextType extends AuthState {
+  login: (credentials: LoginCredentials) => Promise<void>
+  signup: (credentials: SignupCredentials) => Promise<void>
+  logout: () => void
+  refreshAuth: () => Promise<void>
 }

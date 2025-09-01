@@ -216,7 +216,7 @@ const SpotUtilization: React.FC<SpotUtilizationProps> = ({ filters }) => {
   }
 
   // Get bar color based on efficiency
-  const getBarColor = (data: any): string => {
+  const getBarColor = (data: SpotUtilizationData): string => {
     if (viewMode === 'efficiency') {
       switch (data.efficiency) {
         case 'high': return '#10b981'
@@ -229,7 +229,10 @@ const SpotUtilization: React.FC<SpotUtilizationProps> = ({ filters }) => {
   }
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: {
+    active?: boolean
+    payload?: Array<{ payload: SpotUtilizationData }>
+  }) => {
     if (!active || !payload?.length) return null
 
     const data = payload[0].payload
@@ -517,6 +520,7 @@ const SpotUtilization: React.FC<SpotUtilizationProps> = ({ filters }) => {
                     {processedData.slice(0, 50).map((entry, index) => (
                       <Bar 
                         key={`bar-${index}`} 
+                        dataKey="utilization"
                         fill={getBarColor(entry)}
                       />
                     ))}
@@ -553,7 +557,7 @@ const SpotUtilization: React.FC<SpotUtilizationProps> = ({ filters }) => {
                     x={stats.averageUtilization}
                     stroke="#6b7280"
                     strokeDasharray="5 5"
-                    label={{ value: "Avg Util", position: "topRight" }}
+                    label={{ value: "Avg Util", position: "top" }}
                   />
                 </ScatterChart>
               ) : (

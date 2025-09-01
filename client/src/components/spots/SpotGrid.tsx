@@ -121,7 +121,7 @@ export const SpotGrid: React.FC<SpotGridProps> = ({
     }
   }
 
-  const handleBaySelect = (bay: string, spots: ParkingSpot[]) => {
+  const handleBaySelect = (_bay: string, spots: ParkingSpot[]) => {
     if (!onSpotSelect) return
     
     const baySpotIds = spots.map(s => s.id)

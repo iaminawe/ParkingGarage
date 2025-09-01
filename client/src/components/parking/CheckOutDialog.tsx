@@ -88,6 +88,23 @@ export function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
     }
   }, [open])
 
+  const searchVehicle = async () => {
+    if (!licensePlate.trim()) return
+
+    try {
+      const result = await apiService.getCheckoutEstimateByLicensePlate(licensePlate.trim())
+      setEstimateData(result.data)
+      setError(null)
+    } catch (error: unknown) {
+      setEstimateData(null)
+      if ((error as { response?: { status?: number } }).response?.status === 404) {
+        setError('Vehicle not found. Please check the license plate and try again.')
+      } else {
+        setError('Failed to load vehicle information. Please try again.')
+      }
+    }
+  }
+
   // Search for vehicle when license plate changes
   useEffect(() => {
     if (licensePlate.trim() && licensePlate.length >= 3) {
@@ -97,23 +114,6 @@ export function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
       setError(null)
     }
   }, [licensePlate])
-
-  const searchVehicle = async () => {
-    if (!licensePlate.trim()) return
-
-    try {
-      const result = await apiService.getCheckoutEstimate(licensePlate.trim())
-      setEstimateData(result.data)
-      setError(null)
-    } catch (error: any) {
-      setEstimateData(null)
-      if (error.response?.status === 404) {
-        setError('Vehicle not found. Please check the license plate and try again.')
-      } else {
-        setError('Failed to load vehicle information. Please try again.')
-      }
-    }
-  }
 
   const validateLicensePlate = (plate: string): boolean => {
     const trimmed = plate.trim()
@@ -125,7 +125,7 @@ export function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
       setLicensePlateError('License plate must be between 2-15 characters')
       return false
     }
-    if (!/^[A-Za-z0-9\s\-]+$/.test(trimmed)) {
+    if (!/^[A-Za-z0-9\s-]+$/.test(trimmed)) {
       setLicensePlateError('License plate can only contain letters, numbers, spaces, and hyphens')
       return false
     }
@@ -171,7 +171,7 @@ export function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
         return
       }
 
-      const result = await apiService.checkOut({
+      const result = await apiService.checkOutByLicensePlate({
         licensePlate: licensePlate.trim(),
         applyGracePeriod,
       })
@@ -185,9 +185,9 @@ export function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
         licensePlate: licensePlate.trim(),
         checkOutTime: result.data.timing.checkOutTime
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Check-out failed:', error)
-      setError(error.response?.data?.message || 'Check-out failed. Please try again.')
+      setError((error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Check-out failed. Please try again.')
     } finally {
       setLoading(false)
     }

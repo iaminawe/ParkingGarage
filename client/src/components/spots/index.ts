@@ -4,6 +4,3 @@ export { default as SpotList } from './SpotList'
 export { default as SpotForm } from './SpotForm'
 export { default as SpotDetails } from './SpotDetails'
 export { default as MaintenanceScheduler } from './MaintenanceScheduler'
-
-// Re-export individual components for convenience
-export { SpotManagement, SpotGrid, SpotList, SpotForm, SpotDetails, MaintenanceScheduler }
