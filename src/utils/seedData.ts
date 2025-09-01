@@ -6,9 +6,9 @@
 import type { GarageConfig, FloorConfig, VehicleType, RateType } from '../types/models';
 
 // Import services - using both .js and .ts extensions as available
-const GarageService = require('../services/garageService');
-const SpotService = require('../services/spotService'); 
-const VehicleRepository = require('../repositories/vehicleRepository');
+const { GarageService } = require('../services/garageService');
+const { SpotService } = require('../services/spotService'); 
+const { VehicleRepository } = require('../repositories/vehicleRepository');
 
 // Sample vehicle data interface
 interface SampleVehicleData {
@@ -364,3 +364,6 @@ export class SeedDataInitializer {
 
 // Export singleton instance
 export default new SeedDataInitializer();
+
+// CommonJS export for backward compatibility
+(module as any).exports = new SeedDataInitializer();

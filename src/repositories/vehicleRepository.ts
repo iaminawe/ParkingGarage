@@ -456,6 +456,25 @@ export class VehicleRepository {
   }
 
   /**
+   * Find a vehicle by license plate
+   */
+  findByLicensePlate(licensePlate: string): Vehicle | null {
+    return this.store.vehicles.get(licensePlate) || null;
+  }
+
+  /**
+   * Get vehicle statistics
+   */
+  getStats(): any {
+    return {
+      total: this.count(),
+      parked: this.countByStatus('parked'),
+      completed: this.countByStatus('completed'),
+      unpaid: this.countByStatus('checked_out_unpaid')
+    };
+  }
+
+  /**
    * Clear all vehicle records (mainly for testing)
    */
   clear(): void {

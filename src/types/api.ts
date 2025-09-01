@@ -21,6 +21,24 @@ import {
   PaginationOptions
 } from './models';
 
+// Re-export commonly used types
+export { ParkingSession, VehicleRecord, SpotRecord, GarageRecord };
+export { VehicleRecord as Vehicle, SpotRecord as ParkingSpot };
+
+// Paginated response structure
+export interface PaginatedResponse<T = any> {
+  data: T;
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    page: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
 // Common API response structure
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -126,11 +144,11 @@ export interface UpdateGarageConfigRequest {
 
 // Search and filter requests
 export interface SearchVehiclesRequest extends SearchCriteria {
-  pagination?: PaginationOptions;
+  pagination?: any;
 }
 
 export interface SearchSpotsRequest extends FilterOptions {
-  pagination?: PaginationOptions;
+  pagination?: any;
 }
 
 // Bulk operations

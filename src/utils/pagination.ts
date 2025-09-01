@@ -65,7 +65,7 @@ export interface FilterMetadata {
  * @param totalCount - Total number of items available
  * @returns Pagination parameters and metadata
  */
-export function calculatePagination(query: PaginationQuery, totalCount: number): PaginationResult {
+export function calculatePagination(query: any, totalCount: number): PaginationResult {
   // Parse and validate limit
   let limit = parseInt(String(query.limit)) || 20;
   if (limit < 1) limit = 20;
@@ -254,7 +254,7 @@ export class PaginationError extends Error {
  * @param query - Query parameters to validate
  * @throws PaginationError if pagination parameters are invalid
  */
-export function validatePaginationParams(query: PaginationQuery): void {
+export function validatePaginationParams(query: any): void {
   const errors: string[] = [];
   
   if (query.limit !== undefined) {

@@ -156,13 +156,33 @@ export interface GarageStats {
 }
 
 export interface ParkingSession {
+  id?: string;
+  vehicleId?: string;
   licensePlate: string;
+  vehicleType?: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleColor?: string;
   spotId: string;
-  checkInTime: string;
+  floor?: number;
+  bay?: number;
+  spotNumber?: string;
+  garageId?: string;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+  endTime?: string;
+  expectedEndTime?: string;
+  checkInTime?: string;
   checkOutTime?: string;
   duration?: number;
+  cost?: number;
   amount?: number;
-  status: VehicleStatus;
+  rateType?: string;
+  endReason?: string;
+  notes?: string;
+  tags?: string[];
+  metadata?: Record<string, any>;
 }
 
 // Error types

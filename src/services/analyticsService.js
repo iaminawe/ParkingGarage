@@ -8,9 +8,9 @@
  * @module AnalyticsService
  */
 
-const GarageRepository = require('../repositories/garageRepository');
-const SpotRepository = require('../repositories/spotRepository');
-const VehicleRepository = require('../repositories/vehicleRepository');
+const { GarageRepository } = require('../repositories/garageRepository');
+const { SpotRepository } = require('../repositories/spotRepository');
+const { VehicleRepository } = require('../repositories/vehicleRepository');
 
 class AnalyticsService {
   constructor() {

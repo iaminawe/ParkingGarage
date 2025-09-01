@@ -40,7 +40,7 @@ interface GarageConfigUpdateBody {
 // Extend Request type to include our custom properties
 interface TypedRequest<T = any, U = any> extends Request {
   body: T;
-  query: U;
+  query: U & Record<string, any>;
 }
 
 /**

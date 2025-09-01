@@ -8,8 +8,8 @@
  * @module SearchService
  */
 
-const VehicleRepository = require('../repositories/vehicleRepository');
-const SpotRepository = require('../repositories/spotRepository');
+const { VehicleRepository } = require('../repositories/vehicleRepository');
+const { SpotRepository } = require('../repositories/spotRepository');
 const { searchLicensePlates, validateSearchTerm } = require('../utils/stringMatcher');
 
 class SearchService {

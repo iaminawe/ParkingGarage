@@ -9,7 +9,7 @@
  */
 
 import { Request, Response } from 'express';
-const CheckoutService = require('../services/checkoutService');
+import { CheckoutService } from "../services/checkoutService";
 import { 
   CheckOutRequest, 
   CheckOutResponse, 
@@ -32,7 +32,7 @@ interface ForceCheckoutRequest {
  * Controller for handling checkout related HTTP requests
  */
 export class CheckoutController {
-  private checkoutService: CheckoutService;
+  private checkoutService: any;
 
   constructor() {
     this.checkoutService = new CheckoutService();

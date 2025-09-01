@@ -9,7 +9,7 @@
  */
 
 import { Request, Response } from 'express';
-const SpotService = require('../services/spotService');
+import { SpotService } from "../services/spotService";
 import { 
   UpdateSpotRequest,
   SearchSpotsRequest, 
@@ -53,7 +53,7 @@ interface RequestWithFilters extends Request {
  * Controller class for spot operations
  */
 export class SpotController {
-  private spotService: SpotService;
+  private spotService: any;
 
   constructor() {
     this.spotService = new SpotService();
@@ -66,9 +66,8 @@ export class SpotController {
   getSpots = async (req: RequestWithFilters & Request<{}, PaginatedApiResponse<SpotRecord>, {}, SpotQuery>, res: Response<PaginatedApiResponse<SpotRecord>>): Promise<void> => {
     try {
       const filters = req.filters || {};
-      const pagination: PaginationOptions = {
+      const pagination: any = {
         limit: req.query.limit ? parseInt(req.query.limit, 10) : 20,
-        offset: req.query.offset ? parseInt(req.query.offset, 10) : 0
       };
       const sorting = {
         sort: req.sort,

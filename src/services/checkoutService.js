@@ -8,9 +8,9 @@
  * @module CheckoutService
  */
 
-const VehicleRepository = require('../repositories/vehicleRepository');
-const SpotRepository = require('../repositories/spotRepository');
-const BillingService = require('./billingService');
+const { VehicleRepository } = require('../repositories/vehicleRepository');
+const { SpotRepository } = require('../repositories/spotRepository');
+const { BillingService } = require('./billingService');
 const { calculateParkingDuration, getCurrentTimestamp } = require('../utils/timeCalculator');
 
 /**
