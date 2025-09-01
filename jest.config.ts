@@ -1,0 +1,111 @@
+import type { Config } from 'jest';
+
+const config: Config = {
+  // Test environment
+  testEnvironment: 'node',
+
+  // Use ts-jest preset for TypeScript support
+  preset: 'ts-jest',
+
+  // Coverage settings
+  collectCoverage: false,
+  coverageDirectory: 'coverage',
+  collectCoverageFrom: [
+    'src/**/*.{js,ts}',
+    '!src/server.{js,ts}',
+    '!src/**/*.test.{js,ts}',
+    '!src/**/*.spec.{js,ts}',
+    '!src/**/*.d.ts'
+  ],
+  coverageReporters: ['text', 'lcov', 'html'],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
+    }
+  },
+
+  // Test patterns - support both JS and TS tests
+  testMatch: [
+    '**/tests/**/*.test.{js,ts}',
+    '**/tests/**/*.spec.{js,ts}'
+  ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/coverage/',
+    '/dist/',
+    '/build/'
+  ],
+
+  // Setup files
+  setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js'],
+
+  // Transform settings for mixed JS/TS codebase
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: {
+        allowJs: true,
+        esModuleInterop: true,
+        skipLibCheck: true
+      }
+    }],
+    '^.+\\.jsx?$': ['ts-jest', {
+      tsconfig: {
+        allowJs: true,
+        esModuleInterop: true,
+        skipLibCheck: true
+      }
+    }]
+  },
+
+  // Module resolution
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@tests/(.*)$': '<rootDir>/tests/$1'
+  },
+
+  // Support both JS and TS file extensions
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+
+  // Timing
+  testTimeout: 10000,
+  slowTestThreshold: 5,
+
+  // Output
+  verbose: true,
+  silent: false,
+
+  // Mocking
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
+
+  // Watch mode
+  watchPathIgnorePatterns: [
+    '/node_modules/',
+    '/coverage/',
+    '/.git/'
+  ],
+
+  // Reporters
+  reporters: ['default'],
+
+  // Global settings
+  globals: {
+    'NODE_ENV': 'test'
+  },
+
+  // Max workers for parallel execution
+  maxWorkers: '50%',
+
+  // Bail on first test failure
+  bail: false,
+
+  // Cache
+  cache: true,
+  cacheDirectory: '/tmp/jest_cache'
+};
+
+export default config;
