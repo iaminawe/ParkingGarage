@@ -18,9 +18,9 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="garages" element={<GarageConfiguration />} />
+              <Route path="garages" element={<GarageConfiguration garageId="default" />} />
               <Route path="vehicles" element={<VehicleManagement />} />
-              <Route path="spots" element={<SpotManagement />} />
+              <Route path="spots" element={<SpotManagement garageId="default" />} />
               <Route path="sessions" element={<SessionManagement />} />
               <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="users" element={<div>Users Page (Coming Soon)</div>} />
