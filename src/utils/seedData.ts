@@ -3,11 +3,50 @@
  * Automatically initializes the garage with sample data on startup
  */
 
+import type { GarageConfig, FloorConfig, VehicleType, RateType } from '../types/models';
+
+// Import services - using both .js and .ts extensions as available
 const GarageService = require('../services/garageService');
-const SpotService = require('../services/spotService');
+const SpotService = require('../services/spotService'); 
 const VehicleRepository = require('../repositories/vehicleRepository');
 
-class SeedDataInitializer {
+// Sample vehicle data interface
+interface SampleVehicleData {
+  licensePlate: string;
+  make: string;
+  model: string;
+  color: string;
+  floor: number;
+  bay: number;
+}
+
+// Maintenance spot configuration
+interface MaintenanceSpotConfig {
+  floor: number;
+  bay: number;
+  spotIndex: number;
+  reason: string;
+}
+
+// Garage statistics interface for logging
+interface GarageStats {
+  occupancy: {
+    total: number;
+    available: number;
+    occupied: number;
+    occupancyRate: number;
+  };
+}
+
+/**
+ * Seed data initializer class for setting up development and test data
+ */
+export class SeedDataInitializer {
+  private garageService: any;
+  private spotService: any;
+  private vehicleRepository: any;
+  private initialized: boolean;
+
   constructor() {
     this.garageService = new GarageService();
     this.spotService = new SpotService();
@@ -19,7 +58,7 @@ class SeedDataInitializer {
    * Initialize seed data for the application
    * This creates a default garage structure and adds sample vehicles
    */
-  async initialize() {
+  async initialize(): Promise<void> {
     if (this.initialized) {
       console.log('🌱 Seed data already initialized');
       return;
@@ -44,7 +83,8 @@ class SeedDataInitializer {
       await this.logCurrentStatus();
 
     } catch (error) {
-      console.error('❌ Seed data initialization failed:', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Seed data initialization failed:', errorMessage);
       // Don't throw - allow app to continue even if seed fails
     }
   }
@@ -52,7 +92,7 @@ class SeedDataInitializer {
   /**
    * Initialize the garage with default structure
    */
-  async initializeGarage() {
+  private async initializeGarage(): Promise<void> {
     try {
       // Check if garage already exists
       const existingGarage = this.garageService.garageRepository.getDefault();
@@ -62,15 +102,37 @@ class SeedDataInitializer {
       }
 
       // Create a 5-floor garage with 10 bays per floor, 10 spots per bay
-      const garageConfig = {
+      const garageConfig: GarageConfig = {
         name: 'Central Parking Garage',
         floors: [
-          { number: 1, bays: 10, spotsPerBay: 10, features: ['covered', 'security'] },
-          { number: 2, bays: 10, spotsPerBay: 10, features: ['covered'] },
-          { number: 3, bays: 10, spotsPerBay: 10, features: ['covered'] },
-          { number: 4, bays: 10, spotsPerBay: 10, features: ['covered', 'ev_charging'] },
-          { number: 5, bays: 10, spotsPerBay: 10, features: ['rooftop', 'premium'] }
-        ]
+          { number: 1, bays: 10, spotsPerBay: 10 },
+          { number: 2, bays: 10, spotsPerBay: 10 },
+          { number: 3, bays: 10, spotsPerBay: 10 },
+          { number: 4, bays: 10, spotsPerBay: 10 },
+          { number: 5, bays: 10, spotsPerBay: 10 }
+        ],
+        rates: {
+          compact: 4.00,
+          standard: 5.00,
+          oversized: 7.00
+        },
+        spotTypes: {
+          compact: { 
+            name: 'Compact',
+            multiplier: 0.8,
+            description: 'Small vehicles only'
+          },
+          standard: { 
+            name: 'Standard',
+            multiplier: 1.0,
+            description: 'Regular size vehicles'
+          },
+          oversized: { 
+            name: 'Oversized',
+            multiplier: 1.4,
+            description: 'Large vehicles and trucks'
+          }
+        }
       };
 
       const result = await this.garageService.initializeGarage(garageConfig);
@@ -87,7 +149,8 @@ class SeedDataInitializer {
       console.log('💰 Default parking rates would be set (feature pending)');
 
     } catch (error) {
-      if (error.message.includes('already initialized')) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('already initialized')) {
         console.log('🏢 Garage already exists, skipping initialization');
       } else {
         throw error;
@@ -98,8 +161,8 @@ class SeedDataInitializer {
   /**
    * Add sample vehicles to simulate a partially occupied garage
    */
-  async addSampleVehicles() {
-    const sampleVehicles = [
+  private async addSampleVehicles(): Promise<void> {
+    const sampleVehicles: SampleVehicleData[] = [
       // Floor 1 - Ground floor (busiest)
       { licensePlate: 'ABC-123', make: 'Toyota', model: 'Camry', color: 'Silver', floor: 1, bay: 1 },
       { licensePlate: 'XYZ-789', make: 'Honda', model: 'Civic', color: 'Blue', floor: 1, bay: 1 },
@@ -145,7 +208,7 @@ class SeedDataInitializer {
           const spot = availableSpots[0];
           
           // Determine vehicle type based on model
-          let vehicleType = 'standard';
+          let vehicleType: VehicleType = 'standard';
           if (vehicleData.model.includes('F-150') || vehicleData.model.includes('Model X')) {
             vehicleType = 'oversized';
           } else if (vehicleData.model.includes('Civic') || vehicleData.model.includes('Elantra')) {
@@ -153,7 +216,7 @@ class SeedDataInitializer {
           }
           
           // Determine rate type (luxury cars get daily, others hourly)
-          const rateType = vehicleData.licensePlate.startsWith('LUX') ? 'daily' : 'hourly';
+          const rateType: RateType = vehicleData.licensePlate.startsWith('LUX') ? 'daily' : 'hourly';
           
           // Create vehicle entry
           const vehicle = this.vehicleRepository.create({
@@ -173,7 +236,8 @@ class SeedDataInitializer {
           console.log(`  ✓ Parked ${vehicleData.licensePlate} in spot ${spot.id}`);
         }
       } catch (error) {
-        console.log(`  ⚠️ Could not park ${vehicleData.licensePlate}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.log(`  ⚠️ Could not park ${vehicleData.licensePlate}: ${errorMessage}`);
       }
     }
   }
@@ -181,8 +245,8 @@ class SeedDataInitializer {
   /**
    * Set some spots to maintenance status for realism
    */
-  async setMaintenanceSpots() {
-    const maintenanceSpots = [
+  private async setMaintenanceSpots(): Promise<void> {
+    const maintenanceSpots: MaintenanceSpotConfig[] = [
       { floor: 1, bay: 6, spotIndex: 3, reason: 'Repainting' },
       { floor: 2, bay: 8, spotIndex: 5, reason: 'Light repair' },
       { floor: 3, bay: 9, spotIndex: 7, reason: 'Surface repair' },
@@ -208,7 +272,8 @@ class SeedDataInitializer {
           console.log(`  ✓ Set spot ${spot.id} to maintenance: ${maintenance.reason}`);
         }
       } catch (error) {
-        console.log(`  ⚠️ Could not set maintenance spot: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.log(`  ⚠️ Could not set maintenance spot: ${errorMessage}`);
       }
     }
   }
@@ -216,12 +281,12 @@ class SeedDataInitializer {
   /**
    * Log the current garage status after initialization
    */
-  async logCurrentStatus() {
+  private async logCurrentStatus(): Promise<void> {
     try {
       const garage = this.garageService.garageRepository.getDefault();
       if (!garage) return;
 
-      const stats = await this.garageService.getStatistics();
+      const stats: GarageStats = await this.garageService.getStatistics();
       
       console.log('\n📊 Current Garage Status:');
       console.log('├─ Name:', garage.name);
@@ -241,14 +306,15 @@ class SeedDataInitializer {
       console.log('└─ GET /health');
 
     } catch (error) {
-      console.error('Could not log status:', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Could not log status:', errorMessage);
     }
   }
 
   /**
    * Reset all data (useful for testing)
    */
-  async reset() {
+  async reset(): Promise<void> {
     console.log('🔄 Resetting all seed data...');
     
     // Clear all repositories
@@ -261,7 +327,40 @@ class SeedDataInitializer {
     // Re-initialize
     await this.initialize();
   }
+
+  /**
+   * Check if seed data has been initialized
+   */
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  /**
+   * Get initialization status
+   */
+  getStatus(): {
+    initialized: boolean;
+    hasGarage: boolean;
+    hasVehicles: boolean;
+  } {
+    try {
+      const garage = this.garageService.garageRepository.getDefault();
+      const vehicles = this.vehicleRepository.findAll();
+      
+      return {
+        initialized: this.initialized,
+        hasGarage: !!garage,
+        hasVehicles: vehicles.length > 0
+      };
+    } catch {
+      return {
+        initialized: false,
+        hasGarage: false,
+        hasVehicles: false
+      };
+    }
+  }
 }
 
 // Export singleton instance
-module.exports = new SeedDataInitializer();
+export default new SeedDataInitializer();

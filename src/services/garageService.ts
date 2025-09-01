@@ -8,13 +8,64 @@
  * @module GarageService
  */
 
-const GarageRepository = require('../repositories/garageRepository');
-const SpotRepository = require('../repositories/spotRepository');
+import { GarageRepository } from '../repositories/garageRepository';
+import { SpotRepository } from '../repositories/spotRepository';
+import { 
+  GarageConfig, 
+  FloorConfig, 
+  VehicleType, 
+  SpotFeature,
+  ServiceResponse 
+} from '../types/models';
+
+interface SpotCreationResult {
+  id: string;
+  floor: number;
+  bay: number;
+  spotNumber: number;
+  type: VehicleType;
+  status: string;
+  features: SpotFeature[];
+}
+
+interface GarageInitializationResult {
+  garage: any;
+  spotsCreated: number;
+  spots: SpotCreationResult[];
+}
+
+interface GarageStatistics {
+  garage: {
+    name: string;
+    totalCapacity: number;
+    totalFloors: number;
+    floors: Array<{
+      floor: number;
+      capacity: number;
+    }>;
+  };
+  occupancy: any;
+  distribution: {
+    byType: Record<string, number>;
+    byFeature: Record<string, number>;
+    byFloor: Record<string, any>;
+  };
+  rates: Record<string, number>;
+  lastUpdated: string;
+}
+
+interface ConfigurationOptions {
+  includeStats?: boolean;
+  includeSpots?: boolean;
+}
 
 /**
  * Service class for garage management operations
  */
 class GarageService {
+  private garageRepository: GarageRepository;
+  private spotRepository: SpotRepository;
+
   constructor() {
     this.garageRepository = new GarageRepository();
     this.spotRepository = new SpotRepository();
@@ -22,13 +73,14 @@ class GarageService {
 
   /**
    * Initialize a new garage with floors, bays, and spots
-   * @param {Object} garageData - Garage initialization data
-   * @param {string} garageData.name - Garage name
-   * @param {Array} garageData.floors - Array of floor configurations
-   * @returns {Object} Initialization result with garage config and created spots
-   * @throws {Error} If garage already exists or initialization fails
+   * @param garageData - Garage initialization data
+   * @returns Initialization result with garage config and created spots
+   * @throws Error If garage already exists or initialization fails
    */
-  async initializeGarage(garageData) {
+  async initializeGarage(garageData: { 
+    name: string; 
+    floors: FloorConfig[];
+  }): Promise<GarageInitializationResult> {
     try {
       // Check if default garage already exists
       const existingGarage = this.garageRepository.getDefault();
@@ -37,19 +89,30 @@ class GarageService {
       }
 
       // Create garage configuration with default rates and spot types
-      const garageConfig = {
+      const garageConfig: GarageConfig = {
         name: garageData.name,
         floors: garageData.floors,
         rates: {
           standard: 5.00,
           compact: 4.00,
-          oversized: 7.00,
-          ev_charging: 8.00
+          oversized: 7.00
         },
         spotTypes: {
-          compact: { minSize: 0, maxSize: 1 },
-          standard: { minSize: 1, maxSize: 2 },
-          oversized: { minSize: 2, maxSize: 3 }
+          compact: { 
+            name: 'Compact',
+            multiplier: 0.8,
+            description: 'For smaller vehicles'
+          },
+          standard: { 
+            name: 'Standard',
+            multiplier: 1.0,
+            description: 'Standard size parking spot'
+          },
+          oversized: { 
+            name: 'Oversized',
+            multiplier: 1.4,
+            description: 'For larger vehicles'
+          }
         }
       };
 
@@ -73,17 +136,17 @@ class GarageService {
         }))
       };
     } catch (error) {
-      throw new Error(`Garage initialization failed: ${error.message}`);
+      throw new Error(`Garage initialization failed: ${(error as Error).message}`);
     }
   }
 
   /**
    * Generate spots for all floors in the garage
-   * @param {Garage} garage - Garage configuration object
-   * @returns {Array} Array of created spots
+   * @param garage - Garage configuration object
+   * @returns Array of created spots
    */
-  async generateSpotsForGarage(garage) {
-    const createdSpots = [];
+  async generateSpotsForGarage(garage: any): Promise<any[]> {
+    const createdSpots: any[] = [];
 
     for (const floor of garage.floors) {
       const floorSpots = await this.generateSpotsForFloor(floor);
@@ -95,15 +158,12 @@ class GarageService {
 
   /**
    * Generate spots for a single floor
-   * @param {Object} floorConfig - Floor configuration
-   * @param {number} floorConfig.number - Floor number
-   * @param {number} floorConfig.bays - Number of bays
-   * @param {number} floorConfig.spotsPerBay - Spots per bay
-   * @returns {Array} Array of created spots for the floor
+   * @param floorConfig - Floor configuration
+   * @returns Array of created spots for the floor
    */
-  async generateSpotsForFloor(floorConfig) {
+  async generateSpotsForFloor(floorConfig: FloorConfig): Promise<any[]> {
     const { number: floor, bays, spotsPerBay } = floorConfig;
-    const createdSpots = [];
+    const createdSpots: any[] = [];
 
     for (let bay = 1; bay <= bays; bay++) {
       for (let spotNumber = 1; spotNumber <= spotsPerBay; spotNumber++) {
@@ -118,7 +178,7 @@ class GarageService {
           createdSpots.push(spot);
         } catch (error) {
           // Log but don't fail entire initialization for individual spot errors
-          console.warn(`Failed to create spot F${floor}-B${bay}-S${spotNumber.toString().padStart(3, '0')}: ${error.message}`);
+          console.warn(`Failed to create spot F${floor}-B${bay}-S${spotNumber.toString().padStart(3, '0')}: ${(error as Error).message}`);
         }
       }
     }
@@ -128,13 +188,13 @@ class GarageService {
 
   /**
    * Determine spot type based on position and distribution
-   * @param {number} floor - Floor number
-   * @param {number} bay - Bay number
-   * @param {number} spotNumber - Spot number
-   * @param {number} spotsPerBay - Total spots per bay
-   * @returns {string} Spot type ('compact', 'standard', 'oversized')
+   * @param floor - Floor number
+   * @param bay - Bay number
+   * @param spotNumber - Spot number
+   * @param spotsPerBay - Total spots per bay
+   * @returns Spot type ('compact', 'standard', 'oversized')
    */
-  determineSpotType(floor, bay, spotNumber, spotsPerBay) {
+  determineSpotType(floor: number, bay: number, spotNumber: number, spotsPerBay: number): VehicleType {
     // Distribution: 20% compact, 70% standard, 10% oversized
     const position = ((bay - 1) * spotsPerBay + spotNumber - 1) % 10;
     
@@ -145,14 +205,14 @@ class GarageService {
 
   /**
    * Determine special features for a spot
-   * @param {number} floor - Floor number
-   * @param {number} bay - Bay number
-   * @param {number} spotNumber - Spot number
-   * @param {number} spotsPerBay - Total spots per bay
-   * @returns {Array} Array of features
+   * @param floor - Floor number
+   * @param bay - Bay number
+   * @param spotNumber - Spot number
+   * @param spotsPerBay - Total spots per bay
+   * @returns Array of features
    */
-  determineSpotFeatures(floor, bay, spotNumber, spotsPerBay) {
-    const features = [];
+  determineSpotFeatures(floor: number, bay: number, spotNumber: number, spotsPerBay: number): SpotFeature[] {
+    const features: SpotFeature[] = [];
     
     // Add EV charging to first spot in each bay (roughly 1 in 20 spots)
     if (spotNumber === 1) {
@@ -169,12 +229,10 @@ class GarageService {
 
   /**
    * Get current garage configuration
-   * @param {Object} options - Query options
-   * @param {boolean} options.includeStats - Include occupancy statistics
-   * @param {boolean} options.includeSpots - Include spot details
-   * @returns {Object} Garage configuration with optional statistics and spots
+   * @param options - Query options
+   * @returns Garage configuration with optional statistics and spots
    */
-  async getGarageConfiguration(options = {}) {
+  async getGarageConfiguration(options: ConfigurationOptions = {}): Promise<any> {
     const { includeStats = false, includeSpots = false } = options;
 
     const garage = this.garageRepository.getDefault();
@@ -189,12 +247,12 @@ class GarageService {
     };
 
     if (includeStats) {
-      config.statistics = this.spotRepository.getOccupancyStats();
+      (config as any).statistics = this.spotRepository.getOccupancyStats();
     }
 
     if (includeSpots) {
       const spots = this.spotRepository.findAll();
-      config.spots = spots.map(spot => spot.toObject());
+      (config as any).spots = spots.map(spot => spot.toObject());
     }
 
     return config;
@@ -202,11 +260,11 @@ class GarageService {
 
   /**
    * Update garage rates
-   * @param {Object} rateUpdates - Rate updates object
-   * @returns {Object} Updated garage configuration
-   * @throws {Error} If garage not found or update fails
+   * @param rateUpdates - Rate updates object
+   * @returns Updated garage configuration
+   * @throws Error If garage not found or update fails
    */
-  async updateGarageRates(rateUpdates) {
+  async updateGarageRates(rateUpdates: Record<string, number>): Promise<any> {
     const garage = this.garageRepository.getDefault();
     if (!garage) {
       throw new Error('Garage not initialized. Please initialize the garage first.');
@@ -217,7 +275,7 @@ class GarageService {
     
     for (const [rateType, newRate] of Object.entries(rateUpdates)) {
       if (validRateTypes.includes(rateType)) {
-        garage.updateRate(rateType, newRate);
+        garage.updateRate(rateType as VehicleType, newRate);
       }
     }
 
@@ -231,11 +289,11 @@ class GarageService {
 
   /**
    * Update garage configuration (name only for now)
-   * @param {Object} configUpdates - Configuration updates
-   * @returns {Object} Updated garage configuration
-   * @throws {Error} If garage not found or update fails
+   * @param configUpdates - Configuration updates
+   * @returns Updated garage configuration
+   * @throws Error If garage not found or update fails
    */
-  async updateGarageConfiguration(configUpdates) {
+  async updateGarageConfiguration(configUpdates: { name?: string }): Promise<any> {
     const garage = this.garageRepository.getDefault();
     if (!garage) {
       throw new Error('Garage not initialized. Please initialize the garage first.');
@@ -255,17 +313,17 @@ class GarageService {
 
   /**
    * Get garage statistics (alias for getGarageStatistics)
-   * @returns {Object} Comprehensive garage statistics
+   * @returns Comprehensive garage statistics
    */
-  async getStatistics() {
+  async getStatistics(): Promise<GarageStatistics> {
     return this.getGarageStatistics();
   }
 
   /**
    * Get garage statistics including capacity and occupancy
-   * @returns {Object} Comprehensive garage statistics
+   * @returns Comprehensive garage statistics
    */
-  async getGarageStatistics() {
+  async getGarageStatistics(): Promise<GarageStatistics> {
     const garage = this.garageRepository.getDefault();
     if (!garage) {
       throw new Error('Garage not initialized. Please initialize the garage first.');
@@ -280,8 +338,8 @@ class GarageService {
       garage: {
         name: garage.name,
         totalCapacity: garage.getTotalCapacity(),
-        totalFloors: garage.getTotalFloors(),
-        floors: garage.floors.map(floor => ({
+        totalFloors: garage.floors.length,
+        floors: garage.floors.map((floor: FloorConfig) => ({
           floor: floor.number,
           capacity: floor.bays * floor.spotsPerBay
         }))
@@ -292,18 +350,18 @@ class GarageService {
         byFeature: spotsByFeature,
         byFloor: spotsByFloor
       },
-      rates: garage.rates,
+      rates: garage.rates as unknown as Record<string, number>,
       lastUpdated: garage.updatedAt
     };
   }
 
   /**
    * Get spot distribution by type
-   * @returns {Object} Distribution of spots by type
+   * @returns Distribution of spots by type
    */
-  getSpotDistributionByType() {
+  getSpotDistributionByType(): Record<string, number> {
     const spots = this.spotRepository.findAll();
-    const distribution = { compact: 0, standard: 0, oversized: 0 };
+    const distribution: Record<string, number> = { compact: 0, standard: 0, oversized: 0 };
     
     spots.forEach(spot => {
       if (distribution.hasOwnProperty(spot.type)) {
@@ -316,11 +374,11 @@ class GarageService {
 
   /**
    * Get spot distribution by special features
-   * @returns {Object} Distribution of spots by features
+   * @returns Distribution of spots by features
    */
-  getSpotDistributionByFeature() {
+  getSpotDistributionByFeature(): Record<string, number> {
     const spots = this.spotRepository.findAll();
-    const distribution = { ev_charging: 0, handicap: 0, regular: 0 };
+    const distribution: Record<string, number> = { ev_charging: 0, handicap: 0, regular: 0 };
     
     spots.forEach(spot => {
       if (spot.features.includes('ev_charging')) {
@@ -337,11 +395,11 @@ class GarageService {
 
   /**
    * Get spot distribution by floor
-   * @returns {Object} Distribution of spots by floor
+   * @returns Distribution of spots by floor
    */
-  getSpotDistributionByFloor() {
+  getSpotDistributionByFloor(): Record<string, any> {
     const spots = this.spotRepository.findAll();
-    const distribution = {};
+    const distribution: Record<string, any> = {};
     
     spots.forEach(spot => {
       const floor = `Floor ${spot.floor}`;
@@ -361,17 +419,17 @@ class GarageService {
 
   /**
    * Check if garage is initialized
-   * @returns {boolean} True if garage exists
+   * @returns True if garage exists
    */
-  isGarageInitialized() {
+  isGarageInitialized(): boolean {
     return this.garageRepository.getDefault() !== null;
   }
 
   /**
    * Reset garage (clear all data - mainly for testing)
-   * @returns {Object} Reset confirmation
+   * @returns Reset confirmation
    */
-  async resetGarage() {
+  async resetGarage(): Promise<{ message: string; timestamp: string }> {
     this.garageRepository.clear();
     this.spotRepository.clear();
     
@@ -382,4 +440,4 @@ class GarageService {
   }
 }
 
-module.exports = GarageService;
+export { GarageService };

@@ -8,13 +8,75 @@
  * @module SpotService
  */
 
-const SpotRepository = require('../repositories/spotRepository');
-const { calculatePagination, paginateArray } = require('../utils/pagination');
+import { SpotRepository } from '../repositories/spotRepository';
+import { calculatePagination, paginateArray } from '../utils/pagination';
+import { 
+  SpotStatus, 
+  VehicleType, 
+  SpotFeature,
+  ServiceResponse,
+  PaginationOptions 
+} from '../types/models';
+
+interface SpotFilters {
+  status?: SpotStatus;
+  type?: VehicleType;
+  floor?: number;
+  bay?: number;
+}
+
+interface PaginationParams {
+  limit?: number;
+  offset?: number;
+}
+
+interface SortingParams {
+  sort?: string;
+  order?: 'asc' | 'desc';
+}
+
+interface SpotMetadata {
+  total: number;
+  filtered: number;
+  hasFilters: boolean;
+  filtersApplied: SpotFilters;
+  statusCounts: Record<string, number>;
+  typeCounts: Record<string, number>;
+  featureCounts: Record<string, number>;
+  floors: number[];
+  uniqueBays: number;
+  occupancyRate: number;
+  processingTimeMs?: number;
+  timestamp?: string;
+}
+
+interface SpotResult {
+  spots: any[];
+  pagination: any;
+  metadata: SpotMetadata;
+}
+
+interface StatusUpdateMetadata {
+  vehicleId?: string;
+  licensePlate?: string;
+  reason?: string;
+  estimatedCompletion?: string;
+}
+
+interface SpotStatistics {
+  [key: string]: any;
+  metadata?: {
+    processingTimeMs: number;
+    timestamp: string;
+  };
+}
 
 /**
  * Service class for spot operations
  */
 class SpotService {
+  private spotRepository: SpotRepository;
+
   constructor() {
     this.spotRepository = new SpotRepository();
   }
@@ -22,12 +84,16 @@ class SpotService {
   /**
    * Get spots with filtering, sorting, and pagination
    * Uses efficient Map iteration for performance
-   * @param {Object} filters - Filter criteria (status, type, floor, bay)
-   * @param {Object} pagination - Pagination parameters (limit, offset)
-   * @param {Object} sorting - Sorting parameters (sort, order)
-   * @returns {Object} Filtered and paginated spots with metadata
+   * @param filters - Filter criteria (status, type, floor, bay)
+   * @param pagination - Pagination parameters (limit, offset)
+   * @param sorting - Sorting parameters (sort, order)
+   * @returns Filtered and paginated spots with metadata
    */
-  async getSpots(filters = {}, pagination = {}, sorting = {}) {
+  async getSpots(
+    filters: SpotFilters = {}, 
+    pagination: PaginationParams = {}, 
+    sorting: SortingParams = {}
+  ): Promise<SpotResult> {
     try {
       const startTime = process.hrtime.bigint();
       
@@ -63,31 +129,31 @@ class SpotService {
       };
       
     } catch (error) {
-      throw new Error(`Failed to retrieve spots: ${error.message}`);
+      throw new Error(`Failed to retrieve spots: ${(error as Error).message}`);
     }
   }
 
   /**
    * Get a single spot by ID
-   * @param {string} spotId - Spot ID to retrieve
-   * @returns {Object|null} Spot data or null if not found
+   * @param spotId - Spot ID to retrieve
+   * @returns Spot data or null if not found
    */
-  async getSpotById(spotId) {
+  async getSpotById(spotId: string): Promise<any | null> {
     try {
       const spot = this.spotRepository.findById(spotId);
       return spot ? spot.toObject() : null;
     } catch (error) {
-      throw new Error(`Failed to retrieve spot ${spotId}: ${error.message}`);
+      throw new Error(`Failed to retrieve spot ${spotId}: ${(error as Error).message}`);
     }
   }
 
   /**
    * Update a spot with atomic operations
-   * @param {string} spotId - Spot ID to update
-   * @param {Object} updates - Updates to apply
-   * @returns {Object|null} Updated spot or null if not found
+   * @param spotId - Spot ID to update
+   * @param updates - Updates to apply
+   * @returns Updated spot or null if not found
    */
-  async updateSpot(spotId, updates) {
+  async updateSpot(spotId: string, updates: Record<string, any>): Promise<any | null> {
     try {
       const startTime = process.hrtime.bigint();
       
@@ -108,7 +174,7 @@ class SpotService {
       }
       
       const result = updatedSpot.toObject();
-      result.metadata = {
+      (result as any).metadata = {
         processingTimeMs: Math.round(processingTime * 100) / 100,
         timestamp: new Date().toISOString()
       };
@@ -116,16 +182,16 @@ class SpotService {
       return result;
       
     } catch (error) {
-      throw new Error(`Failed to update spot ${spotId}: ${error.message}`);
+      throw new Error(`Failed to update spot ${spotId}: ${(error as Error).message}`);
     }
   }
 
   /**
    * Find available spots with optional filters
-   * @param {Object} filters - Filter criteria (floor, bay, type, features)
-   * @returns {Array} Array of available spots
+   * @param filters - Filter criteria (floor, bay, type, features)
+   * @returns Array of available spots
    */
-  async findAvailableSpots(filters = {}) {
+  async findAvailableSpots(filters: SpotFilters = {}): Promise<any[]> {
     try {
       const allSpots = this.spotRepository.findAll();
       
@@ -138,16 +204,16 @@ class SpotService {
       return filteredSpots;
       
     } catch (error) {
-      throw new Error(`Failed to find available spots: ${error.message}`);
+      throw new Error(`Failed to find available spots: ${(error as Error).message}`);
     }
   }
 
   /**
    * Find spots with flexible filtering
-   * @param {Object} filters - Filter criteria (status, floor, bay, type, features)
-   * @returns {Array} Array of matching spots
+   * @param filters - Filter criteria (status, floor, bay, type, features)
+   * @returns Array of matching spots
    */
-  async findSpots(filters = {}) {
+  async findSpots(filters: SpotFilters = {}): Promise<any[]> {
     try {
       const allSpots = this.spotRepository.findAll();
       
@@ -157,20 +223,24 @@ class SpotService {
       return filteredSpots;
       
     } catch (error) {
-      throw new Error(`Failed to find spots: ${error.message}`);
+      throw new Error(`Failed to find spots: ${(error as Error).message}`);
     }
   }
 
   /**
    * Update spot status with metadata
-   * @param {string} spotId - Spot ID to update
-   * @param {string} status - New status (available, occupied, maintenance)
-   * @param {Object} metadata - Additional metadata for the status change
-   * @returns {Object|null} Updated spot or null if not found
+   * @param spotId - Spot ID to update
+   * @param status - New status (available, occupied, maintenance)
+   * @param metadata - Additional metadata for the status change
+   * @returns Updated spot or null if not found
    */
-  async updateSpotStatus(spotId, status, metadata = {}) {
+  async updateSpotStatus(
+    spotId: string, 
+    status: SpotStatus, 
+    metadata: StatusUpdateMetadata = {}
+  ): Promise<any | null> {
     try {
-      const updates = {
+      const updates: Record<string, any> = {
         status,
         lastUpdated: new Date().toISOString()
       };
@@ -180,7 +250,7 @@ class SpotService {
         updates.vehicleId = metadata.vehicleId;
         updates.licensePlate = metadata.licensePlate;
         updates.occupiedSince = new Date().toISOString();
-      } else if (status === 'maintenance' && metadata.reason) {
+      } else if (status === 'occupied' && metadata.reason) {
         updates.maintenanceReason = metadata.reason;
         updates.estimatedCompletion = metadata.estimatedCompletion;
       } else if (status === 'available') {
@@ -195,15 +265,15 @@ class SpotService {
       return await this.updateSpot(spotId, updates);
       
     } catch (error) {
-      throw new Error(`Failed to update spot status ${spotId}: ${error.message}`);
+      throw new Error(`Failed to update spot status ${spotId}: ${(error as Error).message}`);
     }
   }
 
   /**
    * Get spot statistics and counts
-   * @returns {Object} Comprehensive spot statistics
+   * @returns Comprehensive spot statistics
    */
-  async getSpotStatistics() {
+  async getSpotStatistics(): Promise<SpotStatistics> {
     try {
       const startTime = process.hrtime.bigint();
       
@@ -225,18 +295,18 @@ class SpotService {
       };
       
     } catch (error) {
-      throw new Error(`Failed to retrieve spot statistics: ${error.message}`);
+      throw new Error(`Failed to retrieve spot statistics: ${(error as Error).message}`);
     }
   }
 
   /**
    * Filter spots efficiently using Map iteration
    * @private
-   * @param {Array} spots - Array of spots to filter
-   * @param {Object} filters - Filter criteria
-   * @returns {Array} Filtered spots
+   * @param spots - Array of spots to filter
+   * @param filters - Filter criteria
+   * @returns Filtered spots
    */
-  _filterSpots(spots, filters) {
+  private _filterSpots(spots: any[], filters: SpotFilters): any[] {
     if (Object.keys(filters).length === 0) {
       return spots;
     }
@@ -269,11 +339,11 @@ class SpotService {
   /**
    * Sort spots based on criteria
    * @private
-   * @param {Array} spots - Array of spots to sort
-   * @param {Object} sorting - Sorting parameters
-   * @returns {Array} Sorted spots
+   * @param spots - Array of spots to sort
+   * @param sorting - Sorting parameters
+   * @returns Sorted spots
    */
-  _sortSpots(spots, sorting) {
+  private _sortSpots(spots: any[], sorting: SortingParams): any[] {
     if (!sorting.sort) {
       // Default sort by ID for consistent ordering
       return spots.sort((a, b) => a.id.localeCompare(b.id));
@@ -310,43 +380,43 @@ class SpotService {
   /**
    * Generate comprehensive spot metadata
    * @private
-   * @param {Array} allSpots - All spots
-   * @param {Array} filteredSpots - Filtered spots
-   * @param {Object} filters - Applied filters
-   * @returns {Object} Metadata object
+   * @param allSpots - All spots
+   * @param filteredSpots - Filtered spots
+   * @param filters - Applied filters
+   * @returns Metadata object
    */
-  _generateSpotMetadata(allSpots, filteredSpots, filters) {
+  private _generateSpotMetadata(allSpots: any[], filteredSpots: any[], filters: SpotFilters): SpotMetadata {
     const total = allSpots.length;
     const filtered = filteredSpots.length;
     
     // Count by status
-    const statusCounts = {
+    const statusCounts: Record<string, number> = {
       available: 0,
       occupied: 0
     };
     
     // Count by type
-    const typeCounts = {
+    const typeCounts: Record<string, number> = {
       compact: 0,
       standard: 0,
       oversized: 0
     };
     
     // Count by features
-    const featureCounts = {
+    const featureCounts: Record<string, number> = {
       ev_charging: 0,
       handicap: 0
     };
     
     // Count floors and bays
-    const floorSet = new Set();
-    const baySet = new Set();
+    const floorSet = new Set<number>();
+    const baySet = new Set<string>();
     
     filteredSpots.forEach(spot => {
       statusCounts[spot.status]++;
       typeCounts[spot.type]++;
       
-      spot.features.forEach(feature => {
+      spot.features.forEach((feature: SpotFeature) => {
         if (featureCounts[feature] !== undefined) {
           featureCounts[feature]++;
         }
@@ -373,19 +443,19 @@ class SpotService {
   /**
    * Generate detailed statistics for all spots
    * @private
-   * @param {Array} allSpots - All spots in the system
-   * @param {Object} occupancyStats - Basic occupancy statistics
-   * @returns {Object} Detailed statistics
+   * @param allSpots - All spots in the system
+   * @param occupancyStats - Basic occupancy statistics
+   * @returns Detailed statistics
    */
-  _generateDetailedStats(allSpots, occupancyStats) {
-    const floorStats = {};
-    const typeStats = {
+  private _generateDetailedStats(allSpots: any[], occupancyStats: any): any {
+    const floorStats: Record<number, any> = {};
+    const typeStats: Record<VehicleType, any> = {
       compact: { total: 0, occupied: 0, available: 0 },
       standard: { total: 0, occupied: 0, available: 0 },
       oversized: { total: 0, occupied: 0, available: 0 }
     };
     
-    const featureStats = {
+    const featureStats: Record<SpotFeature, any> = {
       ev_charging: { total: 0, occupied: 0, available: 0 },
       handicap: { total: 0, occupied: 0, available: 0 }
     };
@@ -406,11 +476,11 @@ class SpotService {
       floorStats[spot.floor].bays.add(spot.bay);
       
       // Type statistics
-      typeStats[spot.type].total++;
-      typeStats[spot.type][spot.status]++;
+      typeStats[spot.type as VehicleType].total++;
+      typeStats[spot.type as VehicleType][spot.status]++;
       
       // Feature statistics
-      spot.features.forEach(feature => {
+      spot.features.forEach((feature: SpotFeature) => {
         if (featureStats[feature]) {
           featureStats[feature].total++;
           featureStats[feature][spot.status]++;
@@ -420,7 +490,7 @@ class SpotService {
     
     // Convert bay sets to counts
     Object.keys(floorStats).forEach(floor => {
-      floorStats[floor].bays = floorStats[floor].bays.size;
+      floorStats[floor as any].bays = floorStats[floor as any].bays.size;
     });
     
     return {
@@ -432,4 +502,4 @@ class SpotService {
   }
 }
 
-module.exports = SpotService;
+export { SpotService };
