@@ -90,6 +90,90 @@ export interface GarageAnalytics {
   dailyStats: { date: string; sessions: number; revenue: number }[]
 }
 
+export interface AnalyticsDateRange {
+  startDate: string
+  endDate: string
+  period: 'today' | 'week' | 'month' | 'year' | 'custom'
+}
+
+export interface OccupancyTrendData {
+  timestamp: string
+  occupiedSpots: number
+  totalSpots: number
+  occupancyRate: number
+  garageId?: string
+}
+
+export interface RevenueData {
+  period: string
+  revenue: number
+  sessions: number
+  averageRevenue: number
+  garageId?: string
+  garageName?: string
+}
+
+export interface VehicleTypeData {
+  type: string
+  count: number
+  percentage: number
+  color?: string
+}
+
+export interface DurationData {
+  durationRange: string
+  count: number
+  percentage: number
+  averageDuration: number
+}
+
+export interface PeakHoursData {
+  hour: number
+  dayOfWeek: number
+  occupancyRate: number
+  sessionCount: number
+  dayName: string
+}
+
+export interface SpotUtilizationData {
+  spotId: string
+  spotNumber: string
+  floor: number
+  bay?: string
+  utilizationRate: number
+  totalSessions: number
+  averageDuration: number
+  revenue: number
+  efficiency: 'low' | 'medium' | 'high'
+}
+
+export interface AnalyticsFilters {
+  garageIds?: string[]
+  dateRange: AnalyticsDateRange
+  vehicleTypes?: string[]
+  spotTypes?: string[]
+  includeInactive?: boolean
+}
+
+export interface SystemAnalytics {
+  totalRevenue: number
+  totalSessions: number
+  averageSessionDuration: number
+  averageOccupancyRate: number
+  totalUniqueVehicles: number
+  revenueGrowth: number
+  sessionGrowth: number
+  topPerformingGarages: Array<{
+    garageId: string
+    name: string
+    revenue: number
+    sessions: number
+    occupancyRate: number
+  }>
+  vehicleTypeDistribution: VehicleTypeData[]
+  hourlyTrends: OccupancyTrendData[]
+}
+
 // Real-time Update Types
 export interface SpotUpdate {
   spotId: string
