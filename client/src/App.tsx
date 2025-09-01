@@ -2,12 +2,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryProvider, SocketProvider } from '@/providers'
 import { Layout } from '@/components/layout/Layout'
 import { HomePage } from '@/pages/HomePage'
-import { Dashboard } from '@/components/dashboard/Dashboard'
+import Dashboard from '@/components/dashboard/Dashboard'
 import { VehicleManagement } from '@/components/vehicles/VehicleManagement'
 import { SpotManagement } from '@/components/spots/SpotManagement'
 import { GarageConfiguration } from '@/components/garage/GarageConfiguration'
 import { SessionManagement } from '@/components/sessions/SessionManagement'
-import { AnalyticsPage } from '@/components/analytics/AnalyticsPage'
+import AnalyticsPage from '@/components/analytics/AnalyticsPage'
 
 function App() {
   return (

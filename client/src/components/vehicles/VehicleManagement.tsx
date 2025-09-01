@@ -42,8 +42,7 @@ import {
   Trash2, 
   Clock,
   MapPin,
-  DollarSign,
-  Calendar
+  DollarSign
 } from 'lucide-react'
 import { apiService } from '@/services/api'
 import type { Vehicle, ParkingSession } from '@/types/api-extensions'
@@ -57,7 +56,6 @@ export function VehicleManagement() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isCheckInDialogOpen, setIsCheckInDialogOpen] = useState(false)
   const [newVehicle, setNewVehicle] = useState({
     licensePlate: '',
     make: '',

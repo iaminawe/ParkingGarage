@@ -44,7 +44,7 @@ import {
   Phone,
   Mail,
   Zap,
-  Wheelchair
+  Accessibility
 } from 'lucide-react'
 import { apiService } from '@/services/api'
 import type { ParkingGarage } from '@/types/api-extensions'
@@ -906,8 +906,8 @@ export function GarageConfiguration() {
                           disabled={!isEditing}
                         />
                         <Label htmlFor="wheelchair-access" className="flex items-center gap-2">
-                          <Wheelchair className="h-4 w-4" />
-                          Wheelchair Accessible
+                          <Accessibility className="h-4 w-4" />
+                          Accessibility Accessible
                         </Label>
                       </div>
                     </div>

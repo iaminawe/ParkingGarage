@@ -21,7 +21,7 @@ import {
   Filter,
   RefreshCw,
   Zap,
-  Wheelchair,
+  Accessibility,
   Car,
   Truck,
   Bike,
@@ -134,7 +134,7 @@ export function SpotManagement() {
       case 'electric':
         return <Zap className="h-4 w-4" />
       case 'handicapped':
-        return <Wheelchair className="h-4 w-4" />
+        return <Accessibility className="h-4 w-4" />
       default:
         return <ParkingSquare className="h-4 w-4" />
     }

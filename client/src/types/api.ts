@@ -20,9 +20,19 @@ export interface ParkingGarage {
   id: string
   name: string
   location: string
+  address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  phone?: string
+  email?: string
+  website?: string
+  description?: string
   totalSpots: number
   availableSpots: number
   floors: number
+  totalFloors?: number
+  spotsPerFloor?: number
   pricePerHour: number
   isActive: boolean
   createdAt: string
@@ -34,10 +44,14 @@ export interface ParkingSpot {
   garageId: string
   spotNumber: string
   floor: number
-  type: 'regular' | 'handicapped' | 'electric' | 'compact'
+  type: 'compact' | 'standard' | 'large' | 'motorcycle' | 'electric' | 'handicapped' | 'regular' | 'ev' | 'oversized'
   status: 'available' | 'occupied' | 'reserved' | 'maintenance'
   reservedBy?: string
   occupiedBy?: string
+  bay?: string
+  hourlyRate?: number
+  features?: string[]
+  currentVehicle?: Vehicle
   createdAt: string
   updatedAt: string
 }
@@ -59,7 +73,7 @@ export interface Vehicle {
   updatedAt: string
 }
 
-export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'
+export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'van' | 'bus' | 'standard' | 'compact' | 'large' | 'electric'
 export type VehicleStatus = 'active' | 'inactive' | 'blocked'
 
 // Extended Vehicle with parking information
@@ -106,8 +120,11 @@ export interface ParkingSession {
   entryTime: string
   exitTime?: string
   totalCost?: number
+  totalAmount?: number
   status: 'active' | 'completed' | 'cancelled'
   paymentStatus: 'pending' | 'paid' | 'failed'
+  checkInTime?: string
+  checkOutTime?: string
   createdAt: string
   updatedAt: string
   // Extended fields for vehicle history
