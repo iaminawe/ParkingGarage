@@ -1,7 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryProvider, SocketProvider } from '@/providers'
+import { QueryProvider, SocketProvider, AuthProvider } from '@/providers'
 import { Layout } from '@/components/layout/Layout'
+import { ProtectedRoute } from '@/components/auth'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import { HomePage } from '@/pages/HomePage'
+import LoginPage from '@/pages/LoginPage'
+import SignupPage from '@/pages/SignupPage'
 import Dashboard from '@/components/dashboard/Dashboard'
 import { VehicleManagement } from '@/components/vehicles/VehicleManagement'
 import { SpotManagement } from '@/components/spots/SpotManagement'
@@ -11,26 +15,93 @@ import AnalyticsPage from '@/components/analytics/AnalyticsPage'
 
 function App() {
   return (
-    <QueryProvider>
-      <SocketProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<HomePage />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="garages" element={<GarageConfiguration garageId="default" />} />
-              <Route path="vehicles" element={<VehicleManagement />} />
-              <Route path="spots" element={<SpotManagement garageId="default" />} />
-              <Route path="sessions" element={<SessionManagement />} />
-              <Route path="analytics" element={<AnalyticsPage />} />
-              <Route path="users" element={<div>Users Page (Coming Soon)</div>} />
-              <Route path="settings" element={<div>Settings Page (Coming Soon)</div>} />
+    <AuthProvider>
+      <QueryProvider>
+        <SocketProvider>
+          <Router>
+            <Routes>
+              {/* Authentication Routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              
+              {/* Protected Application Routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute requiredRole={undefined}>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<HomePage />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route 
+                  path="garages" 
+                  element={
+                    <ProtectedRoute requiredRole="operator">
+                      <GarageConfiguration />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="vehicles" 
+                  element={
+                    <ProtectedRoute requiredRole="operator">
+                      <VehicleManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="spots" 
+                  element={
+                    <ProtectedRoute requiredRole="operator">
+                      <SpotManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="sessions" 
+                  element={
+                    <ProtectedRoute requiredRole="operator">
+                      <SessionManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="analytics" 
+                  element={
+                    <ProtectedRoute requiredRole="operator">
+                      <ErrorBoundary>
+                        <AnalyticsPage />
+                      </ErrorBoundary>
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="users" 
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <div>Users Page (Coming Soon)</div>
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="settings" 
+                  element={
+                    <ProtectedRoute requiredRole="operator">
+                      <div>Settings Page (Coming Soon)</div>
+                    </ProtectedRoute>
+                  } 
+                />
+              </Route>
+              
+              {/* Fallback Routes */}
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </Router>
-      </SocketProvider>
-    </QueryProvider>
+            </Routes>
+          </Router>
+        </SocketProvider>
+      </QueryProvider>
+    </AuthProvider>
   )
 }
 

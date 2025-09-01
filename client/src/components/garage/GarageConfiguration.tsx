@@ -95,7 +95,11 @@ const defaultBusinessHours = {
   sunday: { open: '07:00', close: '22:00', closed: false }
 }
 
-export function GarageConfiguration() {
+interface GarageConfigurationProps {
+  garageId?: string
+}
+
+export function GarageConfiguration({ garageId }: GarageConfigurationProps = {}) {
   const { toast } = useToast()
   const [garages, setGarages] = useState<GarageConfig[]>([])
   const [selectedGarage, setSelectedGarage] = useState<GarageConfig | null>(null)
