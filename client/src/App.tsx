@@ -2,12 +2,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryProvider, SocketProvider } from '@/providers'
 import { Layout } from '@/components/layout/Layout'
 import { HomePage } from '@/pages/HomePage'
-import { Dashboard } from '@/components/dashboard/Dashboard'
+import Dashboard from '@/components/dashboard/Dashboard'
 import { VehicleManagement } from '@/components/vehicles/VehicleManagement'
 import { SpotManagement } from '@/components/spots/SpotManagement'
 import { GarageConfiguration } from '@/components/garage/GarageConfiguration'
 import { SessionManagement } from '@/components/sessions/SessionManagement'
-import { AnalyticsPage } from '@/components/analytics/AnalyticsPage'
+import AnalyticsPage from '@/components/analytics/AnalyticsPage'
 
 function App() {
   return (
@@ -18,9 +18,9 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="garages" element={<GarageConfiguration />} />
+              <Route path="garages" element={<GarageConfiguration garageId="default" />} />
               <Route path="vehicles" element={<VehicleManagement />} />
-              <Route path="spots" element={<SpotManagement />} />
+              <Route path="spots" element={<SpotManagement garageId="default" />} />
               <Route path="sessions" element={<SessionManagement />} />
               <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="users" element={<div>Users Page (Coming Soon)</div>} />

@@ -274,20 +274,16 @@ export interface GeneralConfig {
 }
 
 export interface PricingConfig {
-  defaultRates: {
-    [key in VehicleType]: {
-      hourly: number
-      daily: number
-      weekly: number
-      monthly: number
-    }
-  }
-  peakRates?: {
-    [key in VehicleType]: {
-      hourly: number
-      daily: number
-    }
-  }
+  defaultRates: Record<VehicleType, {
+    hourly: number
+    daily: number
+    weekly: number
+    monthly: number
+  }>
+  peakRates?: Record<VehicleType, {
+    hourly: number
+    daily: number
+  }>
   peakHours: { start: string; end: string }[]
   discounts: {
     id: string
@@ -323,14 +319,16 @@ export interface LayoutConfig {
     number: number
     name?: string
     totalSpots: number
-    spotTypes: {
-      [key in SpotType]: number
-    }
+    spotTypes: Record<SpotType, number>
     bays: string[]
   }[]
   capacity: {
     total: number
-    [key in SpotType]: number
+    standard: number
+    compact: number
+    handicap: number
+    ev: number
+    oversized: number
   }
   navigation: {
     signageEnabled: boolean

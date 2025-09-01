@@ -17,10 +17,7 @@ import {
   Plus,
   Trash2,
   Car,
-  Motorcycle,
-  Truck,
-  Calendar,
-  Users
+  Truck
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { PricingConfig, VehicleType } from '@/types/api'
@@ -34,7 +31,7 @@ interface PricingSettingsProps {
 
 const VEHICLE_TYPES: { value: VehicleType; label: string; icon: React.ReactNode }[] = [
   { value: 'car', label: 'Car', icon: <Car className="h-4 w-4" /> },
-  { value: 'motorcycle', label: 'Motorcycle', icon: <Motorcycle className="h-4 w-4" /> },
+  { value: 'motorcycle', label: 'Motorcycle', icon: <Car className="h-4 w-4" /> },
   { value: 'truck', label: 'Truck', icon: <Truck className="h-4 w-4" /> },
   { value: 'van', label: 'Van', icon: <Car className="h-4 w-4" /> },
   { value: 'bus', label: 'Bus', icon: <Truck className="h-4 w-4" /> }

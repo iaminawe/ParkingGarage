@@ -13,13 +13,6 @@ export { default as VehicleForm } from './VehicleForm'
 export { default as VehicleDetails } from './VehicleDetails'
 export { default as VehicleHistory } from './VehicleHistory'
 
-// Named exports for convenience
-export { VehicleManagement } from './VehicleManagement'
-export { VehicleList } from './VehicleList'
-export { VehicleForm } from './VehicleForm'
-export { VehicleDetails } from './VehicleDetails'
-export { VehicleHistory } from './VehicleHistory'
-
 // Component prop types for external use
 export type {
   VehicleManagement as VehicleManagementProps
