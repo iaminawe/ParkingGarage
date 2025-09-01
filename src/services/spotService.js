@@ -8,7 +8,7 @@
  * @module SpotService
  */
 
-const SpotRepository = require('../repositories/spotRepository');
+const { SpotRepository } = require('../repositories/spotRepository');
 const { calculatePagination, paginateArray } = require('../utils/pagination');
 
 /**

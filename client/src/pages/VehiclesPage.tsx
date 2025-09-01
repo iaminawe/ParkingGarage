@@ -1,4 +1,3 @@
-import React from 'react'
 import { VehicleManagement } from '@/components/vehicles'
 
 /**
@@ -7,10 +6,10 @@ import { VehicleManagement } from '@/components/vehicles'
  * This is the main page component for vehicle management in the parking garage system.
  * It wraps the VehicleManagement component and provides the complete vehicle management interface.
  */
-const VehiclesPage: React.FC = () => {
+const VehiclesPage = () => {
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <VehicleManagement className="w-full" />
+      <VehicleManagement />
     </div>
   )
 }

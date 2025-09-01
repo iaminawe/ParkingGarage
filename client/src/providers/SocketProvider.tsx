@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { socketService } from '@/services'
 import type { SpotUpdate, GarageStatusUpdate } from '@/types/api'
 

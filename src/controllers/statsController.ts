@@ -9,7 +9,7 @@
  */
 
 import { Request, Response } from 'express';
-const AnalyticsService = require('../services/analyticsService');
+const AnalyticsService = require("../services/analyticsService");
 import { 
   StatsResponse,
   ReportRequest,
@@ -41,7 +41,7 @@ interface SuggestionsQuery {
 }
 
 export class StatsController {
-  private analyticsService: AnalyticsService;
+  private analyticsService: any;
 
   constructor() {
     this.analyticsService = new AnalyticsService();

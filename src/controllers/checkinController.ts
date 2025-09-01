@@ -9,8 +9,8 @@
  */
 
 import { Request, Response } from 'express';
-const CheckinService = require('../services/checkinService');
-const SpotAssignmentService = require('../services/spotAssignmentService');
+import { CheckinService } from "../services/checkinService";
+const SpotAssignmentService = require("../services/spotAssignmentService");
 import { 
   CheckInRequest, 
   CheckInResponse, 
@@ -22,8 +22,8 @@ import { VehicleType } from '../types/models';
  * Controller for handling check-in related HTTP requests
  */
 export class CheckinController {
-  private checkinService: CheckinService;
-  private spotAssignmentService: SpotAssignmentService;
+  private checkinService: any;
+  private spotAssignmentService: any;
 
   constructor() {
     this.checkinService = new CheckinService();

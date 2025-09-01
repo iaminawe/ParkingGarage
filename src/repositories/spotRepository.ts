@@ -454,6 +454,51 @@ export class SpotRepository {
   }
 
   /**
+   * Update spot status
+   */
+  updateSpotStatus(spotId: string, status: SpotStatus, metadata?: any): Spot | null {
+    const spot = this.findById(spotId);
+    if (!spot) return null;
+    
+    spot.status = status;
+    if (metadata?.licensePlate) {
+      spot.currentVehicle = metadata.licensePlate;
+    }
+    if (metadata?.licensePlate === null) {
+      spot.currentVehicle = null;
+    }
+    spot.updatedAt = new Date().toISOString();
+    
+    return spot;
+  }
+
+  /**
+   * Get availability statistics
+   */
+  getAvailabilityStats(vehicleType?: string): any {
+    const spots = vehicleType 
+      ? this.findByType(vehicleType as VehicleType)
+      : this.findAll();
+    
+    const total = spots.length;
+    const occupied = spots.filter(spot => spot.status === 'occupied').length;
+    const available = total - occupied;
+    
+    return { total, occupied, available };
+  }
+
+  /**
+   * Get spot statistics
+   */
+  getStats(): any {
+    const total = this.count();
+    const occupied = this.countByStatus('occupied');
+    const available = total - occupied;
+    
+    return { total, occupied, available };
+  }
+
+  /**
    * Clear all spots (mainly for testing)
    */
   clear(): void {

@@ -81,7 +81,7 @@ class SocketService {
     }
   }
 
-  emit(event: string, data?: any): void {
+  emit(event: string, data?: unknown): void {
     if (!this.socket) {
       console.warn('Socket not connected. Call connect() first.')
       return

@@ -51,6 +51,9 @@ import type { ParkingGarage } from '@/types/api-extensions'
 import { useToast } from '@/hooks/use-toast'
 
 interface GarageConfig extends ParkingGarage {
+  email?: string
+  website?: string
+  description?: string
   businessHours: {
     monday: { open: string; close: string; closed: boolean }
     tuesday: { open: string; close: string; closed: boolean }
@@ -96,10 +99,10 @@ const defaultBusinessHours = {
 }
 
 interface GarageConfigurationProps {
-  garageId?: string
+  initialGarageId?: string
 }
 
-export function GarageConfiguration({ garageId }: GarageConfigurationProps = {}) {
+export function GarageConfiguration({ initialGarageId }: GarageConfigurationProps = {}) {
   const { toast } = useToast()
   const [garages, setGarages] = useState<GarageConfig[]>([])
   const [selectedGarage, setSelectedGarage] = useState<GarageConfig | null>(null)
@@ -113,12 +116,14 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
     state: '',
     zipCode: '',
     phone: '',
-    email: '',
-    website: '',
-    description: '',
+    location: '',
     totalFloors: 1,
     spotsPerFloor: 50,
     totalSpots: 50,
+    availableSpots: 50,
+    floors: 1,
+    pricePerHour: 5,
+    isActive: true,
     businessHours: defaultBusinessHours,
     pricing: {
       hourly: 5,
@@ -144,10 +149,6 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
       maintenanceReminder: true
     }
   })
-
-  useEffect(() => {
-    fetchGarages()
-  }, [])
 
   const fetchGarages = async () => {
     try {
@@ -188,6 +189,7 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
         }
       }
     } catch (error) {
+      console.error('Failed to fetch garages:', error)
       toast({
         title: 'Error',
         description: 'Failed to fetch garages',
@@ -197,6 +199,20 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchGarages()
+  }, [])
+
+  // Set initial garage selection if provided
+  useEffect(() => {
+    if (initialGarageId && garages.length > 0) {
+      const garage = garages.find(g => g.id === initialGarageId)
+      if (garage) {
+        setSelectedGarage(garage)
+      }
+    }
+  }, [initialGarageId, garages])
 
   const handleSaveGarage = async () => {
     if (!selectedGarage) return
@@ -212,6 +228,7 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
         fetchGarages()
       }
     } catch (error) {
+      console.error('Failed to save garage configuration:', error)
       toast({
         title: 'Error',
         description: 'Failed to save garage configuration',
@@ -232,6 +249,7 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
         fetchGarages()
       }
     } catch (error) {
+      console.error('Failed to add new garage:', error)
       toast({
         title: 'Error',
         description: 'Failed to add new garage',
@@ -240,26 +258,6 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
     }
   }
 
-  const handleDeleteGarage = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this garage?')) return
-
-    try {
-      const response = await apiService.deleteGarage(id)
-      if (response.success) {
-        toast({
-          title: 'Success',
-          description: 'Garage deleted successfully'
-        })
-        fetchGarages()
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete garage',
-        variant: 'destructive'
-      })
-    }
-  }
 
   if (loading) {
     return <div className="text-center py-8">Loading garage configuration...</div>
@@ -456,7 +454,7 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
                       <Label htmlFor="garage-address">Address</Label>
                       <Input
                         id="garage-address"
-                        value={selectedGarage.address}
+                        value={selectedGarage.address || ''}
                         onChange={(e) => setSelectedGarage({...selectedGarage, address: e.target.value})}
                         disabled={!isEditing}
                       />
@@ -466,7 +464,7 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
                         <Label htmlFor="garage-city">City</Label>
                         <Input
                           id="garage-city"
-                          value={selectedGarage.city}
+                          value={selectedGarage.city || ''}
                           onChange={(e) => setSelectedGarage({...selectedGarage, city: e.target.value})}
                           disabled={!isEditing}
                         />
@@ -475,7 +473,7 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
                         <Label htmlFor="garage-state">State</Label>
                         <Input
                           id="garage-state"
-                          value={selectedGarage.state}
+                          value={selectedGarage.state || ''}
                           onChange={(e) => setSelectedGarage({...selectedGarage, state: e.target.value})}
                           disabled={!isEditing}
                         />
@@ -484,7 +482,7 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
                         <Label htmlFor="garage-zip">ZIP Code</Label>
                         <Input
                           id="garage-zip"
-                          value={selectedGarage.zipCode}
+                          value={selectedGarage.zipCode || ''}
                           onChange={(e) => setSelectedGarage({...selectedGarage, zipCode: e.target.value})}
                           disabled={!isEditing}
                         />
@@ -535,8 +533,15 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
                         <Input
                           id="total-floors"
                           type="number"
-                          value={selectedGarage.totalFloors}
-                          onChange={(e) => setSelectedGarage({...selectedGarage, totalFloors: parseInt(e.target.value)})}
+                          value={selectedGarage.totalFloors || selectedGarage.floors || 1}
+                          onChange={(e) => {
+                            const floors = parseInt(e.target.value) || 1
+                            setSelectedGarage({
+                              ...selectedGarage, 
+                              totalFloors: floors,
+                              floors: floors
+                            })
+                          }}
                           disabled={!isEditing}
                         />
                       </div>
@@ -545,8 +550,16 @@ export function GarageConfiguration({ garageId }: GarageConfigurationProps = {})
                         <Input
                           id="spots-per-floor"
                           type="number"
-                          value={selectedGarage.spotsPerFloor}
-                          onChange={(e) => setSelectedGarage({...selectedGarage, spotsPerFloor: parseInt(e.target.value)})}
+                          value={selectedGarage.spotsPerFloor || Math.floor(selectedGarage.totalSpots / (selectedGarage.totalFloors || selectedGarage.floors || 1))}
+                          onChange={(e) => {
+                            const spotsPerFloor = parseInt(e.target.value) || 1
+                            const totalFloors = selectedGarage.totalFloors || selectedGarage.floors || 1
+                            setSelectedGarage({
+                              ...selectedGarage, 
+                              spotsPerFloor,
+                              totalSpots: spotsPerFloor * totalFloors
+                            })
+                          }}
                           disabled={!isEditing}
                         />
                       </div>

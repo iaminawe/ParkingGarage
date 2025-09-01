@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,7 +18,6 @@ import {
   Accessibility,
   Users,
   Wrench,
-  CreditCard,
   Timer,
   AlertCircle,
 } from 'lucide-react'
@@ -166,7 +164,7 @@ export const SpotDetailsDialog: React.FC<SpotDetailsDialogProps> = ({
               {statusInfo.icon}
             </h4>
             <div className="flex items-center gap-2">
-              <Badge variant={statusInfo.color as any}>
+              <Badge variant={statusInfo.color as 'default' | 'secondary' | 'destructive' | 'outline'}>
                 {statusInfo.label}
               </Badge>
               <span className="text-sm text-muted-foreground">
@@ -216,7 +214,7 @@ export const SpotDetailsDialog: React.FC<SpotDetailsDialogProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">License Plate:</span>
                     <span className="font-mono font-semibold">
-                      {spot.currentVehicle.licensePlate}
+                      {spot.currentVehicle?.licensePlate}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -226,10 +224,10 @@ export const SpotDetailsDialog: React.FC<SpotDetailsDialogProps> = ({
                     </span>
                     <div className="text-right">
                       <div className="text-sm font-medium">
-                        {formatDateTime(spot.currentVehicle.checkInTime).time}
+                        {spot.currentVehicle?.checkInTime && formatDateTime(spot.currentVehicle.checkInTime).time}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatDateTime(spot.currentVehicle.checkInTime).date}
+                        {spot.currentVehicle?.checkInTime && formatDateTime(spot.currentVehicle.checkInTime).date}
                       </div>
                     </div>
                   </div>
@@ -239,7 +237,7 @@ export const SpotDetailsDialog: React.FC<SpotDetailsDialogProps> = ({
                       Duration:
                     </span>
                     <span className="font-semibold">
-                      {calculateDuration(spot.currentVehicle.checkInTime)}
+                      {spot.currentVehicle?.checkInTime && calculateDuration(spot.currentVehicle.checkInTime)}
                     </span>
                   </div>
                 </div>

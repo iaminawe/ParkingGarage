@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   ArrowLeft, 
   Download, 
@@ -15,11 +15,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { DataTable } from '@/components/ui/data-table'
-import type { Column } from '@tanstack/react-table'
+import type { Column } from '@/components/ui/data-table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Spinner } from '@/components/ui/loading'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
 import { formatDate, formatCurrency, formatDuration } from '@/utils/formatting'
 import { exportToCsv } from '@/utils/export'
 import { apiService } from '@/services/api'
@@ -154,7 +152,7 @@ export const VehicleHistory: React.FC<VehicleHistoryProps> = ({
       key: 'entryTime',
       header: 'Entry Time',
       sortable: true,
-      render: (value) => (
+      render: (value: string) => (
         <div>
           <div className="font-medium">{formatDate(value)}</div>
           <div className="text-sm text-muted-foreground">
@@ -166,7 +164,7 @@ export const VehicleHistory: React.FC<VehicleHistoryProps> = ({
     {
       key: 'exitTime',
       header: 'Exit Time',
-      render: (value, session) => (
+      render: (value: string) => (
         <div>
           {value ? (
             <>
@@ -185,7 +183,7 @@ export const VehicleHistory: React.FC<VehicleHistoryProps> = ({
       key: 'duration',
       header: 'Duration',
       sortable: true,
-      render: (value, session) => {
+      render: (value: number, session: ParkingSession) => {
         if (!value && session.status === 'active') {
           const currentDuration = Math.floor(
             (new Date().getTime() - new Date(session.entryTime).getTime()) / 60000
@@ -203,7 +201,7 @@ export const VehicleHistory: React.FC<VehicleHistoryProps> = ({
     {
       key: 'spotId',
       header: 'Location',
-      render: (value, session) => (
+      render: (_: string, session: ParkingSession) => (
         <div className="flex items-center gap-1">
           <MapPin className="h-3 w-3 text-muted-foreground" />
           <span>
@@ -220,7 +218,7 @@ export const VehicleHistory: React.FC<VehicleHistoryProps> = ({
       header: 'Cost',
       sortable: true,
       className: 'text-right',
-      render: (value) => (
+      render: (value: number) => (
         <div className="text-right font-medium">
           {value ? formatCurrency(value) : '-'}
         </div>
@@ -229,7 +227,7 @@ export const VehicleHistory: React.FC<VehicleHistoryProps> = ({
     {
       key: 'status',
       header: 'Status',
-      render: (value) => (
+      render: (value: string) => (
         <Badge variant={
           value === 'completed' ? 'default' : 
           value === 'active' ? 'secondary' : 
@@ -242,7 +240,7 @@ export const VehicleHistory: React.FC<VehicleHistoryProps> = ({
     {
       key: 'paymentStatus',
       header: 'Payment',
-      render: (value) => (
+      render: (value: string) => (
         <Badge variant={
           value === 'paid' ? 'default' :
           value === 'pending' ? 'secondary' :

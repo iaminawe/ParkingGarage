@@ -8,9 +8,9 @@
  * @module CheckinService
  */
 
-const VehicleRepository = require('../repositories/vehicleRepository');
-const SpotRepository = require('../repositories/spotRepository');
-const SpotAssignmentService = require('./spotAssignmentService');
+const { VehicleRepository } = require('../repositories/vehicleRepository');
+const { SpotRepository } = require('../repositories/spotRepository');
+const { SpotAssignmentService } = require('./spotAssignmentService');
 
 /**
  * Service for handling vehicle check-in operations

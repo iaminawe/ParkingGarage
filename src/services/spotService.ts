@@ -91,7 +91,7 @@ class SpotService {
    */
   async getSpots(
     filters: SpotFilters = {}, 
-    pagination: PaginationParams = {}, 
+    pagination: any = {}, 
     sorting: SortingParams = {}
   ): Promise<SpotResult> {
     try {

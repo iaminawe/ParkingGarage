@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  BarChart,
   Bar,
   XAxis,
   YAxis,
@@ -181,7 +180,11 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ filters }) => {
   }
 
   // Custom tooltip for the chart
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean
+    payload?: Array<{ payload: RevenueData & { revenueGrowth: number; sessionGrowth: number } }>
+    label?: string
+  }) => {
     if (!active || !payload?.length) return null
 
     const data = payload[0].payload

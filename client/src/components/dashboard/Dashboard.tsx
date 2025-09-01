@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { apiService } from '@/services/api'
-import { GarageAnalytics, ParkingGarage, ParkingSession } from '@/types/api'
+import type { GarageAnalytics, ParkingGarage, ParkingSession } from '@/types/api'
 import MetricCard from './MetricCard'
 import QuickActions from './QuickActions'
 import RecentActivity from './RecentActivity'
@@ -57,7 +57,7 @@ const Dashboard: React.FC = () => {
         .slice(0, 10)
 
       setData({
-        analytics: systemAnalyticsRes.data,
+        analytics: systemAnalyticsRes.data as unknown as GarageAnalytics,
         garages,
         recentSessions,
         totalOccupancy

@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { DialogFooter } from '@/components/ui/dialog'
-import { Loading } from '@/components/ui/loading'
+import { Spinner } from '@/components/ui/loading'
 import type { Vehicle, VehicleType, VehicleStatus } from '@/types/api'
 
 // Validation schema
@@ -21,7 +21,7 @@ const vehicleSchema = z.object({
     .max(20, 'License plate must be 20 characters or less')
     .regex(/^[A-Z0-9-\s]+$/, 'License plate must contain only letters, numbers, hyphens, and spaces'),
   type: z.enum(['car', 'motorcycle', 'truck', 'van', 'bus'], {
-    required_error: 'Vehicle type is required',
+    message: 'Vehicle type is required',
   }),
   make: z
     .string()
@@ -390,7 +390,7 @@ export const VehicleForm: React.FC<VehicleFormProps> = ({
           type="submit"
           disabled={!isValid || isSubmitting || loading}
         >
-          {(isSubmitting || loading) && <Loading size="sm" className="mr-2" />}
+          {(isSubmitting || loading) && <Spinner size="sm" className="mr-2" />}
           {isEditing ? 'Update Vehicle' : 'Add Vehicle'}
         </Button>
       </DialogFooter>

@@ -15,13 +15,11 @@ import {
   Navigation, 
   Accessibility, 
   Zap,
-  Shield,
   Lightbulb,
   Wind,
   AlertTriangle,
   Plus,
   Trash2,
-  Car,
   Eye,
   Smartphone,
   Signpost
@@ -90,9 +88,9 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
       setLocalConfig(updatedConfig)
       onChange(updatedConfig)
     }
-  }, [localConfig.floors])
+  }, [localConfig, onChange])
 
-  const handleFloorChange = (index: number, field: string, value: any) => {
+  const handleFloorChange = (index: number, field: string, value: string | number | string[]) => {
     const updatedFloors = [...localConfig.floors]
     
     if (field.startsWith('spotTypes.')) {
@@ -106,12 +104,12 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
       }
       
       // Recalculate total spots for this floor
-      const totalSpots = Object.values(updatedFloors[index].spotTypes).reduce((sum, count) => sum + count, 0)
+      const totalSpots = Object.values(updatedFloors[index].spotTypes).reduce((sum: number, count: number) => sum + count, 0)
       updatedFloors[index].totalSpots = totalSpots
     } else if (field === 'bays') {
       updatedFloors[index] = {
         ...updatedFloors[index],
-        [field]: value
+        [field]: value as string[]
       }
     } else {
       updatedFloors[index] = {
@@ -159,7 +157,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
     const renumberedFloors = updatedFloors.map((floor, i) => ({
       ...floor,
       number: i + 1,
-      name: floor.name.includes('Floor') ? `Floor ${i + 1}` : floor.name
+      name: (floor.name && floor.name.includes('Floor')) ? `Floor ${i + 1}` : (floor.name || `Floor ${i + 1}`)
     }))
     
     const updatedConfig = {
@@ -171,7 +169,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleNavigationChange = (field: string, value: any) => {
+  const handleNavigationChange = (field: string, value: boolean) => {
     const updatedConfig = {
       ...localConfig,
       navigation: {
@@ -184,7 +182,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleAccessibilityChange = (field: string, value: any) => {
+  const handleAccessibilityChange = (field: string, value: boolean | number) => {
     const updatedConfig = {
       ...localConfig,
       accessibility: {
@@ -197,7 +195,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleFeaturesChange = (field: string, value: any) => {
+  const handleFeaturesChange = (field: string, value: boolean | number | string) => {
     const updatedConfig = {
       ...localConfig,
       features: {
@@ -442,7 +440,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         checked={localConfig.navigation.signageEnabled}
-                        onChange={(checked) => handleNavigationChange('signageEnabled', checked)}
+                        onCheckedChange={(checked: boolean) => handleNavigationChange('signageEnabled', checked)}
                       />
                       <Label className="font-medium">Physical Signage</Label>
                     </div>
@@ -458,7 +456,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         checked={localConfig.navigation.digitalDisplays}
-                        onChange={(checked) => handleNavigationChange('digitalDisplays', checked)}
+                        onCheckedChange={(checked: boolean) => handleNavigationChange('digitalDisplays', checked)}
                       />
                       <Label className="font-medium">Digital Displays</Label>
                     </div>
@@ -474,7 +472,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         checked={localConfig.navigation.mobileApp}
-                        onChange={(checked) => handleNavigationChange('mobileApp', checked)}
+                        onCheckedChange={(checked: boolean) => handleNavigationChange('mobileApp', checked)}
                       />
                       <Label className="font-medium">Mobile App</Label>
                     </div>
@@ -522,7 +520,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       checked={localConfig.accessibility.wheelchairAccess}
-                      onChange={(checked) => handleAccessibilityChange('wheelchairAccess', checked)}
+                      onCheckedChange={(checked: boolean) => handleAccessibilityChange('wheelchairAccess', checked)}
                     />
                     <Label>Wheelchair Accessible Paths</Label>
                   </div>
@@ -530,7 +528,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       checked={localConfig.accessibility.elevatorsAvailable}
-                      onChange={(checked) => handleAccessibilityChange('elevatorsAvailable', checked)}
+                      onCheckedChange={(checked: boolean) => handleAccessibilityChange('elevatorsAvailable', checked)}
                     />
                     <Label>Elevator Access</Label>
                   </div>
@@ -591,7 +589,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       checked={localConfig.features.securityCameras}
-                      onChange={(checked) => handleFeaturesChange('securityCameras', checked)}
+                      onCheckedChange={(checked: boolean) => handleFeaturesChange('securityCameras', checked)}
                     />
                     <Label>Security Cameras</Label>
                   </div>
@@ -602,7 +600,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
                     <Label>Lighting Type</Label>
                     <Select
                       value={localConfig.features.lightingType}
-                      onValueChange={(value) => handleFeaturesChange('lightingType', value)}
+                      onValueChange={(value: string) => handleFeaturesChange('lightingType', value)}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -624,7 +622,7 @@ export const LayoutSettings: React.FC<LayoutSettingsProps> = ({
                     <Label>Ventilation System</Label>
                     <Select
                       value={localConfig.features.ventilation}
-                      onValueChange={(value) => handleFeaturesChange('ventilation', value)}
+                      onValueChange={(value: string) => handleFeaturesChange('ventilation', value)}
                     >
                       <SelectTrigger>
                         <SelectValue />

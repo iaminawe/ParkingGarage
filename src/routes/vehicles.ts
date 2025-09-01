@@ -16,87 +16,95 @@ const router: Router = Router();
 const vehicleController = new VehicleController();
 
 /**
- * @route   GET /api/v1/vehicles
- * @desc    Search vehicles by partial license plate
+ * @route   GET /api/vehicles
+ * @desc    Get all vehicles with pagination and filtering
  * @access  Public
- * @query   {string} search - Search term for license plate
- * @query   {string} [mode=all] - Search mode (exact|partial|fuzzy|all)
- * @query   {number} [threshold=0.6] - Fuzzy match threshold (0-1)
- * @query   {number} [maxResults=20] - Maximum results to return (1-100)
- * @example GET /api/v1/vehicles?search=ABC&mode=partial&maxResults=10
+ * @query   {number} [page] - Page number for pagination
+ * @query   {number} [limit] - Items per page
+ * @query   {string} [search] - Search term for license plate
+ * @example GET /api/vehicles?page=1&limit=20
  */
 router.get('/', async (req: Request, res: Response): Promise<void> => {
+  await vehicleController.getAllVehicles(req, res);
+});
+
+/**
+ * @route   POST /api/vehicles
+ * @desc    Create a new vehicle
+ * @access  Public
+ * @body    {object} vehicle - Vehicle data to create
+ * @example POST /api/vehicles
+ */
+router.post('/', async (req: Request, res: Response): Promise<void> => {
+  await vehicleController.createVehicle(req, res);
+});
+
+/**
+ * @route   POST /api/vehicles/bulk-delete
+ * @desc    Bulk delete vehicles
+ * @access  Public
+ * @body    {string[]} vehicleIds - Array of vehicle IDs to delete
+ * @example POST /api/vehicles/bulk-delete
+ */
+router.post('/bulk-delete', async (req: Request, res: Response): Promise<void> => {
+  await vehicleController.bulkDeleteVehicles(req, res);
+});
+
+/**
+ * @route   GET /api/vehicles/metrics
+ * @desc    Get vehicle metrics and statistics
+ * @access  Public
+ * @example GET /api/vehicles/metrics
+ */
+router.get('/metrics', async (req: Request, res: Response): Promise<void> => {
+  await vehicleController.getVehicleMetrics(req, res);
+});
+
+/**
+ * @route   GET /api/vehicles/:id
+ * @desc    Get a specific vehicle by ID (license plate)
+ * @access  Public
+ * @param   {string} id - Vehicle ID (license plate)
+ * @example GET /api/vehicles/ABC123
+ */
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+  await vehicleController.getVehicleById(req, res);
+});
+
+/**
+ * @route   PUT /api/vehicles/:id
+ * @desc    Update a vehicle
+ * @access  Public
+ * @param   {string} id - Vehicle ID (license plate)
+ * @body    {object} vehicle - Vehicle data to update
+ * @example PUT /api/vehicles/ABC123
+ */
+router.put('/:id', async (req: Request, res: Response): Promise<void> => {
+  await vehicleController.updateVehicle(req, res);
+});
+
+/**
+ * @route   DELETE /api/vehicles/:id
+ * @desc    Delete a vehicle
+ * @access  Public
+ * @param   {string} id - Vehicle ID (license plate)
+ * @example DELETE /api/vehicles/ABC123
+ */
+router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+  await vehicleController.deleteVehicle(req, res);
+});
+
+// Keep useful legacy search endpoints
+/**
+ * @route   GET /api/vehicles/search
+ * @desc    Search vehicles by license plate (legacy search functionality)
+ * @access  Public
+ * @query   {string} search - Search term for license plate
+ * @query   {string} [mode] - Search mode (exact|partial|fuzzy|all)
+ * @example GET /api/vehicles/search?search=ABC&mode=partial
+ */
+router.get('/search', async (req: Request, res: Response): Promise<void> => {
   await vehicleController.searchVehicles(req, res);
-});
-
-/**
- * @route   GET /api/v1/vehicles/location
- * @desc    Get vehicles by location (floor, bay, or spot)
- * @access  Public
- * @query   {number} [floor] - Floor number
- * @query   {number} [bay] - Bay number (requires floor)
- * @query   {string} [spotId] - Specific spot ID
- * @example GET /api/v1/vehicles/location?floor=1&bay=2
- * @example GET /api/v1/vehicles/location?spotId=F1-B2-S001
- */
-router.get('/location', async (req: Request, res: Response): Promise<void> => {
-  await vehicleController.getVehiclesByLocation(req, res);
-});
-
-/**
- * @route   GET /api/v1/vehicles/suggestions
- * @desc    Get search suggestions for auto-complete
- * @access  Public
- * @query   {string} partial - Partial license plate for suggestions
- * @query   {number} [limit=10] - Maximum suggestions (1-50)
- * @example GET /api/v1/vehicles/suggestions?partial=AB&limit=5
- */
-router.get('/suggestions', async (req: Request, res: Response): Promise<void> => {
-  await vehicleController.getSearchSuggestions(req, res);
-});
-
-/**
- * @route   GET /api/v1/vehicles/spots/available
- * @desc    Find available parking spots with optional filtering
- * @access  Public
- * @query   {number} [floor] - Filter by floor number
- * @query   {number} [bay] - Filter by bay number (requires floor)
- * @query   {string} [type] - Filter by spot type (compact|standard|oversized)
- * @query   {string} [features] - Filter by features (comma-separated: ev_charging,handicap)
- * @example GET /api/v1/vehicles/spots/available?floor=1&type=standard
- * @example GET /api/v1/vehicles/spots/available?features=ev_charging
- */
-router.get('/spots/available', async (req: Request, res: Response): Promise<void> => {
-  await vehicleController.getAvailableSpots(req, res);
-});
-
-/**
- * @route   GET /api/v1/vehicles/cache/stats
- * @desc    Get search cache statistics
- * @access  Public
- */
-router.get('/cache/stats', async (req: Request, res: Response): Promise<void> => {
-  await vehicleController.getCacheStats(req, res);
-});
-
-/**
- * @route   POST /api/v1/vehicles/cache/clear
- * @desc    Clear search cache
- * @access  Public
- */
-router.post('/cache/clear', async (req: Request, res: Response): Promise<void> => {
-  await vehicleController.clearCache(req, res);
-});
-
-/**
- * @route   GET /api/v1/vehicles/:licensePlate
- * @desc    Find vehicle by exact license plate match
- * @access  Public
- * @param   {string} licensePlate - License plate to search for
- * @example GET /api/v1/vehicles/ABC123
- */
-router.get('/:licensePlate', async (req: Request<{ licensePlate: string }>, res: Response): Promise<void> => {
-  await vehicleController.findVehicle(req, res);
 });
 
 export default router;

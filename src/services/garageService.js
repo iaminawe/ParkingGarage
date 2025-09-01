@@ -8,8 +8,8 @@
  * @module GarageService
  */
 
-const GarageRepository = require('../repositories/garageRepository');
-const SpotRepository = require('../repositories/spotRepository');
+const { GarageRepository } = require('../repositories/garageRepository');
+const { SpotRepository } = require('../repositories/spotRepository');
 
 /**
  * Service class for garage management operations

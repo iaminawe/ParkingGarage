@@ -30,7 +30,10 @@
   "author": "Parking Garage Management System",
   "license": "MIT",
   "dependencies": {
+    "@playwright/test": "^1.55.0",
     "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "axios": "^1.11.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",

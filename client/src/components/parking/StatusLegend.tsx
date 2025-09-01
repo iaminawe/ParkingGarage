@@ -1,6 +1,4 @@
-import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/utils/cn'
 import {
   Car,
@@ -96,11 +94,11 @@ const featureItems = [
   }
 ]
 
-export const StatusLegend: React.FC<StatusLegendProps> = ({
+export const StatusLegend = ({
   className,
   compact = false,
   showTitle = true,
-}) => {
+}: StatusLegendProps) => {
   if (compact) {
     return (
       <div className={cn('space-y-3', className)}>

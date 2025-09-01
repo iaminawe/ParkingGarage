@@ -2,15 +2,12 @@ import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
-  Cog, 
+ 
   LogIn, 
   LogOut, 
   Calendar, 
@@ -77,7 +74,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
 }) => {
   const [localConfig, setLocalConfig] = useState(config)
 
-  const handleCheckinChange = (field: string, value: any) => {
+  const handleCheckinChange = (field: string, value: unknown) => {
     const updatedConfig = {
       ...localConfig,
       checkin: {
@@ -90,7 +87,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleCheckoutChange = (field: string, value: any) => {
+  const handleCheckoutChange = (field: string, value: unknown) => {
     const updatedConfig = {
       ...localConfig,
       checkout: {
@@ -103,7 +100,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleReservationsChange = (field: string, value: any) => {
+  const handleReservationsChange = (field: string, value: unknown) => {
     const updatedConfig = {
       ...localConfig,
       reservations: {
@@ -116,7 +113,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleMaintenanceChange = (field: string, value: any) => {
+  const handleMaintenanceChange = (field: string, value: unknown) => {
     const updatedConfig = {
       ...localConfig,
       maintenance: {
@@ -129,7 +126,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleMaintenanceWindowChange = (index: number, field: string, value: any) => {
+  const handleMaintenanceWindowChange = (index: number, field: string, value: unknown) => {
     const updatedWindows = [...localConfig.maintenance.windows]
     updatedWindows[index] = {
       ...updatedWindows[index],
@@ -182,20 +179,9 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleStaffChange = (field: string, value: any) => {
-    const updatedConfig = {
-      ...localConfig,
-      staff: {
-        ...localConfig.staff,
-        [field]: value
-      }
-    }
-    
-    setLocalConfig(updatedConfig)
-    onChange(updatedConfig)
-  }
+  // Removed unused handleStaffChange function
 
-  const handleShiftChange = (index: number, field: string, value: any) => {
+  const handleShiftChange = (index: number, field: string, value: unknown) => {
     const updatedShifts = [...localConfig.staff.shiftHours]
     updatedShifts[index] = {
       ...updatedShifts[index],
@@ -273,7 +259,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleSecurityChange = (field: string, value: any) => {
+  const handleSecurityChange = (field: string, value: unknown) => {
     const updatedConfig = {
       ...localConfig,
       security: {
@@ -286,7 +272,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
     onChange(updatedConfig)
   }
 
-  const handleEmergencyContactChange = (index: number, field: string, value: any) => {
+  const handleEmergencyContactChange = (index: number, field: string, value: unknown) => {
     const updatedContacts = [...localConfig.security.emergencyContacts]
     updatedContacts[index] = {
       ...updatedContacts[index],
@@ -658,7 +644,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
                         <div key={day.value} className="flex items-center space-x-2">
                           <Checkbox
                             checked={window.daysOfWeek.includes(day.value)}
-                            onChange={(checked) => {
+                            onCheckedChange={(checked) => {
                               const updatedDays = checked
                                 ? [...window.daysOfWeek, day.value]
                                 : window.daysOfWeek.filter(d => d !== day.value)
@@ -751,7 +737,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
                         <div key={day.value} className="flex items-center space-x-2">
                           <Checkbox
                             checked={shift.daysOfWeek.includes(day.value)}
-                            onChange={(checked) => {
+                            onCheckedChange={(checked) => {
                               const updatedDays = checked
                                 ? [...shift.daysOfWeek, day.value]
                                 : shift.daysOfWeek.filter(d => d !== day.value)
@@ -800,7 +786,7 @@ export const OperationalSettings: React.FC<OperationalSettingsProps> = ({
                           <td key={role.value} className="text-center p-2">
                             <Checkbox
                               checked={localConfig.staff.permissions[role.value]?.includes(permission.value) || false}
-                              onChange={(checked) => handlePermissionChange(role.value, permission.value, checked)}
+                              onCheckedChange={(checked: boolean) => handlePermissionChange(role.value, permission.value, checked)}
                             />
                           </td>
                         ))}

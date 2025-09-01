@@ -8,7 +8,7 @@
  * @module SpotAssignmentService
  */
 
-const SpotRepository = require('../repositories/spotRepository');
+const { SpotRepository } = require('../repositories/spotRepository');
 
 /**
  * Service for automatically assigning optimal parking spots

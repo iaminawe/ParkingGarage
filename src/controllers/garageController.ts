@@ -9,7 +9,7 @@
  */
 
 import { Request, Response } from 'express';
-const GarageService = require('../services/garageService');
+import { GarageService } from '../services/garageService';
 import { 
   UpdateGarageConfigRequest,
   ApiResponse 
@@ -34,7 +34,7 @@ interface GarageConfigQuery {
  * Controller class for garage management endpoints
  */
 export class GarageController {
-  private garageService: GarageService;
+  private garageService: any;
 
   constructor() {
     this.garageService = new GarageService();

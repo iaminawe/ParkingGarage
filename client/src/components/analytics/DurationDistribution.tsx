@@ -18,7 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Clock, Timer, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react'
-import { cn } from '@/utils/cn'
 import { apiService } from '@/services/api'
 import type { AnalyticsFilters, DurationData } from '@/types/api'
 
@@ -49,6 +48,10 @@ const DurationDistribution: React.FC<DurationDistributionProps> = ({ filters }) 
   // Process and format data for charts
   const chartData = useMemo(() => {
     if (!durationData?.data) return []
+
+    const getTotalCount = () => {
+      return durationData.data.reduce((sum, item) => sum + item.count, 0)
+    }
 
     return durationData.data.map((item: DurationData) => {
       // Convert average duration from minutes to selected unit
@@ -119,10 +122,6 @@ const DurationDistribution: React.FC<DurationDistributionProps> = ({ filters }) 
     }
   }, [chartData])
 
-  function getTotalCount(): number {
-    return chartData.reduce((sum, item) => sum + item.count, 0)
-  }
-
   function formatDurationRange(range: string, unit: TimeUnit): string {
     // Parse range like "60-120" and convert to display format
     const [min, max] = range.split('-').map(Number)
@@ -151,7 +150,11 @@ const DurationDistribution: React.FC<DurationDistributionProps> = ({ filters }) 
   }
 
   // Custom tooltip for charts
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean
+    payload?: Array<{ payload: DurationData }>
+    label?: string
+  }) => {
     if (!active || !payload?.length) return null
 
     const data = payload[0].payload

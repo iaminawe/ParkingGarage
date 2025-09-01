@@ -34,7 +34,7 @@ interface SpotQueryParams {
 // Extend Request type to include our custom properties
 interface TypedRequest<T = any, U = any> extends Request {
   body: T;
-  query: U;
+  query: U & Record<string, any>;
   filters?: SpotFilters;
   includes?: string[];
   sort?: string;
@@ -61,14 +61,14 @@ export const validateSpotQuery = (req: TypedRequest, res: Response, next: NextFu
     
     if (filters.status) {
       const validStatuses = ['available', 'occupied'];
-      if (!validStatuses.includes(filters.status)) {
+      if (!validStatuses.includes(filters.status as string)) {
         errors.push(`Invalid status: ${filters.status}. Valid values: ${validStatuses.join(', ')}`);
       }
     }
     
     if (filters.type) {
       const validTypes = ['compact', 'standard', 'oversized'];
-      if (!validTypes.includes(filters.type)) {
+      if (!validTypes.includes(filters.type as string)) {
         errors.push(`Invalid type: ${filters.type}. Valid values: ${validTypes.join(', ')}`);
       }
     }

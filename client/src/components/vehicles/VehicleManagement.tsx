@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Card, 
   CardContent, 
@@ -42,15 +42,16 @@ import {
   Trash2, 
   Clock,
   MapPin,
-  DollarSign
 } from 'lucide-react'
 import { apiService } from '@/services/api'
-import type { Vehicle, ParkingSession } from '@/types/api-extensions'
+import type { Vehicle, ParkingSession, VehicleType, ParkingGarage } from '@/types/api'
 import { toast } from '@/components/ui/use-toast'
 
 export function VehicleManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [sessions, setSessions] = useState<ParkingSession[]>([])
+  const [garages, setGarages] = useState<ParkingGarage[]>([])
+  const [selectedGarageId, setSelectedGarageId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
@@ -61,7 +62,7 @@ export function VehicleManagement() {
     make: '',
     model: '',
     color: '',
-    type: 'standard' as Vehicle['type'],
+    type: 'car' as VehicleType,
     ownerName: '',
     ownerEmail: '',
     ownerPhone: ''
@@ -70,7 +71,8 @@ export function VehicleManagement() {
   useEffect(() => {
     fetchVehicles()
     fetchSessions()
-  }, [])
+    fetchGarages()
+  }, []) // These are stable functions that don't need dependencies
 
   const fetchVehicles = async () => {
     try {
@@ -79,11 +81,10 @@ export function VehicleManagement() {
       if (response.success) {
         setVehicles(response.data)
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
-        description: 'Failed to fetch vehicles',
-        variant: 'destructive'
+        description: 'Failed to fetch vehicles'
       })
     } finally {
       setLoading(false)
@@ -101,6 +102,25 @@ export function VehicleManagement() {
     }
   }
 
+  const fetchGarages = async () => {
+    try {
+      const response = await apiService.getGarages()
+      if (response.success) {
+        setGarages(response.data)
+        // Set default garage if none selected
+        if (!selectedGarageId && response.data.length > 0) {
+          setSelectedGarageId(response.data[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch garages:', error)
+      toast({
+        title: 'Warning',
+        description: 'Failed to load available garages'
+      })
+    }
+  }
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       fetchVehicles()
@@ -113,11 +133,10 @@ export function VehicleManagement() {
       if (response.success) {
         setVehicles(response.data)
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
-        description: 'Search failed',
-        variant: 'destructive'
+        description: 'Search failed'
       })
     } finally {
       setLoading(false)
@@ -139,17 +158,16 @@ export function VehicleManagement() {
           make: '',
           model: '',
           color: '',
-          type: 'standard',
+          type: 'car' as VehicleType,
           ownerName: '',
           ownerEmail: '',
           ownerPhone: ''
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
-        description: 'Failed to add vehicle',
-        variant: 'destructive'
+        description: 'Failed to add vehicle'
       })
     }
   }
@@ -167,11 +185,10 @@ export function VehicleManagement() {
         setIsEditDialogOpen(false)
         fetchVehicles()
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
-        description: 'Failed to update vehicle',
-        variant: 'destructive'
+        description: 'Failed to update vehicle'
       })
     }
   }
@@ -188,19 +205,26 @@ export function VehicleManagement() {
         })
         fetchVehicles()
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
-        description: 'Failed to delete vehicle',
-        variant: 'destructive'
+        description: 'Failed to delete vehicle'
       })
     }
   }
 
   const handleCheckIn = async (vehicleId: string) => {
     try {
+      if (!selectedGarageId) {
+        toast({
+          title: 'Error',
+          description: 'Please select a garage first'
+        })
+        return
+      }
+
       const response = await apiService.startSession({
-        garageId: '1', // Default garage
+        garageId: selectedGarageId,
         vehicleId: vehicleId
       })
       if (response.success) {
@@ -208,14 +232,13 @@ export function VehicleManagement() {
           title: 'Success',
           description: `Vehicle checked in to spot ${response.data.spotId}`
         })
-        setIsCheckInDialogOpen(false)
+        // No check-in dialog state needed
         fetchSessions()
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
-        description: 'Failed to check in vehicle',
-        variant: 'destructive'
+        description: 'Failed to check in vehicle'
       })
     }
   }
@@ -226,15 +249,14 @@ export function VehicleManagement() {
       if (response.success) {
         toast({
           title: 'Success',
-          description: `Check out complete. Total: $${response.data.totalAmount}`
+          description: `Check out complete. Total: $${response.data.totalCost || 0}`
         })
         fetchSessions()
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
-        description: 'Failed to check out vehicle',
-        variant: 'destructive'
+        description: 'Failed to check out vehicle'
       })
     }
   }
@@ -249,8 +271,8 @@ export function VehicleManagement() {
       return {
         status: 'parked' as const,
         spotId: activeSession.spotId,
-        duration: activeSession.checkInTime ? 
-          Math.floor((Date.now() - new Date(activeSession.checkInTime).getTime()) / (1000 * 60)) : 0
+        duration: activeSession.entryTime ? 
+          Math.floor((Date.now() - new Date(activeSession.entryTime).getTime()) / (1000 * 60)) : 0
       }
     }
     return { status: 'not_parked' as const }
@@ -288,6 +310,23 @@ export function VehicleManagement() {
                 className="pl-10"
               />
             </div>
+            <div className="min-w-[200px]">
+              <Select value={selectedGarageId} onValueChange={setSelectedGarageId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select garage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {garages.map(garage => (
+                    <SelectItem key={garage.id} value={garage.id}>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        {garage.name} ({garage.availableSpots}/{garage.totalSpots} available)
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={handleSearch} variant="secondary">
               Search
             </Button>
@@ -320,17 +359,17 @@ export function VehicleManagement() {
                       <Label htmlFor="type">Vehicle Type</Label>
                       <Select
                         value={newVehicle.type}
-                        onValueChange={(value: Vehicle['type']) => setNewVehicle({...newVehicle, type: value})}
+                        onValueChange={(value: VehicleType) => setNewVehicle({...newVehicle, type: value})}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="compact">Compact</SelectItem>
-                          <SelectItem value="standard">Standard</SelectItem>
-                          <SelectItem value="large">Large</SelectItem>
+                          <SelectItem value="car">Car</SelectItem>
                           <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                          <SelectItem value="electric">Electric</SelectItem>
+                          <SelectItem value="truck">Truck</SelectItem>
+                          <SelectItem value="van">Van</SelectItem>
+                          <SelectItem value="bus">Bus</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -545,17 +584,17 @@ export function VehicleManagement() {
                   <Label htmlFor="edit-type">Vehicle Type</Label>
                   <Select
                     value={selectedVehicle.type}
-                    onValueChange={(value: Vehicle['type']) => setSelectedVehicle({...selectedVehicle, type: value})}
+                    onValueChange={(value: VehicleType) => setSelectedVehicle({...selectedVehicle, type: value})}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="compact">Compact</SelectItem>
-                      <SelectItem value="standard">Standard</SelectItem>
-                      <SelectItem value="large">Large</SelectItem>
+                      <SelectItem value="car">Car</SelectItem>
                       <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                      <SelectItem value="electric">Electric</SelectItem>
+                      <SelectItem value="truck">Truck</SelectItem>
+                      <SelectItem value="van">Van</SelectItem>
+                      <SelectItem value="bus">Bus</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -631,3 +670,5 @@ export function VehicleManagement() {
     </div>
   )
 }
+
+export default VehicleManagement

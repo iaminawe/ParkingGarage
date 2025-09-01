@@ -8,7 +8,7 @@ require('dotenv').config();
 
 import routes from './routes';
 import errorHandler from './middleware/errorHandler';
-const { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } = require('../docs/swagger');
+const { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } = require('../docs/swagger.js');
 
 // Environment variables are loaded above
 
