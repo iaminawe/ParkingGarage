@@ -9,6 +9,14 @@ import type {
   User,
   ParkingSession,
   GarageAnalytics,
+  SystemAnalytics,
+  OccupancyTrendData,
+  RevenueData,
+  VehicleTypeData,
+  DurationData,
+  PeakHoursData,
+  SpotUtilizationData,
+  AnalyticsFilters,
 } from '@/types/api'
 
 class ApiService {
@@ -244,13 +252,125 @@ class ApiService {
   async getSystemAnalytics(
     startDate?: string,
     endDate?: string
-  ): Promise<ApiResponse<any>> {
+  ): Promise<ApiResponse<SystemAnalytics>> {
     const params = new URLSearchParams()
     if (startDate) params.append('startDate', startDate)
     if (endDate) params.append('endDate', endDate)
     const query = params.toString() ? `?${params.toString()}` : ''
     
-    return this.get<ApiResponse<any>>(`/analytics/system${query}`)
+    return this.get<ApiResponse<SystemAnalytics>>(`/analytics/system${query}`)
+  }
+
+  async getOccupancyTrends(
+    filters: AnalyticsFilters,
+    period: 'hourly' | 'daily' | 'weekly' | 'monthly' = 'daily'
+  ): Promise<ApiResponse<OccupancyTrendData[]>> {
+    const params = new URLSearchParams()
+    params.append('startDate', filters.dateRange.startDate)
+    params.append('endDate', filters.dateRange.endDate)
+    params.append('period', period)
+    
+    if (filters.garageIds?.length) {
+      params.append('garageIds', filters.garageIds.join(','))
+    }
+    
+    return this.get<ApiResponse<OccupancyTrendData[]>>(`/analytics/occupancy-trends?${params.toString()}`)
+  }
+
+  async getRevenueData(
+    filters: AnalyticsFilters,
+    groupBy: 'day' | 'week' | 'month' | 'garage' = 'day'
+  ): Promise<ApiResponse<RevenueData[]>> {
+    const params = new URLSearchParams()
+    params.append('startDate', filters.dateRange.startDate)
+    params.append('endDate', filters.dateRange.endDate)
+    params.append('groupBy', groupBy)
+    
+    if (filters.garageIds?.length) {
+      params.append('garageIds', filters.garageIds.join(','))
+    }
+    
+    return this.get<ApiResponse<RevenueData[]>>(`/analytics/revenue?${params.toString()}`)
+  }
+
+  async getVehicleTypeDistribution(
+    filters: AnalyticsFilters
+  ): Promise<ApiResponse<VehicleTypeData[]>> {
+    const params = new URLSearchParams()
+    params.append('startDate', filters.dateRange.startDate)
+    params.append('endDate', filters.dateRange.endDate)
+    
+    if (filters.garageIds?.length) {
+      params.append('garageIds', filters.garageIds.join(','))
+    }
+    
+    return this.get<ApiResponse<VehicleTypeData[]>>(`/analytics/vehicle-types?${params.toString()}`)
+  }
+
+  async getDurationDistribution(
+    filters: AnalyticsFilters
+  ): Promise<ApiResponse<DurationData[]>> {
+    const params = new URLSearchParams()
+    params.append('startDate', filters.dateRange.startDate)
+    params.append('endDate', filters.dateRange.endDate)
+    
+    if (filters.garageIds?.length) {
+      params.append('garageIds', filters.garageIds.join(','))
+    }
+    
+    return this.get<ApiResponse<DurationData[]>>(`/analytics/durations?${params.toString()}`)
+  }
+
+  async getPeakHoursData(
+    filters: AnalyticsFilters
+  ): Promise<ApiResponse<PeakHoursData[]>> {
+    const params = new URLSearchParams()
+    params.append('startDate', filters.dateRange.startDate)
+    params.append('endDate', filters.dateRange.endDate)
+    
+    if (filters.garageIds?.length) {
+      params.append('garageIds', filters.garageIds.join(','))
+    }
+    
+    return this.get<ApiResponse<PeakHoursData[]>>(`/analytics/peak-hours?${params.toString()}`)
+  }
+
+  async getSpotUtilization(
+    filters: AnalyticsFilters
+  ): Promise<ApiResponse<SpotUtilizationData[]>> {
+    const params = new URLSearchParams()
+    params.append('startDate', filters.dateRange.startDate)
+    params.append('endDate', filters.dateRange.endDate)
+    
+    if (filters.garageIds?.length) {
+      params.append('garageIds', filters.garageIds.join(','))
+    }
+    
+    if (filters.spotTypes?.length) {
+      params.append('spotTypes', filters.spotTypes.join(','))
+    }
+    
+    return this.get<ApiResponse<SpotUtilizationData[]>>(`/analytics/spot-utilization?${params.toString()}`)
+  }
+
+  async exportAnalyticsReport(
+    filters: AnalyticsFilters,
+    format: 'csv' | 'pdf' | 'excel' = 'csv'
+  ): Promise<Blob> {
+    const params = new URLSearchParams()
+    params.append('startDate', filters.dateRange.startDate)
+    params.append('endDate', filters.dateRange.endDate)
+    params.append('format', format)
+    
+    if (filters.garageIds?.length) {
+      params.append('garageIds', filters.garageIds.join(','))
+    }
+    
+    const response = await this.api.get(`/analytics/export?${params.toString()}`, {
+      responseType: 'blob'
+    })
+    
+    return response.data
   }
 
   // Search API methods

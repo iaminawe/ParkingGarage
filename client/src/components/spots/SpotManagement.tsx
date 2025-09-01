@@ -1,548 +1,471 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import React, { useState, useEffect } from 'react'
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { SpotGrid } from './SpotGrid'
-import { SpotList } from './SpotList'
-import { SpotForm } from './SpotForm'
-import { SpotDetails } from './SpotDetails'
-import { MaintenanceScheduler } from './MaintenanceScheduler'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { 
-  Grid, 
-  List, 
-  Plus, 
-  Filter, 
-  Search, 
-  MoreVertical,
+  ParkingSquare, 
+  Filter,
   RefreshCw,
-  Settings,
-  Wrench,
-  AlertTriangle
+  Zap,
+  Accessibility,
+  Car,
+  Truck,
+  Bike,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Clock,
+  Search
 } from 'lucide-react'
-import type { 
-  ParkingSpot, 
-  SpotFilters, 
-  BulkSpotOperation, 
-  FloorLayout,
-  SpotType,
-  SpotStatus
-} from '@/types/api'
+import { apiService } from '@/services/api'
+import type { ParkingSpot, ParkingGarage } from '@/types/api-extensions'
+import { toast } from '@/components/ui/use-toast'
+import { cn } from '@/lib/utils'
 
-interface SpotManagementProps {
-  garageId: string
+interface SpotFilters {
+  status: 'all' | ParkingSpot['status']
+  type: 'all' | ParkingSpot['type']
+  floor: string
+  bay: string
+  search: string
 }
 
-export const SpotManagement: React.FC<SpotManagementProps> = ({ garageId }) => {
-  const [searchParams, setSearchParams] = useSearchParams()
+export function SpotManagement() {
   const [spots, setSpots] = useState<ParkingSpot[]>([])
-  const [floorLayouts, setFloorLayouts] = useState<FloorLayout[]>([])
+  const [garages, setGarages] = useState<ParkingGarage[]>([])
+  const [selectedGarage, setSelectedGarage] = useState<string>('')
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedSpots, setSelectedSpots] = useState<string[]>([])
-  const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null)
-  const [showSpotForm, setShowSpotForm] = useState(false)
-  const [showSpotDetails, setShowSpotDetails] = useState(false)
-  const [showMaintenanceScheduler, setShowMaintenanceScheduler] = useState(false)
-  const [activeView, setActiveView] = useState<'grid' | 'list'>('grid')
-  const [filters, setFilters] = useState<SpotFilters>({})
-  const [refreshing, setRefreshing] = useState(false)
+  const [filters, setFilters] = useState<SpotFilters>({
+    status: 'all',
+    type: 'all',
+    floor: 'all',
+    bay: 'all',
+    search: ''
+  })
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  // Initialize view from URL params
   useEffect(() => {
-    const view = searchParams.get('view') as 'grid' | 'list'
-    if (view) setActiveView(view)
-    
-    // Initialize filters from URL
-    const urlFilters: SpotFilters = {}
-    if (searchParams.get('search')) urlFilters.search = searchParams.get('search')!
-    if (searchParams.get('status')) urlFilters.status = searchParams.get('status') as SpotStatus
-    if (searchParams.get('type')) urlFilters.type = searchParams.get('type') as SpotType
-    if (searchParams.get('floor')) urlFilters.floor = parseInt(searchParams.get('floor')!)
-    setFilters(urlFilters)
-  }, [searchParams])
+    fetchGarages()
+  }, [])
 
-  // Update URL when view or filters change
   useEffect(() => {
-    const params = new URLSearchParams()
-    params.set('view', activeView)
-    if (filters.search) params.set('search', filters.search)
-    if (filters.status) params.set('status', filters.status)
-    if (filters.type) params.set('type', filters.type)
-    if (filters.floor) params.set('floor', filters.floor.toString())
-    setSearchParams(params)
-  }, [activeView, filters, setSearchParams])
+    if (selectedGarage) {
+      fetchSpots()
+    }
+  }, [selectedGarage])
 
-  // Load spots data
-  const loadSpots = async (refresh = false) => {
+  const fetchGarages = async () => {
     try {
-      if (refresh) setRefreshing(true)
-      else setLoading(true)
-      setError(null)
-
-      // Mock API call - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const mockSpots: ParkingSpot[] = Array.from({ length: 50 }, (_, i) => ({
-        id: `spot-${i + 1}`,
-        garageId,
-        spotNumber: `${i + 1}`,
-        floor: Math.floor(i / 20) + 1,
-        bay: String.fromCharCode(65 + Math.floor((i % 20) / 5)),
-        type: ['standard', 'compact', 'handicap', 'ev', 'oversized'][i % 5] as SpotType,
-        status: ['available', 'occupied', 'reserved', 'maintenance'][i % 4] as SpotStatus,
-        features: i % 3 === 0 ? ['ev_charging'] : i % 7 === 0 ? ['handicap', 'wide'] : [],
-        dimensions: { length: 18, width: 9, height: 8 },
-        priceOverride: i % 10 === 0 ? 15.0 : undefined,
-        maintenanceNotes: i % 4 === 3 ? 'Scheduled cleaning' : undefined,
-        usageStats: {
-          totalSessions: Math.floor(Math.random() * 100),
-          totalRevenue: Math.floor(Math.random() * 1000),
-          averageSessionDuration: Math.floor(Math.random() * 180) + 30,
-          utilizationRate: Math.floor(Math.random() * 100),
-          dailyStats: []
-        },
-        currentVehicle: i % 4 === 1 ? {
-          licensePlate: `ABC-${1000 + i}`,
-          checkInTime: new Date(Date.now() - Math.random() * 3600000).toISOString(),
-          vehicleType: 'car'
-        } : undefined,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }))
-
-      setSpots(mockSpots)
-      generateFloorLayouts(mockSpots)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load spots')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
+      const response = await apiService.getGarages()
+      if (response.success && response.data.length > 0) {
+        setGarages(response.data)
+        setSelectedGarage(response.data[0].id)
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch garages',
+        variant: 'destructive'
+      })
     }
   }
 
-  const generateFloorLayouts = (spots: ParkingSpot[]) => {
-    const floorGroups = spots.reduce((acc, spot) => {
-      if (!acc[spot.floor]) acc[spot.floor] = []
-      acc[spot.floor].push(spot)
-      return acc
-    }, {} as Record<number, ParkingSpot[]>)
-
-    const layouts: FloorLayout[] = Object.entries(floorGroups).map(([floor, floorSpots]) => {
-      const bayGroups = floorSpots.reduce((acc, spot) => {
-        const bay = spot.bay || 'A'
-        if (!acc[bay]) acc[bay] = []
-        acc[bay].push(spot)
-        return acc
-      }, {} as Record<string, ParkingSpot[]>)
-
-      const bays = Object.entries(bayGroups).map(([bay, baySpots]) => ({
-        bay,
-        spots: baySpots.sort((a, b) => parseInt(a.spotNumber) - parseInt(b.spotNumber)),
-        maxSpotsPerRow: 5
-      }))
-
-      return {
-        floor: parseInt(floor),
-        bays: bays.sort((a, b) => a.bay.localeCompare(b.bay)),
-        totalSpots: floorSpots.length,
-        availableSpots: floorSpots.filter(s => s.status === 'available').length
+  const fetchSpots = async () => {
+    try {
+      setLoading(true)
+      const response = await apiService.getSpots(selectedGarage)
+      if (response.success) {
+        setSpots(response.data)
       }
-    })
-
-    setFloorLayouts(layouts.sort((a, b) => a.floor - b.floor))
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch parking spots',
+        variant: 'destructive'
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Filter spots based on current filters
-  const filteredSpots = useMemo(() => {
-    return spots.filter(spot => {
-      if (filters.search) {
-        const search = filters.search.toLowerCase()
-        if (!spot.spotNumber.toLowerCase().includes(search) &&
-            !spot.bay?.toLowerCase().includes(search) &&
-            !spot.id.toLowerCase().includes(search)) {
-          return false
-        }
+  const handleStatusChange = async (spotId: string, newStatus: ParkingSpot['status']) => {
+    try {
+      const response = await apiService.updateSpotStatus(spotId, newStatus)
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: `Spot status updated to ${newStatus}`
+        })
+        fetchSpots()
       }
-      if (filters.status && spot.status !== filters.status) return false
-      if (filters.type && spot.type !== filters.type) return false
-      if (filters.floor && spot.floor !== filters.floor) return false
-      if (filters.bay && spot.bay !== filters.bay) return false
-      return true
-    })
-  }, [spots, filters])
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update spot status',
+        variant: 'destructive'
+      })
+    }
+  }
 
-  // Statistics
-  const stats = useMemo(() => ({
+  const getSpotIcon = (type: ParkingSpot['type']) => {
+    switch (type) {
+      case 'compact':
+        return <Car className="h-4 w-4" />
+      case 'standard':
+        return <ParkingSquare className="h-4 w-4" />
+      case 'large':
+        return <Truck className="h-4 w-4" />
+      case 'motorcycle':
+        return <Bike className="h-4 w-4" />
+      case 'electric':
+        return <Zap className="h-4 w-4" />
+      case 'handicapped':
+        return <Accessibility className="h-4 w-4" />
+      default:
+        return <ParkingSquare className="h-4 w-4" />
+    }
+  }
+
+  const getStatusIcon = (status: ParkingSpot['status']) => {
+    switch (status) {
+      case 'available':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'occupied':
+        return <XCircle className="h-4 w-4 text-red-500" />
+      case 'maintenance':
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />
+      case 'reserved':
+        return <Clock className="h-4 w-4 text-blue-500" />
+      default:
+        return null
+    }
+  }
+
+  const getStatusColor = (status: ParkingSpot['status']) => {
+    switch (status) {
+      case 'available':
+        return 'bg-green-100 text-green-800 border-green-200'
+      case 'occupied':
+        return 'bg-red-100 text-red-800 border-red-200'
+      case 'maintenance':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'reserved':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
+  const filteredSpots = spots.filter(spot => {
+    if (filters.status !== 'all' && spot.status !== filters.status) return false
+    if (filters.type !== 'all' && spot.type !== filters.type) return false
+    if (filters.floor !== 'all' && spot.floor !== filters.floor) return false
+    if (filters.bay !== 'all' && spot.bay !== filters.bay) return false
+    if (filters.search && !spot.spotNumber.toLowerCase().includes(filters.search.toLowerCase())) return false
+    return true
+  })
+
+  const floors = [...new Set(spots.map(s => s.floor))].sort()
+  const bays = [...new Set(spots.filter(s => filters.floor === 'all' || s.floor === filters.floor).map(s => s.bay))].sort()
+
+  const spotStats = {
     total: spots.length,
     available: spots.filter(s => s.status === 'available').length,
     occupied: spots.filter(s => s.status === 'occupied').length,
-    reserved: spots.filter(s => s.status === 'reserved').length,
     maintenance: spots.filter(s => s.status === 'maintenance').length,
-    selected: selectedSpots.length
-  }), [spots, selectedSpots])
-
-  useEffect(() => {
-    loadSpots()
-  }, [garageId])
-
-  const handleSpotClick = (spot: ParkingSpot) => {
-    setSelectedSpot(spot)
-    setShowSpotDetails(true)
+    reserved: spots.filter(s => s.status === 'reserved').length
   }
 
-  const handleSpotEdit = (spot: ParkingSpot) => {
-    setSelectedSpot(spot)
-    setShowSpotForm(true)
-  }
-
-  const handleSpotSelect = (spotIds: string[]) => {
-    setSelectedSpots(spotIds)
-  }
-
-  const handleBulkOperation = async (operation: BulkSpotOperation) => {
-    try {
-      setLoading(true)
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      await loadSpots()
-      setSelectedSpots([])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bulk operation failed')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleFilterChange = (key: keyof SpotFilters, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
-  }
-
-  const clearFilters = () => {
-    setFilters({})
-  }
-
-  const floors = [...new Set(spots.map(s => s.floor))].sort((a, b) => a - b)
-  const bays = [...new Set(spots.map(s => s.bay).filter(Boolean))].sort()
+  const occupancyRate = spotStats.total > 0 
+    ? Math.round((spotStats.occupied / spotStats.total) * 100) 
+    : 0
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Spot Management</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage parking spots, statuses, and maintenance
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => loadSpots(true)}
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button onClick={() => setShowMaintenanceScheduler(true)}>
-            <Wrench className="h-4 w-4 mr-2" />
-            Maintenance
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setShowSpotForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Spot
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+    <div className="space-y-6">
+      {/* Header Stats */}
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Spots</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">{stats.total}</div>
+          <CardContent>
+            <div className="text-2xl font-bold">{spotStats.total}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Available</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-green-600">{stats.available}</div>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{spotStats.available}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Occupied</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-red-600">{stats.occupied}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Reserved</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-yellow-600">{stats.reserved}</div>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{spotStats.occupied}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Maintenance</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-gray-600">{stats.maintenance}</div>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{spotStats.maintenance}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Selected</CardTitle>
+            <CardTitle className="text-sm font-medium">Occupancy Rate</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold text-blue-600">{stats.selected}</div>
+          <CardContent>
+            <div className="text-2xl font-bold">{occupancyRate}%</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters and Controls */}
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search spots..."
-              value={filters.search || ''}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={filters.status || ''} onValueChange={(value) => handleFilterChange('status', value || undefined)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Status</SelectItem>
-              <SelectItem value="available">Available</SelectItem>
-              <SelectItem value="occupied">Occupied</SelectItem>
-              <SelectItem value="reserved">Reserved</SelectItem>
-              <SelectItem value="maintenance">Maintenance</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filters.type || ''} onValueChange={(value) => handleFilterChange('type', value || undefined)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Types</SelectItem>
-              <SelectItem value="standard">Standard</SelectItem>
-              <SelectItem value="compact">Compact</SelectItem>
-              <SelectItem value="handicap">Handicap</SelectItem>
-              <SelectItem value="ev">EV Charging</SelectItem>
-              <SelectItem value="oversized">Oversized</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filters.floor?.toString() || ''} onValueChange={(value) => handleFilterChange('floor', value ? parseInt(value) : undefined)}>
-            <SelectTrigger className="w-[100px]">
-              <SelectValue placeholder="Floor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Floors</SelectItem>
-              {floors.map(floor => (
-                <SelectItem key={floor} value={floor.toString()}>Floor {floor}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {Object.keys(filters).length > 0 && (
-            <Button variant="ghost" onClick={clearFilters}>
-              <Filter className="h-4 w-4 mr-2" />
-              Clear
-            </Button>
-          )}
-        </div>
+      {/* Main Management Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ParkingSquare className="h-5 w-5" />
+            Spot Management
+          </CardTitle>
+          <CardDescription>
+            Monitor and manage all parking spots
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="space-y-4 mb-6">
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-1 block">Garage</label>
+                <Select value={selectedGarage} onValueChange={setSelectedGarage}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select garage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {garages.map(garage => (
+                      <SelectItem key={garage.id} value={garage.id}>
+                        {garage.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-1 block">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search spot number..."
+                    value={filters.search}
+                    onChange={(e) => setFilters({...filters, search: e.target.value})}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Button onClick={fetchSpots} variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
 
-        {/* Bulk Actions */}
-        {selectedSpots.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{selectedSpots.length} selected</Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Bulk Actions
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem 
-                  onClick={() => handleBulkOperation({
-                    spotIds: selectedSpots,
-                    operation: 'change-status',
-                    params: { status: 'available' }
-                  })}
-                >
-                  Mark Available
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleBulkOperation({
-                    spotIds: selectedSpots,
-                    operation: 'change-status',
-                    params: { status: 'maintenance' }
-                  })}
-                >
-                  Mark Maintenance
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleBulkOperation({
-                    spotIds: selectedSpots,
-                    operation: 'schedule-maintenance',
-                    params: { 
-                      maintenanceType: 'cleaning',
-                      scheduledDate: new Date().toISOString(),
-                      description: 'Scheduled cleaning'
+            <div className="flex gap-4">
+              <Select 
+                value={filters.status} 
+                onValueChange={(value: any) => setFilters({...filters, status: value})}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="occupied">Occupied</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="reserved">Reserved</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={filters.type} 
+                onValueChange={(value: any) => setFilters({...filters, type: value})}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="compact">Compact</SelectItem>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="large">Large</SelectItem>
+                  <SelectItem value="motorcycle">Motorcycle</SelectItem>
+                  <SelectItem value="electric">Electric</SelectItem>
+                  <SelectItem value="handicapped">Handicapped</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={filters.floor} 
+                onValueChange={(value) => setFilters({...filters, floor: value, bay: 'all'})}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by floor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Floors</SelectItem>
+                  {floors.map(floor => (
+                    <SelectItem key={floor} value={floor}>Floor {floor}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select 
+                value={filters.bay} 
+                onValueChange={(value) => setFilters({...filters, bay: value})}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by bay" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Bays</SelectItem>
+                  {bays.map(bay => (
+                    <SelectItem key={bay} value={bay}>Bay {bay}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="ml-auto">
+                <div className="flex gap-2">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    Grid
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                  >
+                    List
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Spots Display */}
+          {loading ? (
+            <div className="text-center py-8">Loading spots...</div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-8 gap-2">
+              {filteredSpots.map((spot) => (
+                <div
+                  key={spot.id}
+                  className={cn(
+                    "relative p-3 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md",
+                    getStatusColor(spot.status)
+                  )}
+                  onClick={() => {
+                    if (spot.status === 'available') {
+                      handleStatusChange(spot.id, 'reserved')
+                    } else if (spot.status === 'reserved') {
+                      handleStatusChange(spot.id, 'available')
                     }
-                  })}
+                  }}
                 >
-                  Schedule Maintenance
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
-
-        {/* View Toggle */}
-        <div className="flex items-center">
-          <Tabs value={activeView} onValueChange={(v) => setActiveView(v as 'grid' | 'list')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="grid" className="flex items-center gap-2">
-                <Grid className="h-4 w-4" />
-                Grid
-              </TabsTrigger>
-              <TabsTrigger value="list" className="flex items-center gap-2">
-                <List className="h-4 w-4" />
-                List
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      </div>
-
-      {/* Error Display */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Content */}
-      <Tabs value={activeView} className="space-y-4">
-        <TabsContent value="grid" className="space-y-0">
-          <SpotGrid
-            layouts={floorLayouts}
-            onSpotClick={handleSpotClick}
-            onSpotSelect={handleSpotSelect}
-            selectedSpots={selectedSpots}
-            loading={loading}
-            filters={filters}
-          />
-        </TabsContent>
-        <TabsContent value="list" className="space-y-0">
-          <SpotList
-            spots={filteredSpots}
-            loading={loading}
-            onSpotClick={handleSpotClick}
-            onSpotEdit={handleSpotEdit}
-            onSpotSelect={handleSpotSelect}
-            selectedSpots={selectedSpots}
-            filters={filters}
-            onFiltersChange={setFilters}
-            onBulkOperation={handleBulkOperation}
-          />
-        </TabsContent>
-      </Tabs>
-
-      {/* Dialogs */}
-      <Dialog open={showSpotForm} onOpenChange={setShowSpotForm}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedSpot ? 'Edit Spot' : 'Add New Spot'}
-            </DialogTitle>
-          </DialogHeader>
-          <SpotForm
-            spot={selectedSpot}
-            onSave={async (spotData) => {
-              await loadSpots()
-              setShowSpotForm(false)
-              setSelectedSpot(null)
-            }}
-            onCancel={() => {
-              setShowSpotForm(false)
-              setSelectedSpot(null)
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showSpotDetails} onOpenChange={setShowSpotDetails}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Spot {selectedSpot?.spotNumber} Details
-            </DialogTitle>
-          </DialogHeader>
-          {selectedSpot && (
-            <SpotDetails
-              spot={selectedSpot}
-              onEdit={() => {
-                setShowSpotDetails(false)
-                setShowSpotForm(true)
-              }}
-              onClose={() => {
-                setShowSpotDetails(false)
-                setSelectedSpot(null)
-              }}
-            />
+                  <div className="flex flex-col items-center space-y-1">
+                    <div className="flex items-center gap-1">
+                      {getSpotIcon(spot.type)}
+                      {getStatusIcon(spot.status)}
+                    </div>
+                    <div className="text-xs font-medium">{spot.spotNumber}</div>
+                    <div className="text-xs opacity-75">F{spot.floor}-B{spot.bay}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="border rounded-lg">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Spot</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Location</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Type</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Rate</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredSpots.map((spot) => (
+                    <tr key={spot.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium">{spot.spotNumber}</td>
+                      <td className="px-4 py-3">Floor {spot.floor}, Bay {spot.bay}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {getSpotIcon(spot.type)}
+                          <span className="capitalize">{spot.type}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge className={cn("gap-1", getStatusColor(spot.status))}>
+                          {getStatusIcon(spot.status)}
+                          {spot.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">${spot.hourlyRate}/hr</td>
+                      <td className="px-4 py-3">
+                        <Select 
+                          value={spot.status}
+                          onValueChange={(value: ParkingSpot['status']) => handleStatusChange(spot.id, value)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="available">Available</SelectItem>
+                            <SelectItem value="occupied">Occupied</SelectItem>
+                            <SelectItem value="maintenance">Maintenance</SelectItem>
+                            <SelectItem value="reserved">Reserved</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredSpots.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No spots found matching filters
+                </div>
+              )}
+            </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showMaintenanceScheduler} onOpenChange={setShowMaintenanceScheduler}>
-        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Maintenance Scheduler</DialogTitle>
-          </DialogHeader>
-          <MaintenanceScheduler
-            spots={spots}
-            onClose={() => setShowMaintenanceScheduler(false)}
-            onSchedule={async () => {
-              await loadSpots()
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
     </div>
   )
 }
-
-export default SpotManagement

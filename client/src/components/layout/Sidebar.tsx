@@ -7,6 +7,7 @@ import {
   BarChart3,
   Users,
   Settings,
+  ParkingSquare,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Separator } from '@/components/ui/separator'
@@ -14,18 +15,23 @@ import { Separator } from '@/components/ui/separator'
 const navigationItems = [
   {
     title: 'Dashboard',
-    href: '/',
+    href: '/dashboard',
     icon: LayoutDashboard,
-  },
-  {
-    title: 'Garages',
-    href: '/garages',
-    icon: Building2,
   },
   {
     title: 'Vehicles',
     href: '/vehicles',
     icon: Car,
+  },
+  {
+    title: 'Parking Spots',
+    href: '/spots',
+    icon: ParkingSquare,
+  },
+  {
+    title: 'Garage Config',
+    href: '/garages',
+    icon: Building2,
   },
   {
     title: 'Sessions',

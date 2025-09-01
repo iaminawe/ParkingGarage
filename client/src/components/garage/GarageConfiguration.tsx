@@ -1,532 +1,996 @@
-import React, { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
+import { useState, useEffect } from 'react'
 import { 
-  Settings, 
-  Save, 
-  RefreshCw, 
-  Download, 
-  Upload, 
-  CheckCircle, 
-  AlertTriangle,
-  Building,
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { 
+  Building2,
+  Plus,
+  Edit,
+  Save,
+  X,
   DollarSign,
-  LayoutGrid,
+  Phone,
+  Mail,
   Zap,
-  Cog
+  Accessibility
 } from 'lucide-react'
-import { cn } from '@/utils/cn'
-import type { GarageConfiguration as GarageConfigType } from '@/types/api'
+import { apiService } from '@/services/api'
+import type { ParkingGarage } from '@/types/api-extensions'
+import { useToast } from '@/hooks/use-toast'
 
-import { GeneralSettings } from './GeneralSettings'
-import { PricingSettings } from './PricingSettings'
-import { LayoutSettings } from './LayoutSettings'
-import { IntegrationSettings } from './IntegrationSettings'
-import { OperationalSettings } from './OperationalSettings'
-
-interface GarageConfigurationProps {
-  garageId: string
-  className?: string
+interface GarageConfig extends ParkingGarage {
+  businessHours: {
+    monday: { open: string; close: string; closed: boolean }
+    tuesday: { open: string; close: string; closed: boolean }
+    wednesday: { open: string; close: string; closed: boolean }
+    thursday: { open: string; close: string; closed: boolean }
+    friday: { open: string; close: string; closed: boolean }
+    saturday: { open: string; close: string; closed: boolean }
+    sunday: { open: string; close: string; closed: boolean }
+  }
+  pricing: {
+    hourly: number
+    daily: number
+    monthly: number
+    overnight: number
+    weekend: number
+    earlyBird: { enabled: boolean; rate: number; startTime: string; endTime: string }
+    maxDaily: number
+  }
+  features: {
+    evCharging: boolean
+    valet: boolean
+    carWash: boolean
+    security24h: boolean
+    coveredParking: boolean
+    wheelchairAccess: boolean
+  }
+  notifications: {
+    email: boolean
+    sms: boolean
+    maxCapacityAlert: number
+    maintenanceReminder: boolean
+  }
 }
 
-export const GarageConfiguration: React.FC<GarageConfigurationProps> = ({
-  garageId,
-  className
-}) => {
-  const [configuration, setConfiguration] = useState<GarageConfigType | null>(null)
+const defaultBusinessHours = {
+  monday: { open: '06:00', close: '22:00', closed: false },
+  tuesday: { open: '06:00', close: '22:00', closed: false },
+  wednesday: { open: '06:00', close: '22:00', closed: false },
+  thursday: { open: '06:00', close: '22:00', closed: false },
+  friday: { open: '06:00', close: '22:00', closed: false },
+  saturday: { open: '07:00', close: '23:00', closed: false },
+  sunday: { open: '07:00', close: '22:00', closed: false }
+}
+
+export function GarageConfiguration() {
+  const { toast } = useToast()
+  const [garages, setGarages] = useState<GarageConfig[]>([])
+  const [selectedGarage, setSelectedGarage] = useState<GarageConfig | null>(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [activeTab, setActiveTab] = useState('general')
-  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({})
+  const [isEditing, setIsEditing] = useState(false)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [newGarage, setNewGarage] = useState<Partial<GarageConfig>>({
+    name: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    phone: '',
+    email: '',
+    website: '',
+    description: '',
+    totalFloors: 1,
+    spotsPerFloor: 50,
+    totalSpots: 50,
+    businessHours: defaultBusinessHours,
+    pricing: {
+      hourly: 5,
+      daily: 30,
+      monthly: 200,
+      overnight: 15,
+      weekend: 7,
+      earlyBird: { enabled: false, rate: 20, startTime: '05:00', endTime: '09:00' },
+      maxDaily: 40
+    },
+    features: {
+      evCharging: false,
+      valet: false,
+      carWash: false,
+      security24h: true,
+      coveredParking: false,
+      wheelchairAccess: true
+    },
+    notifications: {
+      email: true,
+      sms: false,
+      maxCapacityAlert: 90,
+      maintenanceReminder: true
+    }
+  })
 
-  // Load configuration on mount
   useEffect(() => {
-    loadConfiguration()
-  }, [garageId])
+    fetchGarages()
+  }, [])
 
-  const loadConfiguration = async () => {
+  const fetchGarages = async () => {
     try {
       setLoading(true)
-      setError(null)
-      
-      // TODO: Replace with actual API call
-      const mockConfig: GarageConfigType = {
-        id: '1',
-        garageId,
-        general: {
-          name: 'Downtown Parking Garage',
-          description: 'Modern multi-level parking facility in downtown area',
-          address: {
-            street: '123 Main Street',
-            city: 'Downtown',
-            state: 'CA',
-            zipCode: '90210',
-            country: 'USA'
-          },
-          contact: {
-            phone: '+1-555-123-4567',
-            email: 'info@downtownparking.com',
-            website: 'https://downtownparking.com'
-          },
-          operatingHours: {
-            weekdays: { open: '06:00', close: '22:00' },
-            weekends: { open: '08:00', close: '20:00' }
-          },
-          timezone: 'America/Los_Angeles',
-          business: {
-            licenseNumber: 'PG-2024-001',
-            taxId: '12-3456789'
-          }
-        },
-        pricing: {
-          defaultRates: {
-            car: { hourly: 3.00, daily: 25.00, weekly: 150.00, monthly: 550.00 },
-            motorcycle: { hourly: 2.00, daily: 15.00, weekly: 90.00, monthly: 300.00 },
-            truck: { hourly: 5.00, daily: 40.00, weekly: 250.00, monthly: 900.00 },
-            van: { hourly: 4.00, daily: 32.00, weekly: 200.00, monthly: 720.00 },
-            bus: { hourly: 8.00, daily: 60.00, weekly: 400.00, monthly: 1400.00 }
-          },
-          peakHours: [
-            { start: '07:00', end: '09:00' },
-            { start: '17:00', end: '19:00' }
-          ],
-          discounts: [],
-          freeParking: {
-            enabled: true,
-            duration: 30
-          },
-          overtimeCharges: {
-            enabled: true,
-            gracePeriodMinutes: 15,
-            multiplier: 1.5
-          }
-        },
-        layout: {
-          floors: [
-            {
-              number: 1,
-              name: 'Ground Floor',
-              totalSpots: 50,
-              spotTypes: {
-                standard: 35,
-                compact: 10,
-                handicap: 3,
-                ev: 2,
-                oversized: 0
-              },
-              bays: ['A', 'B', 'C', 'D']
-            }
-          ],
-          capacity: {
-            total: 50,
-            standard: 35,
-            compact: 10,
-            handicap: 3,
-            ev: 2,
-            oversized: 0
-          },
-          navigation: {
-            signageEnabled: true,
-            digitalDisplays: false,
-            mobileApp: true
-          },
-          accessibility: {
-            handicapSpots: 3,
-            wheelchairAccess: true,
-            elevatorsAvailable: false
+      const response = await apiService.getGarages()
+      if (response.success) {
+        // Enhance garage data with config fields
+        const enhancedGarages = response.data.map(garage => ({
+          ...garage,
+          businessHours: defaultBusinessHours,
+          pricing: {
+            hourly: 5,
+            daily: 30,
+            monthly: 200,
+            overnight: 15,
+            weekend: 7,
+            earlyBird: { enabled: false, rate: 20, startTime: '05:00', endTime: '09:00' },
+            maxDaily: 40
           },
           features: {
-            evChargingStations: 2,
-            securityCameras: true,
-            lightingType: 'led',
-            ventilation: 'mechanical'
-          }
-        },
-        integration: {
-          payments: {
-            primary: {
-              provider: 'stripe',
-              apiKey: '',
-              enabled: false
-            }
+            evCharging: false,
+            valet: false,
+            carWash: false,
+            security24h: true,
+            coveredParking: false,
+            wheelchairAccess: true
           },
           notifications: {
-            email: {
-              provider: 'sendgrid',
-              apiKey: '',
-              fromAddress: '',
-              templates: {
-                checkin: '',
-                checkout: '',
-                receipt: '',
-                reminder: ''
-              },
-              enabled: false
-            },
-            sms: {
-              provider: 'twilio',
-              apiKey: '',
-              fromNumber: '',
-              enabled: false
-            }
-          },
-          thirdParty: {
-            parkingApps: []
-          },
-          backup: {
-            provider: 'local',
-            configuration: {},
-            schedule: 'daily',
-            retention: 30,
-            enabled: false
-          },
-          security: {
-            encryption: {
-              enabled: false,
-              algorithm: 'AES-256'
-            },
-            accessControl: {
-              ipWhitelist: [],
-              apiRateLimit: 100
-            }
+            email: true,
+            sms: false,
+            maxCapacityAlert: 90,
+            maintenanceReminder: true
           }
-        },
-        operational: {
-          checkin: {
-            requirePhoto: false,
-            requireSignature: false,
-            autoAssignment: true,
-            allowReservations: true
-          },
-          checkout: {
-            autoCalculate: true,
-            requireInspection: false,
-            gracePeriodMinutes: 15,
-            overtimeMultiplier: 1.5
-          },
-          reservations: {
-            enabled: true,
-            maxAdvanceDays: 30,
-            cancellationHours: 2,
-            noShowPenalty: 10.00
-          },
-          maintenance: {
-            windows: [],
-            autoScheduling: false,
-            notifications: true
-          },
-          staff: {
-            shiftHours: [],
-            permissions: {}
-          },
-          security: {
-            cameraRecording: true,
-            accessCards: false,
-            securityGuard: false,
-            emergencyContacts: []
-          }
-        },
-        version: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdBy: 'admin'
+        }))
+        setGarages(enhancedGarages as GarageConfig[])
+        if (enhancedGarages.length > 0) {
+          setSelectedGarage(enhancedGarages[0] as GarageConfig)
+        }
       }
-      
-      setConfiguration(mockConfig)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load configuration')
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch garages',
+        variant: 'destructive'
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleConfigurationChange = (section: keyof GarageConfigType, data: any) => {
-    if (!configuration) return
-    
-    setConfiguration(prev => ({
-      ...prev!,
-      [section]: { ...prev![section], ...data }
-    }))
-    setHasUnsavedChanges(true)
-    
-    // Clear validation errors for this section
-    if (validationErrors[section]) {
-      setValidationErrors(prev => {
-        const { [section]: _, ...rest } = prev
-        return rest
+  const handleSaveGarage = async () => {
+    if (!selectedGarage) return
+
+    try {
+      const response = await apiService.updateGarage(selectedGarage.id, selectedGarage)
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: 'Garage configuration saved successfully'
+        })
+        setIsEditing(false)
+        fetchGarages()
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save garage configuration',
+        variant: 'destructive'
       })
     }
   }
 
-  const validateConfiguration = (): boolean => {
-    const errors: Record<string, string[]> = {}
-    
-    if (!configuration) return false
-    
-    // Validate general settings
-    if (!configuration.general.name.trim()) {
-      errors.general = [...(errors.general || []), 'Garage name is required']
-    }
-    
-    if (!configuration.general.contact.email.trim()) {
-      errors.general = [...(errors.general || []), 'Contact email is required']
-    }
-    
-    // Validate pricing settings
-    Object.entries(configuration.pricing.defaultRates).forEach(([vehicleType, rates]) => {
-      if (rates.hourly <= 0) {
-        errors.pricing = [...(errors.pricing || []), `${vehicleType} hourly rate must be greater than 0`]
-      }
-    })
-    
-    // Validate layout settings
-    if (configuration.layout.capacity.total <= 0) {
-      errors.layout = [...(errors.layout || []), 'Total capacity must be greater than 0']
-    }
-    
-    setValidationErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
-  const handleSave = async () => {
-    if (!configuration || !validateConfiguration()) {
-      return
-    }
-    
+  const handleAddGarage = async () => {
     try {
-      setSaving(true)
-      setError(null)
-      
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setHasUnsavedChanges(false)
-      // Show success message or toast
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save configuration')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleExportConfig = () => {
-    if (!configuration) return
-    
-    const dataStr = JSON.stringify(configuration, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `garage-config-${garageId}-${new Date().toISOString().split('T')[0]}.json`
-    link.click()
-    
-    URL.revokeObjectURL(url)
-  }
-
-  const handleImportConfig = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const importedConfig = JSON.parse(e.target?.result as string)
-        setConfiguration(importedConfig)
-        setHasUnsavedChanges(true)
-      } catch (err) {
-        setError('Invalid configuration file format')
+      const response = await apiService.createGarage(newGarage as Partial<ParkingGarage>)
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: 'New garage added successfully'
+        })
+        setIsAddDialogOpen(false)
+        fetchGarages()
       }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to add new garage',
+        variant: 'destructive'
+      })
     }
-    reader.readAsText(file)
+  }
+
+  const handleDeleteGarage = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this garage?')) return
+
+    try {
+      const response = await apiService.deleteGarage(id)
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: 'Garage deleted successfully'
+        })
+        fetchGarages()
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete garage',
+        variant: 'destructive'
+      })
+    }
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading configuration...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!configuration) {
-    return (
-      <div className="text-center py-12">
-        <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-medium mb-2">Configuration Not Found</h3>
-        <p className="text-muted-foreground">No configuration found for this garage.</p>
-      </div>
-    )
-  }
-
-  const getTabIcon = (tab: string) => {
-    const icons = {
-      general: Building,
-      pricing: DollarSign,
-      layout: LayoutGrid,
-      integration: Zap,
-      operational: Cog
-    }
-    return icons[tab as keyof typeof icons] || Settings
-  }
-
-  const getValidationStatus = (section: string) => {
-    if (validationErrors[section]) {
-      return { status: 'error', count: validationErrors[section].length }
-    }
-    return { status: 'valid', count: 0 }
+    return <div className="text-center py-8">Loading garage configuration...</div>
   }
 
   return (
-    <div className={cn("space-y-6", className)}>
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Settings className="h-8 w-8" />
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
             Garage Configuration
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Configure all aspects of your parking garage operations
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleImportConfig}
-            className="hidden"
-            id="config-import"
-          />
-          <Button
-            variant="outline"
-            onClick={() => document.getElementById('config-import')?.click()}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Import
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={handleExportConfig}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          
-          <Button
-            onClick={handleSave}
-            disabled={saving || !hasUnsavedChanges}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </div>
+          </CardTitle>
+          <CardDescription>
+            Manage garage settings, pricing, and operations
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1">
+              <Label>Select Garage</Label>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 px-3 py-2 border rounded-md"
+                  value={selectedGarage?.id || ''}
+                  onChange={(e) => {
+                    const garage = garages.find(g => g.id === e.target.value)
+                    setSelectedGarage(garage || null)
+                    setIsEditing(false)
+                  }}
+                >
+                  {garages.map(garage => (
+                    <option key={garage.id} value={garage.id}>
+                      {garage.name}
+                    </option>
+                  ))}
+                </select>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Garage
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Add New Garage</DialogTitle>
+                      <DialogDescription>
+                        Configure a new parking garage
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="name">Garage Name</Label>
+                          <Input
+                            id="name"
+                            value={newGarage.name || ''}
+                            onChange={(e) => setNewGarage({...newGarage, name: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="phone">Phone</Label>
+                          <Input
+                            id="phone"
+                            value={newGarage.phone || ''}
+                            onChange={(e) => setNewGarage({...newGarage, phone: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="address">Address</Label>
+                        <Input
+                          id="address"
+                          value={newGarage.address || ''}
+                          onChange={(e) => setNewGarage({...newGarage, address: e.target.value})}
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="city">City</Label>
+                          <Input
+                            id="city"
+                            value={newGarage.city || ''}
+                            onChange={(e) => setNewGarage({...newGarage, city: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="state">State</Label>
+                          <Input
+                            id="state"
+                            value={newGarage.state || ''}
+                            onChange={(e) => setNewGarage({...newGarage, state: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="zipCode">ZIP Code</Label>
+                          <Input
+                            id="zipCode"
+                            value={newGarage.zipCode || ''}
+                            onChange={(e) => setNewGarage({...newGarage, zipCode: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="totalFloors">Total Floors</Label>
+                          <Input
+                            id="totalFloors"
+                            type="number"
+                            value={newGarage.totalFloors || 1}
+                            onChange={(e) => setNewGarage({...newGarage, totalFloors: parseInt(e.target.value)})}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="spotsPerFloor">Spots per Floor</Label>
+                          <Input
+                            id="spotsPerFloor"
+                            type="number"
+                            value={newGarage.spotsPerFloor || 50}
+                            onChange={(e) => setNewGarage({...newGarage, spotsPerFloor: parseInt(e.target.value)})}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddGarage}>Add Garage</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {isEditing ? (
+                <>
+                  <Button onClick={handleSaveGarage}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Changes
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={() => setIsEditing(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Configuration
+                </Button>
+              )}
+            </div>
+          </div>
 
-      {/* Status Indicators */}
-      <div className="flex items-center gap-4">
-        {hasUnsavedChanges && (
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            Unsaved Changes
-          </Badge>
-        )}
-        
-        {Object.keys(validationErrors).length === 0 && !hasUnsavedChanges && (
-          <Badge variant="default" className="flex items-center gap-1">
-            <CheckCircle className="h-3 w-3" />
-            All Settings Valid
-          </Badge>
-        )}
-      </div>
+          {selectedGarage && (
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="pricing">Pricing</TabsTrigger>
+                <TabsTrigger value="hours">Hours</TabsTrigger>
+                <TabsTrigger value="features">Features</TabsTrigger>
+                <TabsTrigger value="notifications">Notifications</TabsTrigger>
+              </TabsList>
 
-      {/* Error Display */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+              <TabsContent value="general" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Basic Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="garage-name">Garage Name</Label>
+                        <Input
+                          id="garage-name"
+                          value={selectedGarage.name}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, name: e.target.value})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="garage-phone">Phone</Label>
+                        <Input
+                          id="garage-phone"
+                          value={selectedGarage.phone || ''}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, phone: e.target.value})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="garage-address">Address</Label>
+                      <Input
+                        id="garage-address"
+                        value={selectedGarage.address}
+                        onChange={(e) => setSelectedGarage({...selectedGarage, address: e.target.value})}
+                        disabled={!isEditing}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="garage-city">City</Label>
+                        <Input
+                          id="garage-city"
+                          value={selectedGarage.city}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, city: e.target.value})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="garage-state">State</Label>
+                        <Input
+                          id="garage-state"
+                          value={selectedGarage.state}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, state: e.target.value})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="garage-zip">ZIP Code</Label>
+                        <Input
+                          id="garage-zip"
+                          value={selectedGarage.zipCode}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, zipCode: e.target.value})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="garage-email">Email</Label>
+                        <Input
+                          id="garage-email"
+                          type="email"
+                          value={selectedGarage.email || ''}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, email: e.target.value})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="garage-website">Website</Label>
+                        <Input
+                          id="garage-website"
+                          value={selectedGarage.website || ''}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, website: e.target.value})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="garage-description">Description</Label>
+                      <Textarea
+                        id="garage-description"
+                        value={selectedGarage.description || ''}
+                        onChange={(e) => setSelectedGarage({...selectedGarage, description: e.target.value})}
+                        disabled={!isEditing}
+                        rows={3}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
-      {/* Configuration Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          {[
-            { id: 'general', label: 'General' },
-            { id: 'pricing', label: 'Pricing' },
-            { id: 'layout', label: 'Layout' },
-            { id: 'integration', label: 'Integration' },
-            { id: 'operational', label: 'Operations' }
-          ].map(tab => {
-            const Icon = getTabIcon(tab.id)
-            const validation = getValidationStatus(tab.id)
-            
-            return (
-              <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
-                <Icon className="h-4 w-4" />
-                {tab.label}
-                {validation.status === 'error' && (
-                  <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 text-xs">
-                    {validation.count}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            )
-          })}
-        </TabsList>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Structure</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="total-floors">Total Floors</Label>
+                        <Input
+                          id="total-floors"
+                          type="number"
+                          value={selectedGarage.totalFloors}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, totalFloors: parseInt(e.target.value)})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="spots-per-floor">Spots per Floor</Label>
+                        <Input
+                          id="spots-per-floor"
+                          type="number"
+                          value={selectedGarage.spotsPerFloor}
+                          onChange={(e) => setSelectedGarage({...selectedGarage, spotsPerFloor: parseInt(e.target.value)})}
+                          disabled={!isEditing}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="total-spots">Total Spots</Label>
+                        <Input
+                          id="total-spots"
+                          type="number"
+                          value={selectedGarage.totalSpots}
+                          disabled
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-        <TabsContent value="general" className="space-y-6">
-          <GeneralSettings
-            config={configuration.general}
-            onChange={(data) => handleConfigurationChange('general', data)}
-            errors={validationErrors.general}
-          />
-        </TabsContent>
+              <TabsContent value="pricing" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Standard Rates</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="hourly-rate">Hourly Rate</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="hourly-rate"
+                            type="number"
+                            value={selectedGarage.pricing.hourly}
+                            onChange={(e) => setSelectedGarage({
+                              ...selectedGarage,
+                              pricing: {...selectedGarage.pricing, hourly: parseFloat(e.target.value)}
+                            })}
+                            disabled={!isEditing}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="daily-rate">Daily Rate</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="daily-rate"
+                            type="number"
+                            value={selectedGarage.pricing.daily}
+                            onChange={(e) => setSelectedGarage({
+                              ...selectedGarage,
+                              pricing: {...selectedGarage.pricing, daily: parseFloat(e.target.value)}
+                            })}
+                            disabled={!isEditing}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="monthly-rate">Monthly Rate</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="monthly-rate"
+                            type="number"
+                            value={selectedGarage.pricing.monthly}
+                            onChange={(e) => setSelectedGarage({
+                              ...selectedGarage,
+                              pricing: {...selectedGarage.pricing, monthly: parseFloat(e.target.value)}
+                            })}
+                            disabled={!isEditing}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="overnight-rate">Overnight Rate</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="overnight-rate"
+                            type="number"
+                            value={selectedGarage.pricing.overnight}
+                            onChange={(e) => setSelectedGarage({
+                              ...selectedGarage,
+                              pricing: {...selectedGarage.pricing, overnight: parseFloat(e.target.value)}
+                            })}
+                            disabled={!isEditing}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="weekend-rate">Weekend Rate</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="weekend-rate"
+                            type="number"
+                            value={selectedGarage.pricing.weekend}
+                            onChange={(e) => setSelectedGarage({
+                              ...selectedGarage,
+                              pricing: {...selectedGarage.pricing, weekend: parseFloat(e.target.value)}
+                            })}
+                            disabled={!isEditing}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="max-daily">Max Daily Charge</Label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            id="max-daily"
+                            type="number"
+                            value={selectedGarage.pricing.maxDaily}
+                            onChange={(e) => setSelectedGarage({
+                              ...selectedGarage,
+                              pricing: {...selectedGarage.pricing, maxDaily: parseFloat(e.target.value)}
+                            })}
+                            disabled={!isEditing}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-        <TabsContent value="pricing" className="space-y-6">
-          <PricingSettings
-            config={configuration.pricing}
-            onChange={(data) => handleConfigurationChange('pricing', data)}
-            errors={validationErrors.pricing}
-          />
-        </TabsContent>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Early Bird Special</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="early-bird-enabled"
+                        checked={selectedGarage.pricing.earlyBird.enabled}
+                        onCheckedChange={(checked) => setSelectedGarage({
+                          ...selectedGarage,
+                          pricing: {
+                            ...selectedGarage.pricing,
+                            earlyBird: {...selectedGarage.pricing.earlyBird, enabled: checked}
+                          }
+                        })}
+                        disabled={!isEditing}
+                      />
+                      <Label htmlFor="early-bird-enabled">Enable Early Bird Pricing</Label>
+                    </div>
+                    {selectedGarage.pricing.earlyBird.enabled && (
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="early-bird-rate">Early Bird Rate</Label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Input
+                              id="early-bird-rate"
+                              type="number"
+                              value={selectedGarage.pricing.earlyBird.rate}
+                              onChange={(e) => setSelectedGarage({
+                                ...selectedGarage,
+                                pricing: {
+                                  ...selectedGarage.pricing,
+                                  earlyBird: {...selectedGarage.pricing.earlyBird, rate: parseFloat(e.target.value)}
+                                }
+                              })}
+                              disabled={!isEditing}
+                              className="pl-10"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="early-bird-start">Start Time</Label>
+                          <Input
+                            id="early-bird-start"
+                            type="time"
+                            value={selectedGarage.pricing.earlyBird.startTime}
+                            onChange={(e) => setSelectedGarage({
+                              ...selectedGarage,
+                              pricing: {
+                                ...selectedGarage.pricing,
+                                earlyBird: {...selectedGarage.pricing.earlyBird, startTime: e.target.value}
+                              }
+                            })}
+                            disabled={!isEditing}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="early-bird-end">End Time</Label>
+                          <Input
+                            id="early-bird-end"
+                            type="time"
+                            value={selectedGarage.pricing.earlyBird.endTime}
+                            onChange={(e) => setSelectedGarage({
+                              ...selectedGarage,
+                              pricing: {
+                                ...selectedGarage.pricing,
+                                earlyBird: {...selectedGarage.pricing.earlyBird, endTime: e.target.value}
+                              }
+                            })}
+                            disabled={!isEditing}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-        <TabsContent value="layout" className="space-y-6">
-          <LayoutSettings
-            config={configuration.layout}
-            onChange={(data) => handleConfigurationChange('layout', data)}
-            errors={validationErrors.layout}
-          />
-        </TabsContent>
+              <TabsContent value="hours" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Business Hours</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Day</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Opening Time</TableHead>
+                          <TableHead>Closing Time</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(selectedGarage.businessHours).map(([day, hours]) => (
+                          <TableRow key={day}>
+                            <TableCell className="capitalize">{day}</TableCell>
+                            <TableCell>
+                              <Switch
+                                checked={!hours.closed}
+                                onCheckedChange={(checked) => setSelectedGarage({
+                                  ...selectedGarage,
+                                  businessHours: {
+                                    ...selectedGarage.businessHours,
+                                    [day]: {...hours, closed: !checked}
+                                  }
+                                })}
+                                disabled={!isEditing}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="time"
+                                value={hours.open}
+                                onChange={(e) => setSelectedGarage({
+                                  ...selectedGarage,
+                                  businessHours: {
+                                    ...selectedGarage.businessHours,
+                                    [day]: {...hours, open: e.target.value}
+                                  }
+                                })}
+                                disabled={!isEditing || hours.closed}
+                                className="w-32"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="time"
+                                value={hours.close}
+                                onChange={(e) => setSelectedGarage({
+                                  ...selectedGarage,
+                                  businessHours: {
+                                    ...selectedGarage.businessHours,
+                                    [day]: {...hours, close: e.target.value}
+                                  }
+                                })}
+                                disabled={!isEditing || hours.closed}
+                                className="w-32"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-        <TabsContent value="integration" className="space-y-6">
-          <IntegrationSettings
-            config={configuration.integration}
-            onChange={(data) => handleConfigurationChange('integration', data)}
-            errors={validationErrors.integration}
-          />
-        </TabsContent>
+              <TabsContent value="features" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Available Features</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="ev-charging"
+                          checked={selectedGarage.features.evCharging}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            features: {...selectedGarage.features, evCharging: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="ev-charging" className="flex items-center gap-2">
+                          <Zap className="h-4 w-4" />
+                          EV Charging Stations
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="valet"
+                          checked={selectedGarage.features.valet}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            features: {...selectedGarage.features, valet: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="valet">Valet Service</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="car-wash"
+                          checked={selectedGarage.features.carWash}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            features: {...selectedGarage.features, carWash: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="car-wash">Car Wash Service</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="security-24h"
+                          checked={selectedGarage.features.security24h}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            features: {...selectedGarage.features, security24h: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="security-24h">24/7 Security</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="covered-parking"
+                          checked={selectedGarage.features.coveredParking}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            features: {...selectedGarage.features, coveredParking: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="covered-parking">Covered Parking</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="wheelchair-access"
+                          checked={selectedGarage.features.wheelchairAccess}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            features: {...selectedGarage.features, wheelchairAccess: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="wheelchair-access" className="flex items-center gap-2">
+                          <Accessibility className="h-4 w-4" />
+                          Accessibility Accessible
+                        </Label>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-        <TabsContent value="operational" className="space-y-6">
-          <OperationalSettings
-            config={configuration.operational}
-            onChange={(data) => handleConfigurationChange('operational', data)}
-            errors={validationErrors.operational}
-          />
-        </TabsContent>
-      </Tabs>
+              <TabsContent value="notifications" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Notification Settings</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="email-notifications"
+                          checked={selectedGarage.notifications.email}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            notifications: {...selectedGarage.notifications, email: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="email-notifications" className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          Email Notifications
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="sms-notifications"
+                          checked={selectedGarage.notifications.sms}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            notifications: {...selectedGarage.notifications, sms: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="sms-notifications" className="flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          SMS Notifications
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="maintenance-reminder"
+                          checked={selectedGarage.notifications.maintenanceReminder}
+                          onCheckedChange={(checked) => setSelectedGarage({
+                            ...selectedGarage,
+                            notifications: {...selectedGarage.notifications, maintenanceReminder: checked}
+                          })}
+                          disabled={!isEditing}
+                        />
+                        <Label htmlFor="maintenance-reminder">Maintenance Reminders</Label>
+                      </div>
+                      <div>
+                        <Label htmlFor="capacity-alert">Capacity Alert Threshold (%)</Label>
+                        <Input
+                          id="capacity-alert"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={selectedGarage.notifications.maxCapacityAlert}
+                          onChange={(e) => setSelectedGarage({
+                            ...selectedGarage,
+                            notifications: {...selectedGarage.notifications, maxCapacityAlert: parseInt(e.target.value)}
+                          })}
+                          disabled={!isEditing}
+                          className="w-32"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Alert when occupancy reaches this percentage
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
-
-export default GarageConfiguration
