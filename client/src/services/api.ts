@@ -85,23 +85,23 @@ class ApiService {
 
   // Garage API methods
   async getGarages(): Promise<ApiResponse<ParkingGarage[]>> {
-    return this.get<ApiResponse<ParkingGarage[]>>('/garages')
+    return this.get<ApiResponse<ParkingGarage[]>>('/garage')
   }
 
   async getGarageById(id: string): Promise<ApiResponse<ParkingGarage>> {
-    return this.get<ApiResponse<ParkingGarage>>(`/garages/${id}`)
+    return this.get<ApiResponse<ParkingGarage>>(`/garage`)
   }
 
   async createGarage(garage: Partial<ParkingGarage>): Promise<ApiResponse<ParkingGarage>> {
-    return this.post<ApiResponse<ParkingGarage>>('/garages', garage)
+    return this.post<ApiResponse<ParkingGarage>>('/garage/initialize', garage)
   }
 
   async updateGarage(id: string, garage: Partial<ParkingGarage>): Promise<ApiResponse<ParkingGarage>> {
-    return this.put<ApiResponse<ParkingGarage>>(`/garages/${id}`, garage)
+    return this.put<ApiResponse<ParkingGarage>>(`/garage/config`, garage)
   }
 
   async deleteGarage(id: string): Promise<ApiResponse<void>> {
-    return this.delete<ApiResponse<void>>(`/garages/${id}`)
+    return this.delete<ApiResponse<void>>(`/garage/reset`)
   }
 
   // Spot API methods
@@ -454,7 +454,7 @@ class ApiService {
       oversized: { available: number; total: number }
     }
   }>> {
-    return this.get<ApiResponse<any>>(`/parking/availability/${garageId}`)
+    return this.get<ApiResponse<any>>(`/checkin/availability`)
   }
 
   async getRates(garageId: string): Promise<ApiResponse<{
@@ -463,7 +463,7 @@ class ApiService {
     oversized: number
     ev_charging: number
   }>> {
-    return this.get<ApiResponse<any>>(`/parking/rates/${garageId}`)
+    return this.get<ApiResponse<any>>(`/garage/rates`)
   }
 
   async simulateCheckIn(data: {
