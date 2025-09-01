@@ -48,9 +48,42 @@ export interface Vehicle {
   make: string
   model: string
   color: string
+  type: VehicleType
   ownerId: string
+  ownerName?: string
+  ownerEmail?: string
+  ownerPhone?: string
+  notes?: string
+  status: VehicleStatus
   createdAt: string
   updatedAt: string
+}
+
+export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'
+export type VehicleStatus = 'active' | 'inactive' | 'blocked'
+
+// Extended Vehicle with parking information
+export interface VehicleWithParkingInfo extends Vehicle {
+  currentSession?: ParkingSession
+  totalSessions: number
+  totalSpent: number
+  averageDuration: number
+  lastParked?: string
+}
+
+// Vehicle search and filter types
+export interface VehicleFilters {
+  search?: string
+  type?: VehicleType
+  status?: VehicleStatus
+  ownerId?: string
+}
+
+export interface VehicleSearchParams extends VehicleFilters {
+  page?: number
+  limit?: number
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
 export interface User {
@@ -77,6 +110,11 @@ export interface ParkingSession {
   paymentStatus: 'pending' | 'paid' | 'failed'
   createdAt: string
   updatedAt: string
+  // Extended fields for vehicle history
+  garage?: ParkingGarage
+  spot?: ParkingSpot
+  vehicle?: Vehicle
+  duration?: number // in minutes
 }
 
 // Analytics Types
