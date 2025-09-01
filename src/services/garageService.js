@@ -254,6 +254,14 @@ class GarageService {
   }
 
   /**
+   * Get garage statistics (alias for getGarageStatistics)
+   * @returns {Object} Comprehensive garage statistics
+   */
+  async getStatistics() {
+    return this.getGarageStatistics();
+  }
+
+  /**
    * Get garage statistics including capacity and occupancy
    * @returns {Object} Comprehensive garage statistics
    */

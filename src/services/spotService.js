@@ -121,6 +121,85 @@ class SpotService {
   }
 
   /**
+   * Find available spots with optional filters
+   * @param {Object} filters - Filter criteria (floor, bay, type, features)
+   * @returns {Array} Array of available spots
+   */
+  async findAvailableSpots(filters = {}) {
+    try {
+      const allSpots = this.spotRepository.findAll();
+      
+      // Filter for available spots first
+      const availableSpots = allSpots.filter(spot => spot.status === 'available');
+      
+      // Apply additional filters
+      const filteredSpots = this._filterSpots(availableSpots, filters);
+      
+      return filteredSpots;
+      
+    } catch (error) {
+      throw new Error(`Failed to find available spots: ${error.message}`);
+    }
+  }
+
+  /**
+   * Find spots with flexible filtering
+   * @param {Object} filters - Filter criteria (status, floor, bay, type, features)
+   * @returns {Array} Array of matching spots
+   */
+  async findSpots(filters = {}) {
+    try {
+      const allSpots = this.spotRepository.findAll();
+      
+      // Apply filters
+      const filteredSpots = this._filterSpots(allSpots, filters);
+      
+      return filteredSpots;
+      
+    } catch (error) {
+      throw new Error(`Failed to find spots: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update spot status with metadata
+   * @param {string} spotId - Spot ID to update
+   * @param {string} status - New status (available, occupied, maintenance)
+   * @param {Object} metadata - Additional metadata for the status change
+   * @returns {Object|null} Updated spot or null if not found
+   */
+  async updateSpotStatus(spotId, status, metadata = {}) {
+    try {
+      const updates = {
+        status,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // Add metadata based on status
+      if (status === 'occupied' && metadata.vehicleId) {
+        updates.vehicleId = metadata.vehicleId;
+        updates.licensePlate = metadata.licensePlate;
+        updates.occupiedSince = new Date().toISOString();
+      } else if (status === 'maintenance' && metadata.reason) {
+        updates.maintenanceReason = metadata.reason;
+        updates.estimatedCompletion = metadata.estimatedCompletion;
+      } else if (status === 'available') {
+        // Clear occupancy data when spot becomes available
+        updates.vehicleId = null;
+        updates.licensePlate = null;
+        updates.occupiedSince = null;
+        updates.maintenanceReason = null;
+        updates.estimatedCompletion = null;
+      }
+      
+      return await this.updateSpot(spotId, updates);
+      
+    } catch (error) {
+      throw new Error(`Failed to update spot status ${spotId}: ${error.message}`);
+    }
+  }
+
+  /**
    * Get spot statistics and counts
    * @returns {Object} Comprehensive spot statistics
    */

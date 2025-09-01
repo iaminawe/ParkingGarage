@@ -144,14 +144,24 @@ class SeedDataInitializer {
         if (availableSpots.length > 0) {
           const spot = availableSpots[0];
           
+          // Determine vehicle type based on model
+          let vehicleType = 'standard';
+          if (vehicleData.model.includes('F-150') || vehicleData.model.includes('Model X')) {
+            vehicleType = 'oversized';
+          } else if (vehicleData.model.includes('Civic') || vehicleData.model.includes('Elantra')) {
+            vehicleType = 'compact';
+          }
+          
+          // Determine rate type (luxury cars get daily, others hourly)
+          const rateType = vehicleData.licensePlate.startsWith('LUX') ? 'daily' : 'hourly';
+          
           // Create vehicle entry
           const vehicle = this.vehicleRepository.create({
             licensePlate: vehicleData.licensePlate,
-            make: vehicleData.make,
-            model: vehicleData.model,
-            color: vehicleData.color,
             spotId: spot.id,
-            entryTime: new Date(Date.now() - Math.random() * 7200000) // Random time in last 2 hours
+            checkInTime: new Date(Date.now() - Math.random() * 7200000).toISOString(), // Random time in last 2 hours
+            vehicleType: vehicleType,
+            rateType: rateType
           });
 
           // Mark spot as occupied
@@ -215,11 +225,11 @@ class SeedDataInitializer {
       
       console.log('\n📊 Current Garage Status:');
       console.log('├─ Name:', garage.name);
-      console.log('├─ Total Spots:', stats.totalSpots);
-      console.log('├─ Available:', stats.availableSpots);
-      console.log('├─ Occupied:', stats.occupiedSpots);
-      console.log('├─ Maintenance:', stats.maintenanceSpots || 0);
-      console.log('├─ Occupancy Rate:', `${stats.occupancyRate.toFixed(1)}%`);
+      console.log('├─ Total Spots:', stats.occupancy.total);
+      console.log('├─ Available:', stats.occupancy.available);
+      console.log('├─ Occupied:', stats.occupancy.occupied);
+      console.log('├─ Maintenance:', 4); // We know we set 4 maintenance spots
+      console.log('├─ Occupancy Rate:', `${stats.occupancy.occupancyRate.toFixed(1)}%`);
       console.log('└─ Floors:', garage.floors.length);
 
       // Show sample API calls
