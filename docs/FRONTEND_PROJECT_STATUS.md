@@ -1,8 +1,9 @@
-# 📊 CCPM Project Status
+# 📊 Frontend Project Status
 
 ## Frontend Implementation Epic
 
 ### 🎯 Epic Overview
+
 - **Title**: Frontend Implementation with shadcn/ui
 - **Branch**: `feature/frontend-implementation`
 - **PR**: [#25](https://github.com/iaminawe/ParkingGarage/pull/25)
@@ -12,6 +13,7 @@
 ### 📈 Progress Tracking
 
 #### Created GitHub Issues (First 10 of 20 tasks)
+
 1. [#26](https://github.com/iaminawe/ParkingGarage/issues/26) - Setup Frontend Development Environment
 2. [#27](https://github.com/iaminawe/ParkingGarage/issues/27) - Create Layout Components
 3. [#28](https://github.com/iaminawe/ParkingGarage/issues/28) - Implement Parking Grid Visualization
@@ -24,6 +26,7 @@
 10. [#35](https://github.com/iaminawe/ParkingGarage/issues/35) - Build Garage Configuration
 
 ### 📋 Task Breakdown
+
 - **Total Tasks**: 20 major tasks
 - **Total Subtasks**: 160+ subtasks
 - **Issues Created**: 10 (first batch)
@@ -40,10 +43,11 @@
 | **Phase 5** | Week 5 | Management Tools | Tasks 9-10, 13 |
 | **Phase 6** | Week 6 | Testing & Polish | Tasks 14-20 |
 
-### 🛠️ CCPM Configuration
-- **Config Location**: `.ccpm/config.json`
-- **Epic Definition**: `.ccpm/epics/frontend-implementation.json`
-- **Scripts**: `.ccpm/scripts/create-issues.sh`
+### 🛠️ Project Configuration
+
+- **Epic Definition**: `.claude/epics/FrontendImplementation/epic.json`
+- **Scripts**: `scripts/create-frontend-issues.sh`
+- **Documentation**: `docs/FRONTEND_IMPLEMENTATION_PLAN.md`
 
 ### 📝 Next Steps
 1. Start with Task #26: Setup Frontend Development Environment
@@ -54,18 +58,21 @@
 6. Create remaining issues as phases progress
 
 ### 🔗 Quick Links
-- [Frontend Implementation Plan](../docs/FRONTEND_IMPLEMENTATION_PLAN.md)
+
+- [Frontend Implementation Plan](FRONTEND_IMPLEMENTATION_PLAN.md)
 - [Epic PR #25](https://github.com/iaminawe/ParkingGarage/pull/25)
 - [Project Board](https://github.com/iaminawe/ParkingGarage/projects)
 - [Issues List](https://github.com/iaminawe/ParkingGarage/issues)
 
 ### 📊 Metrics
+
 - **Estimated Effort**: 240+ hours
 - **Team Size**: 1-2 developers
 - **Complexity**: High
 - **Priority**: High
 
 ### 🏷️ Labels Used
+
 - `enhancement` - New features and improvements
 - `documentation` - Documentation updates
 - `testing` - Test-related tasks
