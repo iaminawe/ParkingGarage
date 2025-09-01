@@ -1,4 +1,5 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios'
+import axios from 'axios'
+import type { AxiosInstance, AxiosResponse } from 'axios'
 import type {
   ApiResponse,
   PaginatedResponse,
@@ -110,12 +111,35 @@ class ApiService {
   }
 
   // Vehicle API methods
-  async getVehicles(): Promise<ApiResponse<Vehicle[]>> {
-    return this.get<ApiResponse<Vehicle[]>>('/vehicles')
+  async getVehicles(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    type?: string
+    status?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }): Promise<PaginatedResponse<Vehicle>> {
+    const queryParams = new URLSearchParams()
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    return this.get<PaginatedResponse<Vehicle>>(`/vehicles${query}`)
   }
 
   async getVehicleById(id: string): Promise<ApiResponse<Vehicle>> {
     return this.get<ApiResponse<Vehicle>>(`/vehicles/${id}`)
+  }
+
+  async getVehicleWithStats(id: string): Promise<ApiResponse<any>> {
+    return this.get<ApiResponse<any>>(`/vehicles/${id}/stats`)
   }
 
   async createVehicle(vehicle: Partial<Vehicle>): Promise<ApiResponse<Vehicle>> {
@@ -128,6 +152,44 @@ class ApiService {
 
   async deleteVehicle(id: string): Promise<ApiResponse<void>> {
     return this.delete<ApiResponse<void>>(`/vehicles/${id}`)
+  }
+
+  async bulkDeleteVehicles(vehicleIds: string[]): Promise<ApiResponse<void>> {
+    return this.post<ApiResponse<void>>('/vehicles/bulk-delete', { vehicleIds })
+  }
+
+  async getVehicleMetrics(): Promise<ApiResponse<{
+    totalVehicles: number
+    activeVehicles: number
+    currentlyParked: number
+    totalSessions: number
+    recentlyAdded: Vehicle[]
+  }>> {
+    return this.get<ApiResponse<any>>('/vehicles/metrics')
+  }
+
+  async exportVehicles(params?: {
+    format?: 'csv' | 'json' | 'excel'
+    search?: string
+    type?: string
+    status?: string
+  }): Promise<Blob> {
+    const queryParams = new URLSearchParams()
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    const response = await this.api.get(`/vehicles/export${query}`, {
+      responseType: 'blob'
+    })
+    
+    return response.data
   }
 
   // User API methods
@@ -198,6 +260,58 @@ class ApiService {
 
   async searchSessions(query: string): Promise<ApiResponse<ParkingSession[]>> {
     return this.get<ApiResponse<ParkingSession[]>>(`/search/sessions?q=${encodeURIComponent(query)}`)
+  }
+
+  // Vehicle sessions API methods
+  async getVehicleSessions(
+    vehicleId: string, 
+    params?: {
+      page?: number
+      limit?: number
+      status?: string
+      startDate?: string
+      endDate?: string
+    }
+  ): Promise<PaginatedResponse<ParkingSession>> {
+    const queryParams = new URLSearchParams()
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    return this.get<PaginatedResponse<ParkingSession>>(`/vehicles/${vehicleId}/sessions${query}`)
+  }
+
+  async exportVehicleSessions(
+    vehicleId: string,
+    params?: {
+      format?: 'csv' | 'json' | 'excel'
+      status?: string
+      startDate?: string
+      endDate?: string
+    }
+  ): Promise<Blob> {
+    const queryParams = new URLSearchParams()
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    const response = await this.api.get(`/vehicles/${vehicleId}/sessions/export${query}`, {
+      responseType: 'blob'
+    })
+    
+    return response.data
   }
 }
 
