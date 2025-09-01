@@ -14,8 +14,8 @@
 
 #### Created GitHub Issues (First 10 of 20 tasks)
 
-1. [#26](https://github.com/iaminawe/ParkingGarage/issues/26) - Setup Frontend Development Environment
-2. [#27](https://github.com/iaminawe/ParkingGarage/issues/27) - Create Layout Components
+1. ✅ ~~[#26](https://github.com/iaminawe/ParkingGarage/issues/26) - Setup Frontend Development Environment~~ ([PR #36](https://github.com/iaminawe/ParkingGarage/pull/36))
+2. 🚧 [#27](https://github.com/iaminawe/ParkingGarage/issues/27) - Create Layout Components (In Progress)
 3. [#28](https://github.com/iaminawe/ParkingGarage/issues/28) - Implement Parking Grid Visualization
 4. [#29](https://github.com/iaminawe/ParkingGarage/issues/29) - Build Check-in System
 5. [#30](https://github.com/iaminawe/ParkingGarage/issues/30) - Build Check-out System
