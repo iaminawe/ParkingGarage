@@ -44,7 +44,11 @@ interface SpotFilters {
   search: string
 }
 
-export function SpotManagement() {
+interface SpotManagementProps {
+  garageId?: string
+}
+
+export function SpotManagement({ garageId = 'default' }: SpotManagementProps = {}) {
   const [spots, setSpots] = useState<ParkingSpot[]>([])
   const [garages, setGarages] = useState<ParkingGarage[]>([])
   const [selectedGarage, setSelectedGarage] = useState<string>('')
