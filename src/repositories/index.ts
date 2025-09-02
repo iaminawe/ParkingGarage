@@ -10,10 +10,11 @@
 
 // Import and export individual repository classes
 import { VehicleRepository } from './VehicleRepository';
-import { SpotRepository } from './spotRepository';
+import { SpotRepository } from './SpotRepository';
+import { SessionRepository } from './SessionRepository';
 import { GarageRepository } from './garageRepository';
 
-export { VehicleRepository, SpotRepository, GarageRepository };
+export { VehicleRepository, SpotRepository, SessionRepository, GarageRepository };
 
 
 // Re-export types from models for convenience
@@ -33,6 +34,7 @@ export type {
 export interface IRepositories {
   vehicleRepository: VehicleRepository;
   spotRepository: SpotRepository;
+  sessionRepository: SessionRepository;
   garageRepository: GarageRepository;
 }
 
@@ -44,6 +46,7 @@ export function createRepositories(): IRepositories {
   return {
     vehicleRepository: new VehicleRepository(),
     spotRepository: new SpotRepository(),
+    sessionRepository: new SessionRepository(),
     garageRepository: new GarageRepository()
   };
 }

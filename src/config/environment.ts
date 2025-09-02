@@ -44,11 +44,35 @@ const environmentSchema = z.object({
   RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).pipe(z.number()).default(100),
 
   // Email Configuration (optional)
+  EMAIL_PROVIDER: z.enum(['smtp', 'gmail', 'sendgrid']).default('smtp'),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().transform(Number).pipe(z.number()).optional(),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: z.string().optional(),
+  EMAIL_USER: z.string().optional(),
+  EMAIL_PASSWORD: z.string().optional(),
+  EMAIL_APP_PASSWORD: z.string().optional(), // For Gmail
+  SENDGRID_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().email().optional(),
+  EMAIL_FROM_NAME: z.string().optional(),
+  
+  // Application URLs
+  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  API_URL: z.string().url().default('http://localhost:3001'),
+  
+  // OAuth Configuration (optional)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+  
+  // Security Configuration
+  SESSION_SECRET: z.string().min(32).optional(),
+  CSRF_SECRET: z.string().min(32).optional(),
+  ENCRYPTION_KEY: z.string().min(32).optional(),
+  
+  // Rate Limiting
+  EMAIL_RATE_LIMIT_PER_HOUR: z.string().transform(Number).pipe(z.number()).default(100),
+  EMAIL_RATE_LIMIT_PER_RECIPIENT_HOUR: z.string().transform(Number).pipe(z.number()).default(5),
 
   // Monitoring (optional)
   SENTRY_DSN: z.string().optional(),

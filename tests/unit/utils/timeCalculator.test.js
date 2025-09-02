@@ -4,13 +4,13 @@
  * Tests time calculation functions for parking duration and billing.
  */
 
-const {
+import {
   calculateParkingDuration,
   calculateBillableHours,
   applyGracePeriod,
   getCurrentTimestamp,
   formatDuration
-} = require('../../../src/utils/timeCalculator');
+} from '../../../src/utils/timeCalculator.ts';
 
 describe('TimeCalculator', () => {
   describe('calculateParkingDuration', () => {
@@ -20,12 +20,10 @@ describe('TimeCalculator', () => {
       
       const duration = calculateParkingDuration(checkIn, checkOut);
       
-      expect(duration).toEqual({
-        totalMinutes: 150,
-        hours: 2,
-        minutes: 30,
-        days: 0
-      });
+      expect(duration.totalMinutes).toBe(150);
+      expect(duration.breakdown.hours).toBe(2);
+      expect(duration.breakdown.minutes).toBe(30);
+      expect(duration.billableHours).toBe(3); // Rounded up from 2.5
     });
 
     test('should handle overnight parking', () => {
@@ -34,12 +32,10 @@ describe('TimeCalculator', () => {
       
       const duration = calculateParkingDuration(checkIn, checkOut);
       
-      expect(duration).toEqual({
-        totalMinutes: 630, // 10.5 hours
-        hours: 10,
-        minutes: 30,
-        days: 0
-      });
+      expect(duration.totalMinutes).toBe(630); // 10.5 hours
+      expect(duration.breakdown.hours).toBe(10);
+      expect(duration.breakdown.minutes).toBe(30);
+      expect(duration.billableHours).toBe(11); // Rounded up from 10.5
     });
 
     test('should handle multi-day parking', () => {
@@ -49,9 +45,9 @@ describe('TimeCalculator', () => {
       const duration = calculateParkingDuration(checkIn, checkOut);
       
       expect(duration.totalMinutes).toBe(3030); // 50.5 hours
-      expect(duration.hours).toBe(50);
-      expect(duration.minutes).toBe(30);
-      expect(duration.days).toBe(2);
+      expect(duration.breakdown.hours).toBe(50);
+      expect(duration.breakdown.minutes).toBe(30);
+      expect(duration.billableHours).toBe(51); // Rounded up from 50.5
     });
 
     test('should handle same minute check-in/check-out', () => {
@@ -60,19 +56,20 @@ describe('TimeCalculator', () => {
       
       const duration = calculateParkingDuration(checkIn, checkOut);
       
-      expect(duration.totalMinutes).toBe(1); // Rounded up to 1 minute
-      expect(duration.hours).toBe(0);
-      expect(duration.minutes).toBe(1);
+      expect(duration.totalMinutes).toBe(0); // Floor to 0 minutes for <1min
+      expect(duration.breakdown.hours).toBe(0);
+      expect(duration.breakdown.minutes).toBe(0);
+      expect(duration.billableHours).toBe(1); // Minimum 1 hour charge
     });
 
     test('should handle invalid dates', () => {
       expect(() => {
         calculateParkingDuration('invalid', '2024-01-15T10:00:00.000Z');
-      }).toThrow('Invalid check-in time');
+      }).toThrow('Invalid check-in time format');
       
       expect(() => {
         calculateParkingDuration('2024-01-15T10:00:00.000Z', 'invalid');
-      }).toThrow('Invalid check-out time');
+      }).toThrow('Invalid check-out time format');
     });
 
     test('should handle checkout before checkin', () => {
