@@ -1,11 +1,11 @@
 /**
  * Vehicle CRUD routes
- * 
+ *
  * This module defines comprehensive routes for vehicle management,
  * including full CRUD operations, bulk operations, search functionality,
  * and vehicle metrics. It follows RESTful conventions and includes
  * proper validation and error handling.
- * 
+ *
  * @module VehicleRoutes
  */
 
@@ -19,7 +19,7 @@ import {
   validateBulkRequest,
   sanitizeVehicleRequest,
   validateVehicleRequestBody,
-  validateVehicleContentType
+  validateVehicleContentType,
 } from '../middleware/validation';
 
 /**
@@ -76,8 +76,9 @@ router.use(validateVehicleContentType);
  * @query   {string} [sortOrder=desc] - Sort order (asc|desc)
  * @example GET /api/vehicles?page=1&limit=20&search=ABC&vehicleType=standard&status=active
  */
-router.get('/', 
-  validateVehicleQuery, 
+router.get(
+  '/',
+  validateVehicleQuery,
   async (req: VehicleRequest, res: Response, next: NextFunction) => {
     try {
       await vehicleController.getAllVehicles(req, res, next);
@@ -107,7 +108,8 @@ router.get('/',
  * @example POST /api/vehicles
  * @example Body: { "licensePlate": "ABC123", "vehicleType": "standard", "make": "Toyota", "model": "Camry", "color": "Blue", "year": 2020, "ownerName": "John Doe", "ownerEmail": "john@example.com", "ownerPhone": "555-0123" }
  */
-router.post('/', 
+router.post(
+  '/',
   validateVehicleRequestBody,
   sanitizeVehicleRequest,
   validateVehicleCreation,
@@ -129,7 +131,8 @@ router.post('/',
  * @example POST /api/vehicles/bulk-delete
  * @example Body: { "vehicleIds": ["ABC123", "DEF456", "GHI789"] }
  */
-router.post('/bulk-delete',
+router.post(
+  '/bulk-delete',
   validateVehicleRequestBody,
   validateBulkRequest,
   async (req: VehicleRequest, res: Response, next: NextFunction) => {
@@ -147,15 +150,13 @@ router.post('/bulk-delete',
  * @access  Public
  * @example GET /api/vehicles/metrics
  */
-router.get('/metrics', 
-  async (req: VehicleRequest, res: Response, next: NextFunction) => {
-    try {
-      await vehicleController.getVehicleMetrics(req, res, next);
-    } catch (error) {
-      next(error);
-    }
+router.get('/metrics', async (req: VehicleRequest, res: Response, next: NextFunction) => {
+  try {
+    await vehicleController.getVehicleMetrics(req, res, next);
+  } catch (error) {
+    next(error);
   }
-);
+});
 
 /**
  * @route   GET /api/vehicles/search
@@ -167,15 +168,13 @@ router.get('/metrics',
  * @query   {string} [maxResults=20] - Maximum results to return (1-100)
  * @example GET /api/vehicles/search?search=ABC&mode=partial&threshold=0.6&maxResults=10
  */
-router.get('/search', 
-  async (req: VehicleRequest, res: Response, next: NextFunction) => {
-    try {
-      await vehicleController.searchVehicles(req, res, next);
-    } catch (error) {
-      next(error);
-    }
+router.get('/search', async (req: VehicleRequest, res: Response, next: NextFunction) => {
+  try {
+    await vehicleController.searchVehicles(req, res, next);
+  } catch (error) {
+    next(error);
   }
-);
+});
 
 /**
  * @route   GET /api/vehicles/:id
@@ -184,8 +183,9 @@ router.get('/search',
  * @param   {string} id - Vehicle ID (license plate)
  * @example GET /api/vehicles/ABC123
  */
-router.get('/:id', 
-  validateVehicleId, 
+router.get(
+  '/:id',
+  validateVehicleId,
   async (req: VehicleRequest, res: Response, next: NextFunction) => {
     try {
       await vehicleController.getVehicleById(req, res, next);
@@ -215,7 +215,8 @@ router.get('/:id',
  * @example PUT /api/vehicles/ABC123
  * @example Body: { "make": "Honda", "model": "Civic", "ownerPhone": "555-9999" }
  */
-router.put('/:id',
+router.put(
+  '/:id',
   validateVehicleId,
   validateVehicleRequestBody,
   sanitizeVehicleRequest,
@@ -237,8 +238,9 @@ router.put('/:id',
  * @example DELETE /api/vehicles/ABC123
  * @note    Cannot delete vehicles that are currently parked (not checked out)
  */
-router.delete('/:id', 
-  validateVehicleId, 
+router.delete(
+  '/:id',
+  validateVehicleId,
   async (req: VehicleRequest, res: Response, next: NextFunction) => {
     try {
       await vehicleController.deleteVehicle(req, res, next);
@@ -251,29 +253,29 @@ router.delete('/:id',
 // Error handling middleware specific to vehicle routes
 router.use((error: VehicleError, req: VehicleRequest, res: Response, next: NextFunction) => {
   console.error('Vehicle route error:', error);
-  
+
   // Handle specific vehicle-related errors
   if (error.message.includes('Vehicle not found')) {
     return res.status(404).json({
       success: false,
       message: 'Vehicle not found',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
-  
+
   if (error.message.includes('already exists')) {
     return res.status(409).json({
       success: false,
       message: 'Vehicle with this license plate already exists',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
-  
+
   if (error.message.includes('still parked')) {
     return res.status(400).json({
       success: false,
       message: 'Cannot perform this operation on a vehicle that is currently parked',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -283,7 +285,7 @@ router.use((error: VehicleError, req: VehicleRequest, res: Response, next: NextF
     success: false,
     message: 'Internal server error',
     errors: [process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'],
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 

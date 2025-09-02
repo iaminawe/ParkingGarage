@@ -1,10 +1,10 @@
 /**
  * Database seeding utilities for development and testing
- * 
+ *
  * This module provides utilities for seeding the database with sample data
  * for development and testing purposes. It creates realistic test data
  * following the database schema constraints.
- * 
+ *
  * @module DatabaseSeeder
  */
 
@@ -42,7 +42,7 @@ export const DEFAULT_SEED_CONFIG: Required<SeedConfig> = {
   sessions: 40,
   payments: 30,
   transactions: 35,
-  clearExisting: false
+  clearExisting: false,
 };
 
 /**
@@ -86,7 +86,7 @@ export class DatabaseSeeder {
         vehicles: vehicles.length,
         sessions: sessions.length,
         payments: payments.length,
-        transactions: transactions.length
+        transactions: transactions.length,
       });
     } catch (error) {
       logger.error('Database seeding failed', error as Error);
@@ -100,25 +100,29 @@ export class DatabaseSeeder {
   async clearDatabase(): Promise<void> {
     logger.info('Clearing existing database data');
 
-    await withRetry(async () => {
-      await this.client.$transaction([
-        this.client.payment.deleteMany({}),
-        this.client.transaction.deleteMany({}),
-        this.client.parkingSession.deleteMany({}),
-        this.client.vehicle.deleteMany({}),
-        this.client.parkingSpot.deleteMany({}),
-        this.client.floor.deleteMany({}),
-        this.client.garage.deleteMany({}),
-        this.client.userSession.deleteMany({}),
-        this.client.loginHistory.deleteMany({}),
-        this.client.securityAuditLog.deleteMany({}),
-        this.client.userDevice.deleteMany({}),
-        this.client.user.deleteMany({}),
-        this.client.ticket.deleteMany({}),
-        this.client.emailTemplate.deleteMany({}),
-        this.client.securitySettings.deleteMany({})
-      ]);
-    }, undefined, 'clear database');
+    await withRetry(
+      async () => {
+        await this.client.$transaction([
+          this.client.payment.deleteMany({}),
+          this.client.transaction.deleteMany({}),
+          this.client.parkingSession.deleteMany({}),
+          this.client.vehicle.deleteMany({}),
+          this.client.parkingSpot.deleteMany({}),
+          this.client.floor.deleteMany({}),
+          this.client.garage.deleteMany({}),
+          this.client.userSession.deleteMany({}),
+          this.client.loginHistory.deleteMany({}),
+          this.client.securityAuditLog.deleteMany({}),
+          this.client.userDevice.deleteMany({}),
+          this.client.user.deleteMany({}),
+          this.client.ticket.deleteMany({}),
+          this.client.emailTemplate.deleteMany({}),
+          this.client.securitySettings.deleteMany({}),
+        ]);
+      },
+      undefined,
+      'clear database'
+    );
 
     logger.info('Database cleared successfully');
   }
@@ -133,21 +137,25 @@ export class DatabaseSeeder {
     const passwordHash = await bcrypt.hash('password123', 10);
 
     for (let i = 0; i < this.config.users; i++) {
-      const user = await withRetry(() =>
-        this.client.user.create({
-          data: {
-            email: `user${i + 1}@example.com`,
-            passwordHash,
-            firstName: this.generateFirstName(),
-            lastName: this.generateLastName(),
-            role: i === 0 ? 'ADMIN' : i < 3 ? 'MANAGER' : 'USER',
-            isActive: Math.random() > 0.1, // 90% active
-            isEmailVerified: Math.random() > 0.2, // 80% verified
-            phoneNumber: this.generatePhoneNumber(),
-            preferredLanguage: 'en',
-            timezone: 'UTC'
-          }
-        }), undefined, `create user ${i + 1}`);
+      const user = await withRetry(
+        () =>
+          this.client.user.create({
+            data: {
+              email: `user${i + 1}@example.com`,
+              passwordHash,
+              firstName: this.generateFirstName(),
+              lastName: this.generateLastName(),
+              role: i === 0 ? 'ADMIN' : i < 3 ? 'MANAGER' : 'USER',
+              isActive: Math.random() > 0.1, // 90% active
+              isEmailVerified: Math.random() > 0.2, // 80% verified
+              phoneNumber: this.generatePhoneNumber(),
+              preferredLanguage: 'en',
+              timezone: 'UTC',
+            },
+          }),
+        undefined,
+        `create user ${i + 1}`
+      );
 
       users.push(user);
     }
@@ -166,21 +174,25 @@ export class DatabaseSeeder {
     const garageNames = ['Downtown Parking', 'Mall Parking', 'Airport Garage', 'Hospital Parking'];
 
     for (let i = 0; i < this.config.garages; i++) {
-      const garage = await withRetry(() =>
-        this.client.garage.create({
-          data: {
-            name: garageNames[i] || `Garage ${i + 1}`,
-            description: `Multi-level parking garage ${i + 1}`,
-            totalFloors: 3,
-            totalSpots: 150,
-            isActive: true,
-            operatingHours: JSON.stringify({
-              open: '06:00',
-              close: '22:00',
-              timezone: 'UTC'
-            })
-          }
-        }), undefined, `create garage ${i + 1}`);
+      const garage = await withRetry(
+        () =>
+          this.client.garage.create({
+            data: {
+              name: garageNames[i] || `Garage ${i + 1}`,
+              description: `Multi-level parking garage ${i + 1}`,
+              totalFloors: 3,
+              totalSpots: 150,
+              isActive: true,
+              operatingHours: JSON.stringify({
+                open: '06:00',
+                close: '22:00',
+                timezone: 'UTC',
+              }),
+            },
+          }),
+        undefined,
+        `create garage ${i + 1}`
+      );
 
       garages.push(garage);
     }
@@ -199,16 +211,20 @@ export class DatabaseSeeder {
 
     for (const garage of garages) {
       for (let floorNum = 1; floorNum <= 3; floorNum++) {
-        const floor = await withRetry(() =>
-          this.client.floor.create({
-            data: {
-              garageId: garage.id,
-              floorNumber: floorNum,
-              description: `Floor ${floorNum}`,
-              totalSpots: 50,
-              isActive: true
-            }
-          }), undefined, `create floor ${floorNum} for garage ${garage.name}`);
+        const floor = await withRetry(
+          () =>
+            this.client.floor.create({
+              data: {
+                garageId: garage.id,
+                floorNumber: floorNum,
+                description: `Floor ${floorNum}`,
+                totalSpots: 50,
+                isActive: true,
+              },
+            }),
+          undefined,
+          `create floor ${floorNum} for garage ${garage.name}`
+        );
 
         floors.push(floor);
       }
@@ -231,23 +247,27 @@ export class DatabaseSeeder {
     let spotCounter = 1;
     for (const floor of floors) {
       const spotsPerFloor = Math.floor(this.config.spots / floors.length);
-      
+
       for (let i = 0; i < spotsPerFloor; i++) {
-        const spot = await withRetry(() =>
-          this.client.parkingSpot.create({
-            data: {
-              spotNumber: `${floor.floorNumber}${String(spotCounter).padStart(2, '0')}`,
-              floorId: floor.id,
-              level: floor.floorNumber,
-              section: String.fromCharCode(65 + Math.floor(i / 10)), // A, B, C, etc.
-              spotType: this.randomChoice(spotTypes) as any,
-              status: this.randomChoice(spotStatuses, [0.7, 0.2, 0.05, 0.05]) as any, // Weighted
-              isActive: true,
-              width: 2.4 + Math.random() * 0.6, // 2.4-3.0m
-              length: 5.0 + Math.random() * 1.0, // 5.0-6.0m
-              height: 2.1 + Math.random() * 0.4  // 2.1-2.5m
-            }
-          }), undefined, `create spot ${spotCounter}`);
+        const spot = await withRetry(
+          () =>
+            this.client.parkingSpot.create({
+              data: {
+                spotNumber: `${floor.floorNumber}${String(spotCounter).padStart(2, '0')}`,
+                floorId: floor.id,
+                level: floor.floorNumber,
+                section: String.fromCharCode(65 + Math.floor(i / 10)), // A, B, C, etc.
+                spotType: this.randomChoice(spotTypes) as any,
+                status: this.randomChoice(spotStatuses, [0.7, 0.2, 0.05, 0.05]) as any, // Weighted
+                isActive: true,
+                width: 2.4 + Math.random() * 0.6, // 2.4-3.0m
+                length: 5.0 + Math.random() * 1.0, // 5.0-6.0m
+                height: 2.1 + Math.random() * 0.4, // 2.1-2.5m
+              },
+            }),
+          undefined,
+          `create spot ${spotCounter}`
+        );
 
         spots.push(spot);
         spotCounter++;
@@ -274,26 +294,30 @@ export class DatabaseSeeder {
       const user = users[Math.floor(Math.random() * users.length)];
       const licensePlate = this.generateLicensePlate();
 
-      const vehicle = await withRetry(() =>
-        this.client.vehicle.create({
-          data: {
-            licensePlate,
-            vehicleType: this.randomChoice(vehicleTypes) as any,
-            ownerId: Math.random() > 0.3 ? user.id : null, // 70% have registered owners
-            ownerName: user.firstName + ' ' + user.lastName,
-            ownerEmail: user.email,
-            ownerPhone: this.generatePhoneNumber(),
-            make: this.randomChoice(makes),
-            model: this.randomChoice(models),
-            year: 2015 + Math.floor(Math.random() * 9), // 2015-2023
-            color: this.randomChoice(colors),
-            status: this.randomChoice(['PARKED', 'DEPARTED', 'ACTIVE'], [0.3, 0.5, 0.2]),
-            hourlyRate: 5.0 + Math.random() * 10.0, // $5-15/hour
-            isPaid: Math.random() > 0.3, // 70% paid
-            totalAmount: Math.random() * 50, // $0-50
-            amountPaid: Math.random() * 40 // $0-40
-          }
-        }), undefined, `create vehicle ${licensePlate}`);
+      const vehicle = await withRetry(
+        () =>
+          this.client.vehicle.create({
+            data: {
+              licensePlate,
+              vehicleType: this.randomChoice(vehicleTypes) as any,
+              ownerId: Math.random() > 0.3 ? user.id : null, // 70% have registered owners
+              ownerName: user.firstName + ' ' + user.lastName,
+              ownerEmail: user.email,
+              ownerPhone: this.generatePhoneNumber(),
+              make: this.randomChoice(makes),
+              model: this.randomChoice(models),
+              year: 2015 + Math.floor(Math.random() * 9), // 2015-2023
+              color: this.randomChoice(colors),
+              status: this.randomChoice(['PARKED', 'DEPARTED', 'ACTIVE'], [0.3, 0.5, 0.2]),
+              hourlyRate: 5.0 + Math.random() * 10.0, // $5-15/hour
+              isPaid: Math.random() > 0.3, // 70% paid
+              totalAmount: Math.random() * 50, // $0-50
+              amountPaid: Math.random() * 40, // $0-40
+            },
+          }),
+        undefined,
+        `create vehicle ${licensePlate}`
+      );
 
       vehicles.push(vehicle);
     }
@@ -316,10 +340,10 @@ export class DatabaseSeeder {
       const spot = this.randomChoice(spots);
       const startTime = this.randomDateInRange(30); // Last 30 days
       const status = this.randomChoice(sessionStatuses, [0.2, 0.6, 0.1, 0.1]) as any;
-      
+
       let endTime: Date | null = null;
       let duration: number | null = null;
-      
+
       if (status !== 'ACTIVE') {
         endTime = new Date(startTime.getTime() + Math.random() * 8 * 60 * 60 * 1000); // 0-8 hours
         duration = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // minutes
@@ -328,24 +352,30 @@ export class DatabaseSeeder {
       const hourlyRate = 5.0 + Math.random() * 5.0; // $5-10/hour
       const totalAmount = duration ? (duration / 60) * hourlyRate : 0;
 
-      const session = await withRetry(() =>
-        this.client.parkingSession.create({
-          data: {
-            vehicleId: vehicle.id,
-            spotId: spot.id,
-            startTime,
-            endTime,
-            duration,
-            hourlyRate,
-            totalAmount,
-            amountPaid: Math.random() > 0.3 ? totalAmount : 0, // 70% paid
-            isPaid: Math.random() > 0.3, // 70% paid
-            paymentMethod: this.randomChoice(['CASH', 'CREDIT_CARD', 'DEBIT_CARD', 'MOBILE_PAY']),
-            paymentTime: endTime ? new Date(endTime.getTime() + Math.random() * 60 * 60 * 1000) : null,
-            status,
-            notes: Math.random() > 0.8 ? 'Test session notes' : null
-          }
-        }), undefined, `create session ${i + 1}`);
+      const session = await withRetry(
+        () =>
+          this.client.parkingSession.create({
+            data: {
+              vehicleId: vehicle.id,
+              spotId: spot.id,
+              startTime,
+              endTime,
+              duration,
+              hourlyRate,
+              totalAmount,
+              amountPaid: Math.random() > 0.3 ? totalAmount : 0, // 70% paid
+              isPaid: Math.random() > 0.3, // 70% paid
+              paymentMethod: this.randomChoice(['CASH', 'CREDIT_CARD', 'DEBIT_CARD', 'MOBILE_PAY']),
+              paymentTime: endTime
+                ? new Date(endTime.getTime() + Math.random() * 60 * 60 * 1000)
+                : null,
+              status,
+              notes: Math.random() > 0.8 ? 'Test session notes' : null,
+            },
+          }),
+        undefined,
+        `create session ${i + 1}`
+      );
 
       sessions.push(session);
     }
@@ -371,25 +401,29 @@ export class DatabaseSeeder {
       const amount = 5.0 + Math.random() * 45.0; // $5-50
       const status = this.randomChoice(paymentStatuses, [0.7, 0.15, 0.1, 0.03, 0.02]);
 
-      const payment = await withRetry(() =>
-        this.client.payment.create({
-          data: {
-            sessionId: Math.random() > 0.3 ? session.id : null, // 70% linked to sessions
-            vehicleId: vehicle.id,
-            amount,
-            currency: 'USD',
-            paymentType: this.randomChoice(paymentTypes, [0.8, 0.1, 0.05, 0.05]) as any,
-            paymentMethod: this.randomChoice(paymentMethods) as any,
-            status: status as any,
-            transactionId: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            paymentDate: this.randomDateInRange(30),
-            processedAt: status === 'COMPLETED' ? this.randomDateInRange(30) : null,
-            failureReason: status === 'FAILED' ? 'Insufficient funds' : null,
-            refundAmount: status === 'REFUNDED' ? amount * 0.8 : 0,
-            refundedAt: status === 'REFUNDED' ? this.randomDateInRange(7) : null,
-            notes: Math.random() > 0.9 ? 'Test payment notes' : null
-          }
-        }), undefined, `create payment ${i + 1}`);
+      const payment = await withRetry(
+        () =>
+          this.client.payment.create({
+            data: {
+              sessionId: Math.random() > 0.3 ? session.id : null, // 70% linked to sessions
+              vehicleId: vehicle.id,
+              amount,
+              currency: 'USD',
+              paymentType: this.randomChoice(paymentTypes, [0.8, 0.1, 0.05, 0.05]) as any,
+              paymentMethod: this.randomChoice(paymentMethods) as any,
+              status: status as any,
+              transactionId: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              paymentDate: this.randomDateInRange(30),
+              processedAt: status === 'COMPLETED' ? this.randomDateInRange(30) : null,
+              failureReason: status === 'FAILED' ? 'Insufficient funds' : null,
+              refundAmount: status === 'REFUNDED' ? amount * 0.8 : 0,
+              refundedAt: status === 'REFUNDED' ? this.randomDateInRange(7) : null,
+              notes: Math.random() > 0.9 ? 'Test payment notes' : null,
+            },
+          }),
+        undefined,
+        `create payment ${i + 1}`
+      );
 
       payments.push(payment);
     }
@@ -414,24 +448,28 @@ export class DatabaseSeeder {
       const amount = 5.0 + Math.random() * 95.0; // $5-100
       const status = this.randomChoice(statuses, [0.75, 0.15, 0.08, 0.02]);
 
-      const transaction = await withRetry(() =>
-        this.client.transaction.create({
-          data: {
-            garageId: garage.id,
-            transactionType: this.randomChoice(transactionTypes, [0.7, 0.15, 0.05, 0.05, 0.05]),
-            amount,
-            currency: 'USD',
-            status,
-            paymentMethod: this.randomChoice(paymentMethods),
-            paymentReference: `ref_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            description: `${this.randomChoice(transactionTypes)} transaction`,
-            metadata: JSON.stringify({
-              source: 'seeder',
-              timestamp: new Date().toISOString()
-            }),
-            processedAt: status === 'COMPLETED' ? this.randomDateInRange(30) : null
-          }
-        }), undefined, `create transaction ${i + 1}`);
+      const transaction = await withRetry(
+        () =>
+          this.client.transaction.create({
+            data: {
+              garageId: garage.id,
+              transactionType: this.randomChoice(transactionTypes, [0.7, 0.15, 0.05, 0.05, 0.05]),
+              amount,
+              currency: 'USD',
+              status,
+              paymentMethod: this.randomChoice(paymentMethods),
+              paymentReference: `ref_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              description: `${this.randomChoice(transactionTypes)} transaction`,
+              metadata: JSON.stringify({
+                source: 'seeder',
+                timestamp: new Date().toISOString(),
+              }),
+              processedAt: status === 'COMPLETED' ? this.randomDateInRange(30) : null,
+            },
+          }),
+        undefined,
+        `create transaction ${i + 1}`
+      );
 
       transactions.push(transaction);
     }
@@ -445,8 +483,22 @@ export class DatabaseSeeder {
    */
   private generateFirstName(): string {
     const names = [
-      'John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'Robert', 'Ashley',
-      'William', 'Jessica', 'James', 'Amanda', 'Christopher', 'Stephanie', 'Daniel', 'Lisa'
+      'John',
+      'Jane',
+      'Michael',
+      'Sarah',
+      'David',
+      'Emily',
+      'Robert',
+      'Ashley',
+      'William',
+      'Jessica',
+      'James',
+      'Amanda',
+      'Christopher',
+      'Stephanie',
+      'Daniel',
+      'Lisa',
     ];
     return this.randomChoice(names);
   }
@@ -456,8 +508,22 @@ export class DatabaseSeeder {
    */
   private generateLastName(): string {
     const names = [
-      'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
-      'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas'
+      'Smith',
+      'Johnson',
+      'Williams',
+      'Brown',
+      'Jones',
+      'Garcia',
+      'Miller',
+      'Davis',
+      'Rodriguez',
+      'Martinez',
+      'Hernandez',
+      'Lopez',
+      'Gonzalez',
+      'Wilson',
+      'Anderson',
+      'Thomas',
     ];
     return this.randomChoice(names);
   }
@@ -475,7 +541,7 @@ export class DatabaseSeeder {
   private generateLicensePlate(): string {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
-    
+
     let plate = '';
     for (let i = 0; i < 3; i++) {
       plate += letters.charAt(Math.floor(Math.random() * letters.length));
@@ -483,7 +549,7 @@ export class DatabaseSeeder {
     for (let i = 0; i < 3; i++) {
       plate += numbers.charAt(Math.floor(Math.random() * numbers.length));
     }
-    
+
     return plate;
   }
 
@@ -539,7 +605,7 @@ export async function minimalSeed(client: PrismaClient): Promise<void> {
     sessions: 8,
     payments: 5,
     transactions: 5,
-    clearExisting: true
+    clearExisting: true,
   };
 
   const seeder = new DatabaseSeeder(client, config);

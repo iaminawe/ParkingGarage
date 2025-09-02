@@ -1,6 +1,6 @@
 /**
  * Middleware and validation type definitions
- * 
+ *
  * These types define the structure for Express middleware, validation functions,
  * error handling, and request/response transformations used throughout the application.
  */
@@ -252,7 +252,11 @@ export interface RateLimitConfig {
 
 // CORS Types
 export interface CorsOptions {
-  origin?: string | string[] | boolean | ((origin: string, callback: (err: Error | null, allow?: boolean) => void) => void);
+  origin?:
+    | string
+    | string[]
+    | boolean
+    | ((origin: string, callback: (err: Error | null, allow?: boolean) => void) => void);
   methods?: string | string[];
   allowedHeaders?: string | string[];
   exposedHeaders?: string | string[];

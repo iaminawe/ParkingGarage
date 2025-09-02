@@ -2,12 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { env } from '../config/environment';
-import { 
-  RATE_LIMITS, 
-  HTTP_STATUS, 
-  API_RESPONSES,
-  TIME_CONSTANTS 
-} from '../config/constants';
+import { RATE_LIMITS, HTTP_STATUS, API_RESPONSES, TIME_CONSTANTS } from '../config/constants';
 import { CacheService } from '../services/CacheService';
 import * as crypto from 'crypto';
 
@@ -27,7 +22,7 @@ export class SecurityMiddleware {
         keyPrefix: 'security:',
         defaultTTL: 3600,
         maxRetries: 3,
-        retryDelayMs: 1000
+        retryDelayMs: 1000,
       });
     } catch (error) {
       console.warn('CacheService initialization failed, using in-memory fallback:', error);
@@ -43,10 +38,10 @@ export class SecurityMiddleware {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           scriptSrc: ["'self'"],
-          fontSrc: ["'self'", "https://fonts.gstatic.com"],
-          imgSrc: ["'self'", "data:", "https:"],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          imgSrc: ["'self'", 'data:', 'https:'],
           connectSrc: ["'self'"],
           frameSrc: ["'none'"],
           objectSrc: ["'none'"],
@@ -80,8 +75,13 @@ export class SecurityMiddleware {
   static csrfProtection() {
     return (req: Request, res: Response, next: NextFunction): void => {
       // Skip CSRF for safe methods and API documentation
-      if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || 
-          req.path.startsWith('/api-docs') || req.path === '/health') {
+      if (
+        req.method === 'GET' ||
+        req.method === 'HEAD' ||
+        req.method === 'OPTIONS' ||
+        req.path.startsWith('/api-docs') ||
+        req.path === '/health'
+      ) {
         next();
         return;
       }
@@ -108,7 +108,7 @@ export class SecurityMiddleware {
       if (!token || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(cookie))) {
         res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
-          message: 'Invalid CSRF token'
+          message: 'Invalid CSRF token',
         });
         return;
       }
@@ -138,9 +138,9 @@ export class SecurityMiddleware {
         res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
           success: false,
           message: API_RESPONSES.ERRORS.RATE_LIMIT_EXCEEDED,
-          retryAfter: Math.ceil(RATE_LIMITS.DEFAULT_WINDOW_MS / 1000 / 60) // minutes
+          retryAfter: Math.ceil(RATE_LIMITS.DEFAULT_WINDOW_MS / 1000 / 60), // minutes
         });
-      }
+      },
     });
   }
 
@@ -162,9 +162,9 @@ export class SecurityMiddleware {
         res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
           success: false,
           message: 'Too many signup attempts. Please try again later.',
-          retryAfter: Math.ceil(RATE_LIMITS.DEFAULT_WINDOW_MS * 4 / 1000 / 60) // minutes
+          retryAfter: Math.ceil((RATE_LIMITS.DEFAULT_WINDOW_MS * 4) / 1000 / 60), // minutes
         });
-      }
+      },
     });
   }
 
@@ -183,9 +183,9 @@ export class SecurityMiddleware {
       handler: (req: Request, res: Response): void => {
         res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
           success: false,
-          message: 'Too many password validation attempts'
+          message: 'Too many password validation attempts',
         });
-      }
+      },
     });
   }
 
@@ -200,12 +200,12 @@ export class SecurityMiddleware {
       try {
         const ip = req.ip;
         const key = `suspicious_${ip}`;
-        
+
         let score = 0;
 
         if (this.cacheService) {
           // Use CacheService if available
-          const currentScore = await this.cacheService.get(key) || '0';
+          const currentScore = (await this.cacheService.get(key)) || '0';
           score = parseInt(String(currentScore), 10);
 
           // Increase score for suspicious patterns
@@ -217,7 +217,7 @@ export class SecurityMiddleware {
           // Use in-memory fallback
           const now = Date.now();
           const entry = inMemoryScores.get(key);
-          
+
           if (entry && entry.expires > now) {
             score = entry.score;
           } else {
@@ -242,7 +242,7 @@ export class SecurityMiddleware {
         if (score > 10) {
           res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
             success: false,
-            message: 'Suspicious activity detected. Access temporarily restricted.'
+            message: 'Suspicious activity detected. Access temporarily restricted.',
           });
           return;
         }
@@ -276,11 +276,13 @@ export class SecurityMiddleware {
 
     // Check for suspicious patterns in various parts of the request
     const textToCheck = `${userAgent} ${referer} ${queryString}`;
-    
-    return suspiciousPatterns.some(pattern => pattern.test(textToCheck)) ||
-           userAgent === '' || // Empty user agent is suspicious
-           userAgent.length > 1000 || // Extremely long user agent
-           Object.keys(req.query).length > 20; // Too many query parameters
+
+    return (
+      suspiciousPatterns.some(pattern => pattern.test(textToCheck)) ||
+      userAgent === '' || // Empty user agent is suspicious
+      userAgent.length > 1000 || // Extremely long user agent
+      Object.keys(req.query).length > 20
+    ); // Too many query parameters
   }
 
   /**
@@ -354,23 +356,30 @@ export class SecurityMiddleware {
     return (req: Request, res: Response, next: NextFunction): void => {
       // Log security-relevant events
       const securityEvents = [
-        'login', 'logout', 'signup', 'password-reset', 
-        'failed-auth', 'token-refresh', 'admin-action'
+        'login',
+        'logout',
+        'signup',
+        'password-reset',
+        'failed-auth',
+        'token-refresh',
+        'admin-action',
       ];
 
       const path = req.path.toLowerCase();
       const isSecurityEvent = securityEvents.some(event => path.includes(event));
 
       if (isSecurityEvent && env.NODE_ENV === 'production') {
-        console.log(JSON.stringify({
-          timestamp: new Date().toISOString(),
-          type: 'security_event',
-          ip: req.ip,
-          userAgent: req.headers['user-agent'],
-          method: req.method,
-          path: req.path,
-          userId: (req as any).user?.id,
-        }));
+        console.log(
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            type: 'security_event',
+            ip: req.ip,
+            userAgent: req.headers['user-agent'],
+            method: req.method,
+            path: req.path,
+            userId: (req as any).user?.id,
+          })
+        );
       }
 
       next();
@@ -392,13 +401,13 @@ export class SecurityMiddleware {
       const allowedTypes = [
         'application/json',
         'application/x-www-form-urlencoded',
-        'multipart/form-data'
+        'multipart/form-data',
       ];
 
       if (contentType && !allowedTypes.some(type => contentType.includes(type))) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          message: 'Invalid content type'
+          message: 'Invalid content type',
         });
         return;
       }

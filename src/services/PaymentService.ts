@@ -90,7 +90,7 @@ class PaymentService {
   private auditService: SecurityAuditService;
   private billingService: BillingService;
   private gatewayConfigs: Map<string, PaymentGatewayConfig>;
-  private fraudThreshold: number = 0.7;
+  private fraudThreshold = 0.7;
 
   constructor() {
     this.auditService = new SecurityAuditService();
@@ -110,7 +110,7 @@ class PaymentService {
         apiKey: process.env.STRIPE_PUBLISHABLE_KEY,
         secretKey: process.env.STRIPE_SECRET_KEY,
         webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-        environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
+        environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox',
       });
     }
 
@@ -120,7 +120,7 @@ class PaymentService {
         provider: 'paypal',
         apiKey: process.env.PAYPAL_CLIENT_ID,
         secretKey: process.env.PAYPAL_CLIENT_SECRET,
-        environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
+        environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox',
       });
     }
 
@@ -129,7 +129,7 @@ class PaymentService {
       provider: 'mock',
       apiKey: 'mock_key',
       secretKey: 'mock_secret',
-      environment: 'sandbox'
+      environment: 'sandbox',
     });
   }
 
@@ -146,7 +146,7 @@ class PaymentService {
           status: 'FAILED',
           amount: request.amount,
           message: validation.reasons.join(', '),
-          errorCode: 'VALIDATION_FAILED'
+          errorCode: 'VALIDATION_FAILED',
         };
       }
 
@@ -159,7 +159,7 @@ class PaymentService {
           category: 'SECURITY',
           severity: 'HIGH',
           description: `Fraud detected in payment: ${fraudCheck.reasons.join(', ')}`,
-          metadata: { request, fraudScore: fraudCheck.riskScore }
+          metadata: { request, fraudScore: fraudCheck.riskScore },
         });
 
         return {
@@ -168,13 +168,13 @@ class PaymentService {
           amount: request.amount,
           message: 'Payment declined due to security concerns',
           errorCode: 'FRAUD_DETECTED',
-          fraudScore: fraudCheck.riskScore
+          fraudScore: fraudCheck.riskScore,
         };
       }
 
       // Process payment through gateway
       const gatewayResult = await this.processPaymentGateway(request, fraudCheck);
-      
+
       // Save payment record
       const payment = await prisma.payment.create({
         data: {
@@ -188,8 +188,8 @@ class PaymentService {
           vehicleId: request.vehicleId,
           processedAt: gatewayResult.success ? new Date() : null,
           failureReason: gatewayResult.success ? null : gatewayResult.message,
-          notes: request.description
-        }
+          notes: request.description,
+        },
       });
 
       // Generate receipt if payment successful
@@ -197,7 +197,7 @@ class PaymentService {
       if (gatewayResult.success) {
         const receipt = await this.generateReceipt(payment.id, request);
         receiptUrl = receipt ? `/receipts/${receipt.id}` : undefined;
-        
+
         // Update session if provided
         if (request.sessionId) {
           await prisma.parkingSession.update({
@@ -206,8 +206,8 @@ class PaymentService {
               isPaid: true,
               amountPaid: request.amount,
               paymentMethod: request.paymentMethod,
-              paymentTime: new Date()
-            }
+              paymentTime: new Date(),
+            },
           });
         }
       }
@@ -223,8 +223,8 @@ class PaymentService {
           paymentId: payment.id,
           amount: request.amount,
           paymentMethod: request.paymentMethod,
-          fraudScore: fraudCheck.riskScore
-        }
+          fraudScore: fraudCheck.riskScore,
+        },
       });
 
       return {
@@ -236,18 +236,18 @@ class PaymentService {
         fees: gatewayResult.fees,
         message: gatewayResult.message,
         receiptUrl,
-        fraudScore: fraudCheck.riskScore
+        fraudScore: fraudCheck.riskScore,
       };
     } catch (error) {
       console.error('Payment processing error:', error);
-      
+
       await this.auditService.logSecurityEvent({
         userId,
         action: 'PAYMENT_ERROR',
         category: 'TRANSACTION',
         severity: 'HIGH',
         description: `Payment processing error: ${(error as Error).message}`,
-        metadata: { request, error: (error as Error).message }
+        metadata: { request, error: (error as Error).message },
       });
 
       return {
@@ -255,7 +255,7 @@ class PaymentService {
         status: 'FAILED',
         amount: request.amount,
         message: 'Payment processing failed',
-        errorCode: 'PROCESSING_ERROR'
+        errorCode: 'PROCESSING_ERROR',
       };
     }
   }
@@ -268,7 +268,7 @@ class PaymentService {
       // Get original payment
       const payment = await prisma.payment.findUnique({
         where: { id: refundRequest.paymentId },
-        include: { session: true, vehicle: true }
+        include: { session: true, vehicle: true },
       });
 
       if (!payment) {
@@ -276,7 +276,7 @@ class PaymentService {
           success: false,
           amount: 0,
           status: 'FAILED',
-          message: 'Payment not found'
+          message: 'Payment not found',
         };
       }
 
@@ -285,7 +285,7 @@ class PaymentService {
           success: false,
           amount: 0,
           status: 'FAILED',
-          message: 'Cannot refund incomplete payment'
+          message: 'Cannot refund incomplete payment',
         };
       }
 
@@ -297,7 +297,7 @@ class PaymentService {
           success: false,
           amount: 0,
           status: 'FAILED',
-          message: `Refund amount exceeds refundable balance ($${maxRefundable})`
+          message: `Refund amount exceeds refundable balance ($${maxRefundable})`,
         };
       }
 
@@ -310,8 +310,8 @@ class PaymentService {
         data: {
           refundAmount: (payment.refundAmount || 0) + refundAmount,
           refundedAt: new Date(),
-          status: refundAmount === payment.amount ? 'REFUNDED' : 'COMPLETED'
-        }
+          status: refundAmount === payment.amount ? 'REFUNDED' : 'COMPLETED',
+        },
       });
 
       // Log refund
@@ -324,8 +324,8 @@ class PaymentService {
         metadata: {
           paymentId: payment.id,
           refundAmount,
-          reason: refundRequest.reason
-        }
+          reason: refundRequest.reason,
+        },
       });
 
       return {
@@ -333,7 +333,7 @@ class PaymentService {
         refundId: gatewayResult.refundId,
         amount: refundAmount,
         status: gatewayResult.status,
-        message: gatewayResult.message
+        message: gatewayResult.message,
       };
     } catch (error) {
       console.error('Refund processing error:', error);
@@ -341,7 +341,7 @@ class PaymentService {
         success: false,
         amount: 0,
         status: 'FAILED',
-        message: 'Refund processing failed'
+        message: 'Refund processing failed',
       };
     }
   }
@@ -359,7 +359,8 @@ class PaymentService {
       riskScore += 0.5;
     }
 
-    if (request.amount > 10000) { // $10,000 limit
+    if (request.amount > 10000) {
+      // $10,000 limit
       reasons.push('Payment amount exceeds maximum limit');
       riskScore += 0.3;
     }
@@ -373,7 +374,7 @@ class PaymentService {
     // Session validation if provided
     if (request.sessionId) {
       const session = await prisma.parkingSession.findUnique({
-        where: { id: request.sessionId }
+        where: { id: request.sessionId },
       });
 
       if (!session) {
@@ -386,14 +387,14 @@ class PaymentService {
     }
 
     const isValid = reasons.length === 0 && riskScore < this.fraudThreshold;
-    const recommendedAction: 'approve' | 'review' | 'decline' = 
+    const recommendedAction: 'approve' | 'review' | 'decline' =
       riskScore < 0.3 ? 'approve' : riskScore < 0.7 ? 'review' : 'decline';
 
     return {
       isValid,
       riskScore: Math.min(riskScore, 1),
       reasons,
-      recommendedAction
+      recommendedAction,
     };
   }
 
@@ -410,8 +411,8 @@ class PaymentService {
         where: {
           vehicleId: request.vehicleId,
           createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) }, // Last 5 minutes
-          status: { in: ['PENDING', 'COMPLETED'] }
-        }
+          status: { in: ['PENDING', 'COMPLETED'] },
+        },
       });
 
       if (recentPayments > 3) {
@@ -439,14 +440,14 @@ class PaymentService {
     }
 
     const isValid = riskScore < this.fraudThreshold;
-    const recommendedAction: 'approve' | 'review' | 'decline' = 
+    const recommendedAction: 'approve' | 'review' | 'decline' =
       riskScore < 0.3 ? 'approve' : riskScore < 0.7 ? 'review' : 'decline';
 
     return {
       isValid,
       riskScore: Math.min(riskScore, 1),
       reasons,
-      recommendedAction
+      recommendedAction,
     };
   }
 
@@ -454,12 +455,12 @@ class PaymentService {
    * Process payment through gateway (stub implementation)
    */
   private async processPaymentGateway(
-    request: PaymentRequest, 
+    request: PaymentRequest,
     fraudCheck: FraudCheckResult
   ): Promise<Omit<PaymentResult, 'paymentId'>> {
     // This is a stub implementation - in production, integrate with actual payment gateways
     const gateway = this.gatewayConfigs.get('mock') || this.gatewayConfigs.get('stripe');
-    
+
     if (!gateway) {
       throw new Error('No payment gateway configured');
     }
@@ -477,7 +478,7 @@ class PaymentService {
         status: 'COMPLETED',
         amount: request.amount,
         fees: Math.round(request.amount * 0.029 * 100) / 100, // 2.9% fee
-        message: 'Payment processed successfully'
+        message: 'Payment processed successfully',
       };
     } else {
       return {
@@ -485,7 +486,7 @@ class PaymentService {
         status: 'FAILED',
         amount: request.amount,
         message: 'Payment declined by processor',
-        errorCode: 'DECLINED_BY_PROCESSOR'
+        errorCode: 'DECLINED_BY_PROCESSOR',
       };
     }
   }
@@ -494,7 +495,7 @@ class PaymentService {
    * Process refund through gateway (stub implementation)
    */
   private async processRefundGateway(
-    originalPayment: any, 
+    originalPayment: any,
     refundAmount: number
   ): Promise<{ success: boolean; refundId?: string; status: string; message?: string }> {
     // Simulate refund processing
@@ -508,13 +509,13 @@ class PaymentService {
         success: true,
         refundId: `ref_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         status: 'COMPLETED',
-        message: 'Refund processed successfully'
+        message: 'Refund processed successfully',
       };
     } else {
       return {
         success: false,
         status: 'FAILED',
-        message: 'Refund processing failed'
+        message: 'Refund processing failed',
       };
     }
   }
@@ -530,10 +531,10 @@ class PaymentService {
           session: {
             include: {
               vehicle: true,
-              spot: true
-            }
-          }
-        }
+              spot: true,
+            },
+          },
+        },
       });
 
       if (!payment) {
@@ -554,14 +555,14 @@ class PaymentService {
         description: payment.notes || 'Parking fee payment',
         customerInfo: {
           email: request.customerData?.email,
-          name: request.customerData?.name
+          name: request.customerData?.name,
         },
         breakdown: {
           subtotal,
           taxes,
           fees,
-          total: payment.amount
-        }
+          total: payment.amount,
+        },
       };
 
       return receipt;
@@ -581,10 +582,10 @@ class PaymentService {
         session: {
           include: {
             vehicle: true,
-            spot: true
-          }
-        }
-      }
+            spot: true,
+          },
+        },
+      },
     });
   }
 
@@ -609,38 +610,38 @@ class PaymentService {
 
     const [totalPayments, successfulPayments, totalRevenue, avgAmount] = await Promise.all([
       prisma.payment.count({
-        where: { createdAt: { gte: startDate } }
+        where: { createdAt: { gte: startDate } },
       }),
       prisma.payment.count({
         where: {
           createdAt: { gte: startDate },
-          status: 'COMPLETED'
-        }
+          status: 'COMPLETED',
+        },
       }),
       prisma.payment.aggregate({
         where: {
           createdAt: { gte: startDate },
-          status: 'COMPLETED'
+          status: 'COMPLETED',
         },
-        _sum: { amount: true }
+        _sum: { amount: true },
       }),
       prisma.payment.aggregate({
         where: {
           createdAt: { gte: startDate },
-          status: 'COMPLETED'
+          status: 'COMPLETED',
         },
-        _avg: { amount: true }
-      })
+        _avg: { amount: true },
+      }),
     ]);
 
     return {
       totalPayments,
       successfulPayments,
       failedPayments: totalPayments - successfulPayments,
-      successRate: totalPayments > 0 ? (successfulPayments / totalPayments * 100) : 0,
+      successRate: totalPayments > 0 ? (successfulPayments / totalPayments) * 100 : 0,
       totalRevenue: totalRevenue._sum.amount || 0,
       averageAmount: avgAmount._avg.amount || 0,
-      timeframe
+      timeframe,
     };
   }
 }

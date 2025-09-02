@@ -1,0 +1,41 @@
+{
+  "all": true,
+  "include": [
+    "src/**/*.js",
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.{js,ts}",
+    "src/**/*.spec.{js,ts}",
+    "src/**/*.d.ts",
+    "src/server.{js,ts}",
+    "src/generated/**/*",
+    "src/types/**/*",
+    "**/node_modules/**",
+    "**/coverage/**",
+    "**/dist/**"
+  ],
+  "reporter": [
+    "text",
+    "text-summary",
+    "html",
+    "lcov",
+    "json",
+    "json-summary",
+    "cobertura"
+  ],
+  "report-dir": "./coverage",
+  "temp-dir": "./coverage/.nyc_output",
+  "check-coverage": true,
+  "branches": 95,
+  "functions": 95,
+  "lines": 95,
+  "statements": 95,
+  "per-file": true,
+  "skip-full": false,
+  "cache": true,
+  "instrument": true,
+  "source-map": true,
+  "produce-source-map": true,
+  "exclude-after-remap": false
+}

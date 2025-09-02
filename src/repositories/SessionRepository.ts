@@ -1,19 +1,19 @@
 /**
  * Session repository for data access operations using Prisma
- * 
+ *
  * This module provides data access methods for parking sessions using
  * the PrismaAdapter pattern. It handles session CRUD operations,
  * tracking, and provides optimized queries for session management.
- * 
+ *
  * @module SessionRepository
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
 import { ParkingSession, Prisma, SessionStatus } from '@prisma/client';
-import type { 
+import type {
   QueryOptions,
   PaginatedResult,
-  IAdapterLogger
+  IAdapterLogger,
 } from '../adapters/interfaces/BaseAdapter';
 import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
@@ -87,17 +87,18 @@ export interface SessionStats {
 /**
  * Repository for managing parking sessions using Prisma
  */
-export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessionData, UpdateSessionData> {
+export class SessionRepository extends PrismaAdapter<
+  ParkingSession,
+  CreateSessionData,
+  UpdateSessionData
+> {
   protected readonly modelName = 'parkingSession';
   protected readonly delegate: Prisma.ParkingSessionDelegate;
 
-  constructor(
-    databaseService?: DatabaseService,
-    logger?: IAdapterLogger
-  ) {
+  constructor(databaseService?: DatabaseService, logger?: IAdapterLogger) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prismaClient = dbService.getClient();
-    
+
     super(prismaClient, logger || createLogger('SessionRepository'));
     this.delegate = prismaClient.parkingSession;
   }
@@ -108,10 +109,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    * @param options - Query options
    * @returns Array of sessions matching the status
    */
-  async findByStatus(
-    status: SessionStatus,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
+  async findByStatus(status: SessionStatus, options?: QueryOptions): Promise<ParkingSession[]> {
     return this.findMany({ status }, options);
   }
 
@@ -139,10 +137,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    * @param options - Query options
    * @returns Array of sessions for the vehicle
    */
-  async findByVehicleId(
-    vehicleId: string,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
+  async findByVehicleId(vehicleId: string, options?: QueryOptions): Promise<ParkingSession[]> {
     return this.findMany({ vehicleId }, options);
   }
 
@@ -160,21 +155,21 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const result = await this.delegate.findMany({
         where: {
           vehicle: {
-            licensePlate: licensePlate.toUpperCase()
-          }
+            licensePlate: licensePlate.toUpperCase(),
+          },
         },
         include: {
           vehicle: true,
-          spot: true
+          spot: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found sessions by license plate', {
         licensePlate,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, `find sessions by license plate: ${licensePlate}`);
   }
@@ -185,10 +180,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    * @param options - Query options
    * @returns Array of sessions for the spot
    */
-  async findBySpotId(
-    spotId: string,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
+  async findBySpotId(spotId: string, options?: QueryOptions): Promise<ParkingSession[]> {
     return this.findMany({ spotId }, options);
   }
 
@@ -198,18 +190,15 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    * @param options - Query options
    * @returns Array of sessions for the garage
    */
-  async findByGarageId(
-    garageId: string,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
+  async findByGarageId(garageId: string, options?: QueryOptions): Promise<ParkingSession[]> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findMany({
         where: {
           spot: {
             floor: {
-              garageId
-            }
-          }
+              garageId,
+            },
+          },
         },
         include: {
           vehicle: true,
@@ -217,20 +206,20 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
-          }
+                  garage: true,
+                },
+              },
+            },
+          },
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found sessions by garage ID', {
         garageId,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, `find sessions by garage ID: ${garageId}`);
   }
@@ -252,23 +241,23 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const result = await client.parkingSession.findFirst({
         where: {
           vehicleId,
-          status: 'ACTIVE'
+          status: 'ACTIVE',
         },
         include: {
           vehicle: true,
-          spot: true
+          spot: true,
         },
         orderBy: {
-          startTime: 'desc'
+          startTime: 'desc',
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found active session for vehicle', {
         vehicleId,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find active session for vehicle: ${vehicleId}`);
   }
@@ -300,23 +289,23 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const result = await this.delegate.findFirst({
         where: {
           spotId,
-          status: 'ACTIVE'
+          status: 'ACTIVE',
         },
         include: {
           vehicle: true,
-          spot: true
+          spot: true,
         },
         orderBy: {
-          startTime: 'desc'
+          startTime: 'desc',
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found active session for spot', {
         spotId,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find active session for spot: ${spotId}`);
   }
@@ -340,24 +329,24 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const result = await client.parkingSession.findFirst({
         where: {
           spotId,
-          status
+          status,
         },
         include: {
           vehicle: true,
-          spot: true
+          spot: true,
         },
         orderBy: {
-          startTime: 'desc'
+          startTime: 'desc',
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found session by spot and status', {
         spotId,
         status,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find session by spot: ${spotId} and status: ${status}`);
   }
@@ -368,10 +357,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    * @param options - Query options
    * @returns Array of sessions matching all criteria
    */
-  async search(
-    criteria: SessionSearchCriteria,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
+  async search(criteria: SessionSearchCriteria, options?: QueryOptions): Promise<ParkingSession[]> {
     return this.executeWithRetry(async () => {
       const whereClause: Prisma.ParkingSessionWhereInput = {};
 
@@ -388,7 +374,6 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       if (criteria.status) {
         whereClause.status = criteria.status;
       }
-
 
       if (criteria.isPaid !== undefined) {
         whereClause.isPaid = criteria.isPaid;
@@ -409,8 +394,8 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       if (criteria.licensePlate) {
         whereClause.vehicle = {
           licensePlate: {
-            contains: criteria.licensePlate.toUpperCase()
-          }
+            contains: criteria.licensePlate.toUpperCase(),
+          },
         };
       }
 
@@ -418,16 +403,16 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
         where: whereClause,
         include: {
           vehicle: true,
-          spot: true
+          spot: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Session search completed', {
         criteria,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, 'search sessions');
   }
@@ -437,8 +422,10 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    * @param sessionData - Session creation data
    * @returns Created session with relations
    */
-  async createSession(sessionData: CreateSessionData): Promise<ParkingSession & { vehicle: any; spot: any }> {
-    return this.executeTransaction(async (tx) => {
+  async createSession(
+    sessionData: CreateSessionData
+  ): Promise<ParkingSession & { vehicle: any; spot: any }> {
+    return this.executeTransaction(async tx => {
       // Create the session
       const session = await tx.parkingSession.create({
         data: {
@@ -449,26 +436,26 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
           hourlyRate: sessionData.hourlyRate || 5.0,
           totalAmount: sessionData.totalAmount || 0.0,
           isPaid: sessionData.isPaid || false,
-          notes: sessionData.notes
+          notes: sessionData.notes,
         },
         include: {
           vehicle: true,
-          spot: true
-        }
+          spot: true,
+        },
       });
 
       // Update spot status to occupied
       await tx.parkingSpot.update({
         where: { id: sessionData.spotId },
-        data: { 
-          status: 'OCCUPIED'
-        }
+        data: {
+          status: 'OCCUPIED',
+        },
       });
 
       this.logger.info('Session created with related entity updates', {
         sessionId: session.id,
         vehicleId: sessionData.vehicleId,
-        spotId: sessionData.spotId
+        spotId: sessionData.spotId,
       });
 
       return session;
@@ -484,20 +471,20 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    */
   async endSession(
     sessionId: string,
-    endReason: string = 'manual',
-    hourlyRate: number = 5.0
+    endReason = 'manual',
+    hourlyRate = 5.0
   ): Promise<ParkingSession> {
-    return this.executeTransaction(async (tx) => {
+    return this.executeTransaction(async tx => {
       // Get the session
       const session = await tx.parkingSession.findFirst({
         where: {
           id: sessionId,
-          status: 'ACTIVE'
+          status: 'ACTIVE',
         },
         include: {
           vehicle: true,
-          spot: true
-        }
+          spot: true,
+        },
       });
 
       if (!session) {
@@ -519,17 +506,17 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
           endTime: checkOutTime,
           duration: durationMinutes,
           hourlyRate,
-          totalAmount
-        }
+          totalAmount,
+        },
       });
 
       // Update spot status (make it available)
       if (session.spot) {
         await tx.parkingSpot.update({
           where: { id: session.spotId },
-          data: { 
-            status: 'AVAILABLE'
-          }
+          data: {
+            status: 'AVAILABLE',
+          },
         });
       }
 
@@ -537,7 +524,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
         sessionId,
         durationMinutes,
         totalAmount,
-        endReason
+        endReason,
       });
 
       return updatedSession;
@@ -554,8 +541,8 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
     return this.executeWithRetry(async () => {
       const session = await this.delegate.findFirst({
         where: {
-          id: sessionId
-        }
+          id: sessionId,
+        },
       });
 
       if (!session) {
@@ -573,13 +560,13 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       }
 
       const updatedSession = await this.update(sessionId, {
-        isPaid: true
+        isPaid: true,
       });
 
       this.logger.info('Session marked as paid', {
         sessionId,
         totalAmount: session.totalAmount,
-        amountPaid
+        amountPaid,
       });
 
       return updatedSession;
@@ -594,17 +581,17 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
   async getStats(garageId?: string): Promise<SessionStats> {
     return this.executeWithRetry(async () => {
       let whereClause: any = {};
-      
+
       if (garageId) {
         whereClause = {
           spot: {
             floor: {
-              garageId
-            }
-          }
+              garageId,
+            },
+          },
         };
       }
-      
+
       // Get total count
       const totalCount = await this.count(whereClause);
 
@@ -612,38 +599,42 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const statusCounts = await this.delegate.groupBy({
         by: ['status'],
         _count: {
-          status: true
+          status: true,
         },
-        ...(garageId ? {
-          where: {
-            spot: {
-              floor: {
-                garageId
-              }
+        ...(garageId
+          ? {
+              where: {
+                spot: {
+                  floor: {
+                    garageId,
+                  },
+                },
+              },
             }
-          }
-        } : {})
+          : {}),
       });
 
       // Calculate revenue and averages
       const aggregates = await this.delegate.aggregate({
         _sum: {
-          totalAmount: true
+          totalAmount: true,
         },
         _avg: {
           duration: true,
-          totalAmount: true
+          totalAmount: true,
         },
         where: {
           isPaid: true,
-          ...(garageId ? {
-            spot: {
-              floor: {
-                garageId
+          ...(garageId
+            ? {
+                spot: {
+                  floor: {
+                    garageId,
+                  },
+                },
               }
-            }
-          } : {})
-        }
+            : {}),
+        },
       });
 
       // Build result
@@ -656,7 +647,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
         abandoned: 0, // Keep for interface compatibility, even though not in schema
         totalRevenue: aggregates._sum.totalAmount || 0,
         averageDuration: aggregates._avg.duration || 0,
-        averageAmount: aggregates._avg.totalAmount || 0
+        averageAmount: aggregates._avg.totalAmount || 0,
       };
 
       // Process status counts
@@ -681,9 +672,9 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
 
       this.logger.debug('Session statistics calculated', {
         garageId,
-        stats
+        stats,
       });
-      
+
       return stats;
     }, 'get session statistics');
   }
@@ -696,26 +687,26 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
   async findExpiredSessions(options?: QueryOptions): Promise<ParkingSession[]> {
     return this.executeWithRetry(async () => {
       const now = new Date();
-      
+
       const result = await this.delegate.findMany({
         where: {
           status: 'ACTIVE',
           endTime: {
-            lt: now
-          }
+            lt: now,
+          },
         },
         include: {
           vehicle: true,
-          spot: true
+          spot: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found expired sessions', {
         count: result.length,
-        currentTime: now
+        currentTime: now,
       });
-      
+
       return result;
     }, 'find expired sessions');
   }
@@ -726,34 +717,31 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    * @param options - Query options
    * @returns Array of long-running sessions
    */
-  async findLongRunningSessions(
-    maxHours: number = 24,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
+  async findLongRunningSessions(maxHours = 24, options?: QueryOptions): Promise<ParkingSession[]> {
     return this.executeWithRetry(async () => {
       const cutoffTime = new Date();
       cutoffTime.setHours(cutoffTime.getHours() - maxHours);
-      
+
       const result = await this.delegate.findMany({
         where: {
           status: 'ACTIVE',
           startTime: {
-            lte: cutoffTime
-          }
+            lte: cutoffTime,
+          },
         },
         include: {
           vehicle: true,
-          spot: true
+          spot: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found long-running sessions', {
         maxHours,
         count: result.length,
-        cutoffTime
+        cutoffTime,
       });
-      
+
       return result;
     }, `find long-running sessions (max ${maxHours}h)`);
   }
@@ -763,7 +751,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
    * @param sessionData - Session data
    * @returns Created session
    */
-  async create(sessionData: any): Promise<any> {
+  override async create(sessionData: any): Promise<any> {
     // Map legacy session data to Prisma format
     const prismaData: CreateSessionData = {
       spotId: sessionData.spotId,
@@ -773,11 +761,11 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       hourlyRate: sessionData.hourlyRate || 5.0,
       totalAmount: sessionData.totalAmount || 0.0,
       isPaid: sessionData.isPaid || false,
-      notes: sessionData.notes
+      notes: sessionData.notes,
     };
 
     const session = await this.createSession(prismaData);
-    
+
     // Map back to legacy format
     return {
       id: session.id,
@@ -791,7 +779,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       endTime: session.endTime?.toISOString(),
       duration: session.duration,
       cost: session.totalAmount,
-      notes: session.notes
+      notes: session.notes,
     };
   }
 }

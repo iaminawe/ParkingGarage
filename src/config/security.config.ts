@@ -16,29 +16,29 @@ export const SECURITY_CONSTANTS = {
   PASSWORD_REQUIRE_LOWERCASE: true,
   PASSWORD_REQUIRE_NUMBERS: true,
   PASSWORD_REQUIRE_SYMBOLS: true,
-  
+
   // Rate limiting windows (in milliseconds)
   RATE_LIMIT_WINDOW: 15 * 60 * 1000, // 15 minutes
   STRICT_RATE_LIMIT_WINDOW: 5 * 60 * 1000, // 5 minutes
-  
+
   // Session settings
   SESSION_TIMEOUT: 24 * 60 * 60 * 1000, // 24 hours
   JWT_EXPIRY: '1h',
   JWT_REFRESH_EXPIRY: '7d',
-  
+
   // File upload limits
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   MAX_FILES_PER_REQUEST: 5,
-  
+
   // Request limits
   MAX_REQUEST_SIZE: '10mb',
   MAX_URL_LENGTH: 2048,
   MAX_PARAM_LENGTH: 100,
-  
+
   // HSTS settings
   HSTS_MAX_AGE: 31536000, // 1 year
   HSTS_INCLUDE_SUBDOMAINS: true,
-  HSTS_PRELOAD: true
+  HSTS_PRELOAD: true,
 } as const;
 
 /**
@@ -48,7 +48,7 @@ export const SECURITY_CONSTANTS = {
 export const getHelmetConfig = () => {
   const isDevelopment = process.env.NODE_ENV === 'development';
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   return helmet({
     // Content Security Policy
     contentSecurityPolicy: {
@@ -58,27 +58,20 @@ export const getHelmetConfig = () => {
           "'self'",
           "'unsafe-inline'", // Only in development for Swagger UI
           ...(isDevelopment ? ["'unsafe-eval'"] : []),
-          "https://cdn.jsdelivr.net",
-          "https://unpkg.com"
+          'https://cdn.jsdelivr.net',
+          'https://unpkg.com',
         ],
         styleSrc: [
           "'self'",
           "'unsafe-inline'", // For Swagger UI
-          "https://fonts.googleapis.com",
-          "https://cdn.jsdelivr.net"
+          'https://fonts.googleapis.com',
+          'https://cdn.jsdelivr.net',
         ],
-        fontSrc: [
-          "'self'",
-          "https://fonts.gstatic.com"
-        ],
-        imgSrc: [
-          "'self'",
-          "data:",
-          "https:"
-        ],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: [
           "'self'",
-          ...(isDevelopment ? ["http://localhost:*", "ws://localhost:*"] : [])
+          ...(isDevelopment ? ['http://localhost:*', 'ws://localhost:*'] : []),
         ],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
@@ -88,50 +81,50 @@ export const getHelmetConfig = () => {
         frameAncestors: ["'none'"],
         upgradeInsecureRequests: isProduction ? [] : null,
       },
-      reportOnly: isDevelopment
+      reportOnly: isDevelopment,
     },
-    
+
     // HTTP Strict Transport Security
     hsts: {
       maxAge: SECURITY_CONSTANTS.HSTS_MAX_AGE,
       includeSubDomains: SECURITY_CONSTANTS.HSTS_INCLUDE_SUBDOMAINS,
-      preload: SECURITY_CONSTANTS.HSTS_PRELOAD
+      preload: SECURITY_CONSTANTS.HSTS_PRELOAD,
     },
-    
+
     // X-Frame-Options
     frameguard: {
-      action: 'deny'
+      action: 'deny',
     },
-    
+
     // X-Content-Type-Options
     noSniff: true,
-    
+
     // X-XSS-Protection
     xssFilter: true,
-    
+
     // Referrer Policy
     referrerPolicy: {
-      policy: 'strict-origin-when-cross-origin'
+      policy: 'strict-origin-when-cross-origin',
     },
-    
+
     // Hide X-Powered-By header
     hidePoweredBy: true,
-    
+
     // Cross-Origin-Embedder-Policy
     crossOriginEmbedderPolicy: false, // Can cause issues with Swagger UI
-    
+
     // Cross-Origin-Opener-Policy
     crossOriginOpenerPolicy: {
-      policy: 'same-origin'
+      policy: 'same-origin',
     },
-    
+
     // Cross-Origin-Resource-Policy
     crossOriginResourcePolicy: {
-      policy: 'cross-origin'
+      policy: 'cross-origin',
     },
-    
+
     // Origin-Agent-Cluster
-    originAgentCluster: true
+    originAgentCluster: true,
   });
 };
 
@@ -151,9 +144,9 @@ export const createRateLimiters = () => {
         error: 'Too many requests from this IP, please try again later.',
         code: 'RATE_LIMIT_EXCEEDED',
         retryAfter: Math.ceil(SECURITY_CONSTANTS.RATE_LIMIT_WINDOW / 1000),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-    }
+    },
   });
 
   // Strict limiter for authentication endpoints
@@ -168,9 +161,9 @@ export const createRateLimiters = () => {
         error: 'Too many authentication attempts, please try again later.',
         code: 'AUTH_RATE_LIMIT_EXCEEDED',
         retryAfter: Math.ceil(SECURITY_CONSTANTS.STRICT_RATE_LIMIT_WINDOW / 1000),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-    }
+    },
   });
 
   // Moderate limiter for data modification endpoints
@@ -184,9 +177,9 @@ export const createRateLimiters = () => {
         error: 'Too many modification requests, please try again later.',
         code: 'MUTATION_RATE_LIMIT_EXCEEDED',
         retryAfter: Math.ceil(SECURITY_CONSTANTS.RATE_LIMIT_WINDOW / 1000),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-    }
+    },
   });
 
   // Lenient limiter for read-only endpoints
@@ -200,16 +193,16 @@ export const createRateLimiters = () => {
         error: 'Too many read requests, please try again later.',
         code: 'READ_RATE_LIMIT_EXCEEDED',
         retryAfter: Math.ceil(SECURITY_CONSTANTS.RATE_LIMIT_WINDOW / 1000),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-    }
+    },
   });
 
   return {
     generalLimiter,
     authLimiter,
     mutationLimiter,
-    readLimiter
+    readLimiter,
   };
 };
 
@@ -222,14 +215,16 @@ export const getCorsConfig = (): CorsOptions => {
     'http://localhost:3000',
     'http://localhost:3001',
     'http://127.0.0.1:9000',
-    'http://localhost:9000'
+    'http://localhost:9000',
   ];
 
   return {
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
-      
+      if (!origin) {
+        return callback(null, true);
+      }
+
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -245,7 +240,7 @@ export const getCorsConfig = (): CorsOptions => {
       'Authorization',
       'X-API-Key',
       'Cache-Control',
-      'X-Requested-With'
+      'X-Requested-With',
     ],
     exposedHeaders: [
       'X-Total-Count',
@@ -253,11 +248,11 @@ export const getCorsConfig = (): CorsOptions => {
       'X-Limit',
       'X-RateLimit-Limit',
       'X-RateLimit-Remaining',
-      'X-RateLimit-Reset'
+      'X-RateLimit-Reset',
     ],
     credentials: true,
     maxAge: 86400, // 24 hours preflight cache
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
   };
 };
 
@@ -268,14 +263,14 @@ export const getRequestLimits = () => ({
   json: {
     limit: SECURITY_CONSTANTS.MAX_REQUEST_SIZE,
     strict: true,
-    type: 'application/json'
+    type: 'application/json',
   },
   urlencoded: {
     limit: SECURITY_CONSTANTS.MAX_REQUEST_SIZE,
     extended: true,
     parameterLimit: 100,
-    type: 'application/x-www-form-urlencoded'
-  }
+    type: 'application/x-www-form-urlencoded',
+  },
 });
 
 /**
@@ -295,7 +290,7 @@ export const SECURITY_EVENTS = {
   SUSPICIOUS_ACTIVITY: 'SUSPICIOUS_ACTIVITY',
   ACCOUNT_LOCKOUT: 'ACCOUNT_LOCKOUT',
   PASSWORD_CHANGE: 'PASSWORD_CHANGE',
-  ADMIN_ACTION: 'ADMIN_ACTION'
+  ADMIN_ACTION: 'ADMIN_ACTION',
 } as const;
 
-export type SecurityEvent = typeof SECURITY_EVENTS[keyof typeof SECURITY_EVENTS];
+export type SecurityEvent = (typeof SECURITY_EVENTS)[keyof typeof SECURITY_EVENTS];

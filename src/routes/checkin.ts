@@ -1,10 +1,10 @@
 /**
  * Check-in Routes
- * 
+ *
  * This module defines the Express routes for vehicle check-in operations,
  * including the main check-in endpoint, simulation, availability checking,
  * and statistics endpoints.
- * 
+ *
  * @module CheckinRoutes
  */
 
@@ -15,7 +15,7 @@ import {
   validateCheckinRequest,
   sanitizeCheckinRequest,
   validateRequestBody,
-  validateContentType
+  validateContentType,
 } from '../middleware/validation/checkinValidation';
 
 const router: Router = Router();
@@ -28,7 +28,8 @@ const checkinController = new CheckinController();
  * @body    { licensePlate: string, vehicleType: string, rateType?: string }
  * @returns { success: boolean, spotId: string, location: object, checkInTime: string }
  */
-router.post('/',
+router.post(
+  '/',
   validateContentType,
   validateRequestBody,
   sanitizeCheckinRequest,
@@ -45,7 +46,8 @@ router.post('/',
  * @body    { licensePlate: string, vehicleType: string }
  * @returns { success: boolean, wouldAssignSpot?: string, spotLocation?: object }
  */
-router.post('/simulate',
+router.post(
+  '/simulate',
   validateContentType,
   validateRequestBody,
   sanitizeCheckinRequest,
@@ -60,11 +62,9 @@ router.post('/simulate',
  * @access  Public
  * @returns { success: boolean, overall: object, byVehicleType: object }
  */
-router.get('/availability',
-  (req: Request, res: Response): void => {
-    checkinController.getGeneralAvailability(req, res);
-  }
-);
+router.get('/availability', (req: Request, res: Response): void => {
+  checkinController.getGeneralAvailability(req, res);
+});
 
 /**
  * @route   GET /api/v1/checkin/availability/:vehicleType
@@ -73,7 +73,8 @@ router.get('/availability',
  * @param   {string} vehicleType - Vehicle type (compact, standard, oversized)
  * @returns { success: boolean, availability: object, assignment: object }
  */
-router.get('/availability/:vehicleType',
+router.get(
+  '/availability/:vehicleType',
   (req: Request<{ vehicleType: string }>, res: Response): void => {
     checkinController.getAvailabilityByVehicleType(req, res);
   }
@@ -85,11 +86,9 @@ router.get('/availability/:vehicleType',
  * @access  Public (will be restricted to admin in future)
  * @returns { success: boolean, statistics: object }
  */
-router.get('/stats',
-  (req: Request, res: Response): void => {
-    checkinController.getCheckinStats(req, res);
-  }
-);
+router.get('/stats', (req: Request, res: Response): void => {
+  checkinController.getCheckinStats(req, res);
+});
 
 /**
  * @route   GET /api/v1/checkin/health
@@ -97,11 +96,9 @@ router.get('/stats',
  * @access  Public
  * @returns { success: boolean, service: string, status: string }
  */
-router.get('/health',
-  (req: Request, res: Response): void => {
-    checkinController.healthCheck(req, res);
-  }
-);
+router.get('/health', (req: Request, res: Response): void => {
+  checkinController.healthCheck(req, res);
+});
 
 /**
  * Handle 404 for unknown check-in routes
@@ -116,9 +113,9 @@ router.use('*', (req: Request, res: Response): void => {
       'GET /checkin/availability': 'Get general availability',
       'GET /checkin/availability/:vehicleType': 'Get availability by vehicle type',
       'GET /checkin/stats': 'Get check-in statistics',
-      'GET /checkin/health': 'Service health check'
+      'GET /checkin/health': 'Service health check',
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 

@@ -1,21 +1,16 @@
 /**
  * Statistics controller for analytics and reporting
- * 
+ *
  * This controller handles HTTP requests for garage statistics,
  * occupancy reports, revenue analytics, and operational insights.
  * It uses the AnalyticsService for comprehensive data analysis.
- * 
+ *
  * @module StatsController
  */
 
 import { Request, Response } from 'express';
-const AnalyticsService = require("../services/analyticsService");
-import { 
-  StatsResponse,
-  ReportRequest,
-  ApiResponse,
-  HealthCheckResponse 
-} from '../types/api';
+const AnalyticsService = require('../services/analyticsService');
+import { StatsResponse, ReportRequest, ApiResponse, HealthCheckResponse } from '../types/api';
 import { GarageStats } from '../types/models';
 
 interface TrendsQuery {
@@ -58,18 +53,17 @@ export class StatsController {
       res.json({
         success: true,
         data: stats,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Garage stats error:', error);
-      
+
       if ((error as Error).message.includes('not initialized')) {
         res.status(404).json({
           success: false,
           message: 'Garage not initialized',
           errors: ['Please initialize the garage first'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -77,8 +71,12 @@ export class StatsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -95,7 +93,7 @@ export class StatsController {
         res.status(400).json({
           success: false,
           message: 'Floor ID is required',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -105,7 +103,7 @@ export class StatsController {
         res.status(400).json({
           success: false,
           message: 'Floor ID must be a positive number',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -115,18 +113,17 @@ export class StatsController {
       res.json({
         success: true,
         data: stats,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Floor stats error:', error);
-      
+
       if ((error as Error).message.includes('not found')) {
         res.status(404).json({
           success: false,
           message: 'Floor not found',
           errors: [(error as Error).message],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -136,7 +133,7 @@ export class StatsController {
           success: false,
           message: 'Garage not initialized',
           errors: ['Please initialize the garage first'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -144,8 +141,12 @@ export class StatsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -154,16 +155,20 @@ export class StatsController {
    * Get occupancy trends over time
    * GET /api/v1/stats/trends?hours=24
    */
-  getOccupancyTrends = async (req: Request<{}, ApiResponse, {}, TrendsQuery>, res: Response): Promise<void> => {
+  getOccupancyTrends = async (
+    req: Request<{}, ApiResponse, {}, TrendsQuery>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { hours = '24' } = req.query;
 
       const hoursNum = parseInt(hours, 10);
-      if (isNaN(hoursNum) || hoursNum < 1 || hoursNum > 168) { // Max 1 week
+      if (isNaN(hoursNum) || hoursNum < 1 || hoursNum > 168) {
+        // Max 1 week
         res.status(400).json({
           success: false,
           message: 'Hours must be a number between 1 and 168 (1 week)',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -173,16 +178,19 @@ export class StatsController {
       res.json({
         success: true,
         data: trends,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Occupancy trends error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -191,16 +199,20 @@ export class StatsController {
    * Get revenue analytics
    * GET /api/v1/stats/revenue?days=7
    */
-  getRevenueAnalytics = async (req: Request<{}, ApiResponse, {}, RevenueQuery>, res: Response): Promise<void> => {
+  getRevenueAnalytics = async (
+    req: Request<{}, ApiResponse, {}, RevenueQuery>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { days = '7' } = req.query;
 
       const daysNum = parseInt(days, 10);
-      if (isNaN(daysNum) || daysNum < 1 || daysNum > 365) { // Max 1 year
+      if (isNaN(daysNum) || daysNum < 1 || daysNum > 365) {
+        // Max 1 year
         res.status(400).json({
           success: false,
           message: 'Days must be a number between 1 and 365 (1 year)',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -210,16 +222,19 @@ export class StatsController {
       res.json({
         success: true,
         data: analytics,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Revenue analytics error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -235,16 +250,19 @@ export class StatsController {
       res.json({
         success: true,
         data: patterns,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Usage patterns error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -266,22 +284,25 @@ export class StatsController {
         byType: stats.byType,
         byFloor: stats.byFloor,
         currentSessions: stats.currentSessions,
-        timestamp: stats.timestamp
+        timestamp: stats.timestamp,
       };
 
       res.json({
         success: true,
         data: { occupancy: summary },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Occupancy summary error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -296,7 +317,7 @@ export class StatsController {
       const [garageStats, revenueAnalytics, usagePatterns] = await Promise.all([
         this.analyticsService.getGarageStats(),
         this.analyticsService.getRevenueAnalytics({ days: 1 }), // Today's revenue
-        this.analyticsService.getUsagePatterns()
+        this.analyticsService.getUsagePatterns(),
       ]);
 
       const dashboard = {
@@ -305,37 +326,40 @@ export class StatsController {
           occupiedSpots: garageStats.occupiedSpots,
           availableSpots: garageStats.availableSpots,
           occupancyRate: garageStats.occupancyRate,
-          currentSessions: garageStats.currentSessions
+          currentSessions: garageStats.currentSessions,
         },
         revenue: {
           today: revenueAnalytics.revenue,
-          sessions: revenueAnalytics.sessions
+          sessions: revenueAnalytics.sessions,
         },
         usage: {
           peakHour: usagePatterns.peaks?.hour,
           peakDay: usagePatterns.peaks?.day,
-          totalSessions: usagePatterns.totalSessions
+          totalSessions: usagePatterns.totalSessions,
         },
         byType: garageStats.byType,
         byFloor: garageStats.byFloor,
         averageDuration: garageStats.averageDuration,
         garage: garageStats.garage,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json({
         success: true,
         data: { dashboard },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Dashboard stats error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -344,7 +368,10 @@ export class StatsController {
    * Get comparative statistics (current vs previous period)
    * GET /api/v1/stats/compare?period=week
    */
-  getComparativeStats = async (req: Request<{}, ApiResponse, {}, CompareQuery>, res: Response): Promise<void> => {
+  getComparativeStats = async (
+    req: Request<{}, ApiResponse, {}, CompareQuery>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { period = 'day' } = req.query;
 
@@ -363,7 +390,7 @@ export class StatsController {
           res.status(400).json({
             success: false,
             message: 'Period must be one of: day, week, month',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           return;
       }
@@ -380,21 +407,24 @@ export class StatsController {
         data: {
           period,
           comparison: {
-            current
+            current,
             // previous, // Would be actual previous period data
             // growth: this._calculateGrowth(current, previous)
-          }
+          },
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Comparative stats error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -403,7 +433,10 @@ export class StatsController {
    * Export statistics data (JSON format)
    * GET /api/v1/stats/export?type=garage&format=json
    */
-  exportStats = async (req: Request<{}, ApiResponse, {}, ExportQuery>, res: Response): Promise<void> => {
+  exportStats = async (
+    req: Request<{}, ApiResponse, {}, ExportQuery>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { type = 'garage', format = 'json' } = req.query;
 
@@ -411,7 +444,7 @@ export class StatsController {
         res.status(400).json({
           success: false,
           message: 'Only JSON format is currently supported',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -431,7 +464,7 @@ export class StatsController {
           res.status(400).json({
             success: false,
             message: 'Type must be one of: garage, revenue, usage',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           return;
       }
@@ -447,18 +480,21 @@ export class StatsController {
           exportType: type,
           exportFormat: format,
           exportDate: new Date().toISOString(),
-          data
+          data,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Export stats error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -467,7 +503,10 @@ export class StatsController {
    * Get health check information including service status
    * GET /api/v1/stats/health
    */
-  getHealthCheck = async (req: Request, res: Response<ApiResponse<HealthCheckResponse>>): Promise<void> => {
+  getHealthCheck = async (
+    req: Request,
+    res: Response<ApiResponse<HealthCheckResponse>>
+  ): Promise<void> => {
     try {
       const health: HealthCheckResponse = {
         status: 'healthy',
@@ -477,13 +516,13 @@ export class StatsController {
         services: {
           database: 'connected',
           cache: 'connected',
-          storage: 'available'
+          storage: 'available',
         },
         stats: {
           totalRequests: 0,
           avgResponseTime: 0,
-          errorRate: 0
-        }
+          errorRate: 0,
+        },
       };
 
       // Basic service validation
@@ -499,16 +538,15 @@ export class StatsController {
       res.status(statusCode).json({
         success: health.status === 'healthy',
         data: health,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       console.error('Health check error:', error);
       res.status(503).json({
         success: false,
         message: 'Service unavailable',
         errors: ['Health check failed'],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };

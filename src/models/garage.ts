@@ -1,21 +1,21 @@
 /**
  * Garage model definition for garage configuration
- * 
+ *
  * This module defines the Garage class which represents the overall
  * garage configuration including floors, rates, and spot types.
  * It provides methods for managing garage-wide settings.
- * 
+ *
  * @module Garage
  */
 
 import { validateGarageConfig } from '../utils/validators';
-import type { 
-  GarageConfig, 
-  GarageRecord, 
-  FloorConfig, 
-  RateStructure, 
+import type {
+  GarageConfig,
+  GarageRecord,
+  FloorConfig,
+  RateStructure,
   SpotTypeConfig,
-  SpotFeature
+  SpotFeature,
 } from '../types/models';
 
 /**
@@ -44,7 +44,7 @@ export class Garage implements GarageRecord {
     this.floors = garageData.floors.map(floor => ({
       number: floor.number,
       bays: floor.bays,
-      spotsPerBay: floor.spotsPerBay
+      spotsPerBay: floor.spotsPerBay,
     }));
     this.rates = { ...garageData.rates };
     this.spotTypes = { ...garageData.spotTypes };
@@ -57,34 +57,32 @@ export class Garage implements GarageRecord {
    * @param name - Garage name
    * @returns New garage instance with default configuration
    */
-  static createDefault(name: string = 'Default Parking Garage'): Garage {
+  static createDefault(name = 'Default Parking Garage'): Garage {
     return new Garage({
       name,
-      floors: [
-        { number: 1, bays: 3, spotsPerBay: 20 }
-      ],
+      floors: [{ number: 1, bays: 3, spotsPerBay: 20 }],
       rates: {
-        standard: 5.00,
-        compact: 4.00,
-        oversized: 7.00
+        standard: 5.0,
+        compact: 4.0,
+        oversized: 7.0,
       },
       spotTypes: {
-        compact: { 
+        compact: {
           name: 'Compact',
           multiplier: 0.8,
-          description: 'Small vehicles only'
+          description: 'Small vehicles only',
         },
-        standard: { 
+        standard: {
           name: 'Standard',
           multiplier: 1.0,
-          description: 'Regular size vehicles'
+          description: 'Regular size vehicles',
         },
-        oversized: { 
+        oversized: {
           name: 'Oversized',
           multiplier: 1.4,
-          description: 'Large vehicles and trucks'
-        }
-      }
+          description: 'Large vehicles and trucks',
+        },
+      },
     });
   }
 
@@ -111,7 +109,7 @@ export class Garage implements GarageRecord {
    */
   getTotalCapacity(): number {
     return this.floors.reduce((total, floor) => {
-      return total + (floor.bays * floor.spotsPerBay);
+      return total + floor.bays * floor.spotsPerBay;
     }, 0);
   }
 
@@ -122,7 +120,7 @@ export class Garage implements GarageRecord {
    */
   getFloorCapacity(floorNumber: number): number {
     const floor = this.getFloor(floorNumber);
-    return floor ? (floor.bays * floor.spotsPerBay) : 0;
+    return floor ? floor.bays * floor.spotsPerBay : 0;
   }
 
   /**
@@ -133,12 +131,12 @@ export class Garage implements GarageRecord {
    */
   getHourlyRate(spotType: keyof RateStructure, features: SpotFeature[] = []): number {
     let baseRate = this.rates[spotType] || this.rates.standard;
-    
+
     // Add premium for special features
     if (features.includes('ev_charging')) {
       baseRate = Math.max(baseRate, baseRate * 1.6); // 60% premium for EV charging
     }
-    
+
     return baseRate;
   }
 
@@ -152,11 +150,11 @@ export class Garage implements GarageRecord {
     if (!Object.prototype.hasOwnProperty.call(this.rates, spotType)) {
       throw new Error(`Invalid spot type: ${spotType}`);
     }
-    
+
     if (typeof newRate !== 'number' || newRate < 0) {
       throw new Error('Rate must be a non-negative number');
     }
-    
+
     this.rates[spotType] = newRate;
     this.updatedAt = new Date().toISOString();
   }
@@ -172,19 +170,19 @@ export class Garage implements GarageRecord {
     if (this.getFloor(floorNumber)) {
       throw new Error(`Floor ${floorNumber} already exists`);
     }
-    
+
     if (typeof floorNumber !== 'number' || floorNumber < 1) {
       throw new Error('Floor number must be a positive number');
     }
-    
+
     if (typeof bays !== 'number' || bays < 1) {
       throw new Error('Number of bays must be a positive number');
     }
-    
+
     if (typeof spotsPerBay !== 'number' || spotsPerBay < 1) {
       throw new Error('Spots per bay must be a positive number');
     }
-    
+
     this.floors.push({ number: floorNumber, bays, spotsPerBay });
     this.floors.sort((a, b) => a.number - b.number);
     this.updatedAt = new Date().toISOString();
@@ -197,15 +195,15 @@ export class Garage implements GarageRecord {
    */
   removeFloor(floorNumber: number): void {
     const index = this.floors.findIndex(floor => floor.number === floorNumber);
-    
+
     if (index === -1) {
       throw new Error(`Floor ${floorNumber} does not exist`);
     }
-    
+
     if (this.floors.length === 1) {
       throw new Error('Cannot remove the last floor');
     }
-    
+
     this.floors.splice(index, 1);
     this.updatedAt = new Date().toISOString();
   }
@@ -235,8 +233,8 @@ export class Garage implements GarageRecord {
         floor: floor.number,
         bays: floor.bays,
         spotsPerBay: floor.spotsPerBay,
-        capacity: floor.bays * floor.spotsPerBay
-      }))
+        capacity: floor.bays * floor.spotsPerBay,
+      })),
     };
   }
 
@@ -269,7 +267,7 @@ export class Garage implements GarageRecord {
       rates: { ...this.rates },
       spotTypes: { ...this.spotTypes },
       createdAt: this.createdAt,
-      updatedAt: this.updatedAt
+      updatedAt: this.updatedAt,
     };
   }
 
@@ -288,8 +286,12 @@ export class Garage implements GarageRecord {
    */
   static fromObject(obj: Partial<GarageRecord> & GarageConfig): Garage {
     const garage = new Garage(obj);
-    if (obj.createdAt) garage.createdAt = obj.createdAt;
-    if (obj.updatedAt) garage.updatedAt = obj.updatedAt;
+    if (obj.createdAt) {
+      garage.createdAt = obj.createdAt;
+    }
+    if (obj.updatedAt) {
+      garage.updatedAt = obj.updatedAt;
+    }
     return garage;
   }
 }

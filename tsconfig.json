@@ -1,31 +1,42 @@
 {
   "compilerOptions": {
+    // Target and Module Settings
     "target": "ES2022",
     "module": "commonjs",
-    "lib": ["ES2022"],
-    "strict": true,
+    "lib": ["ES2022", "DOM"],
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist",
-    "rootDir": "./",
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "removeComments": false,
+    "isolatedModules": true,
+
+    // Strict Type Checking Options (STRICTEST POSSIBLE)
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false,
+    "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
-    "moduleResolution": "node",
-    "allowJs": true,
-    "checkJs": false,
-    "incremental": true,
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
+    "noImplicitOverride": true,
+    "useUnknownInCatchVariables": true,
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Additional Checks
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noImplicitUseStrict": false,
+    "suppressExcessPropertyErrors": false,
+    "suppressImplicitAnyIndexErrors": false,
+
+    // Module Resolution and Path Mapping
     "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"],
@@ -37,23 +48,82 @@
       "@/models/*": ["src/models/*"],
       "@/routes/*": ["src/routes/*"],
       "@/repositories/*": ["src/repositories/*"],
-      "@/storage/*": ["src/storage/*"]
+      "@/storage/*": ["src/storage/*"],
+      "@/adapters/*": ["src/adapters/*"],
+      "@/config/*": ["src/config/*"],
+      "@/generated/*": ["src/generated/*"]
     },
-    "types": ["node", "jest", "express"]
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "types": ["node", "jest", "express"],
+
+    // Emit Options
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false,
+    "removeComments": false,
+    "downlevelIteration": true,
+    "importHelpers": true,
+    "newLine": "lf",
+
+    // Interop Constraints
+    "allowJs": false,
+    "checkJs": false,
+    "maxNodeModuleJsDepth": 0,
+
+    // Advanced Options
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "preserveConstEnums": true,
+    "preserveSymlinks": false,
+
+    // Incremental Compilation
+    "incremental": true,
+    "composite": false,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+
+    // Decorator Support
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    // JSX Options (if needed)
+    "jsx": "preserve",
+    "jsxFactory": "React.createElement",
+    "jsxFragmentFactory": "React.Fragment",
+
+    // Performance
+    "assumeChangesOnlyAffectDirectDependencies": true,
+    "disableSolutionSearching": false,
+    "disableReferencedProjectLoad": false
   },
   "include": [
-    "src/**/*",
-    "tests/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
+    "build",
+    "coverage",
     "src/generated/**",
     "**/*.spec.ts",
-    "**/*.test.ts"
+    "**/*.test.ts",
+    "tests/**/*",
+    "**/*.d.ts",
+    "**/*.js",
+    "**/*.map"
   ],
   "ts-node": {
     "esm": false,
-    "experimentalSpecifierResolution": "node"
-  }
+    "experimentalSpecifierResolution": "node",
+    "transpileOnly": false,
+    "compilerOptions": {
+      "module": "commonjs",
+      "target": "es2022"
+    }
+  },
+  "compileOnSave": false
 }

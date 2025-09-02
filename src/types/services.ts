@@ -1,6 +1,6 @@
 /**
  * Service interface definitions for the parking garage system
- * 
+ *
  * These interfaces define the contracts for service layer classes,
  * supporting both existing TypeScript services and JavaScript services
  * that will be migrated to TypeScript.
@@ -16,7 +16,7 @@ import {
   VehicleType,
   SpotFeature,
   ParkingSession,
-  GarageStats
+  GarageStats,
 } from './models';
 
 // Spot Assignment Service Types
@@ -57,15 +57,18 @@ export interface SpotAssignmentStats {
   totalSpots: number;
   availableSpots: number;
   occupancyRate: string;
-  byVehicleType: Record<VehicleType, {
-    availableSpots: number;
-    hasAvailableSpot: boolean;
-    wouldAssignTo: {
-      spotId: string;
-      spotType: VehicleType;
-      floor: number;
-    } | null;
-  }>;
+  byVehicleType: Record<
+    VehicleType,
+    {
+      availableSpots: number;
+      hasAvailableSpot: boolean;
+      wouldAssignTo: {
+        spotId: string;
+        spotType: VehicleType;
+        floor: number;
+      } | null;
+    }
+  >;
   timestamp: string;
 }
 
@@ -166,7 +169,12 @@ export interface IBillingService {
   getRateTypeMultipliers(): RateTypeMultipliers;
   updateSpotTypeRate(spotType: VehicleType, rate: number): void;
   updateFeaturePremium(feature: SpotFeature, premium: number): void;
-  calculateCurrentEstimate(checkInTime: string, spotType: VehicleType, spotFeatures?: SpotFeature[], rateType?: string): BillingResult;
+  calculateCurrentEstimate(
+    checkInTime: string,
+    spotType: VehicleType,
+    spotFeatures?: SpotFeature[],
+    rateType?: string
+  ): BillingResult;
   getBillingSummary(vehicles: VehicleRecord[]): BillingSummary;
 }
 
@@ -286,16 +294,22 @@ export interface RevenueAnalytics {
     active: number;
     total: number;
   };
-  byVehicleType: Record<string, {
-    revenue: number;
-    sessions: number;
-    average: number;
-  }>;
-  byRateType: Record<string, {
-    revenue: number;
-    sessions: number;
-    average: number;
-  }>;
+  byVehicleType: Record<
+    string,
+    {
+      revenue: number;
+      sessions: number;
+      average: number;
+    }
+  >;
+  byRateType: Record<
+    string,
+    {
+      revenue: number;
+      sessions: number;
+      average: number;
+    }
+  >;
 }
 
 export interface UsagePatterns {
@@ -361,7 +375,12 @@ export interface SearchResult<T> {
 export interface ISearchService {
   searchVehicles(query: string, options?: SearchOptions): SearchResult<VehicleRecord>[];
   searchSpots(criteria: FilterOptions): SpotRecord[];
-  fuzzySearch<T>(items: T[], query: string, getSearchableText: (item: T) => string, threshold?: number): SearchResult<T>[];
+  fuzzySearch<T>(
+    items: T[],
+    query: string,
+    getSearchableText: (item: T) => string,
+    threshold?: number
+  ): SearchResult<T>[];
 }
 
 // Common service response types

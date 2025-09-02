@@ -8,22 +8,65 @@ const config: Config = {
   preset: 'ts-jest',
 
   // Coverage settings
-  collectCoverage: false,
+  collectCoverage: true,
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
     'src/**/*.{js,ts}',
     '!src/server.{js,ts}',
     '!src/**/*.test.{js,ts}',
     '!src/**/*.spec.{js,ts}',
-    '!src/**/*.d.ts'
+    '!src/**/*.d.ts',
+    '!src/generated/**/*',
+    '!src/types/**/*',
+    '!**/node_modules/**',
+    '!**/coverage/**',
+    '!**/dist/**'
   ],
-  coverageReporters: ['text', 'lcov', 'html'],
+  coverageReporters: [
+    'text',
+    'text-summary',
+    'html',
+    'lcov',
+    'json',
+    'json-summary',
+    'cobertura'
+  ],
   coverageThreshold: {
     global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95
+    },
+    './src/controllers/': {
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95
+    },
+    './src/services/': {
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95
+    },
+    './src/repositories/': {
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95
+    },
+    './src/middleware/': {
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95
+    },
+    './src/utils/': {
+      branches: 95,
+      functions: 95,
+      lines: 95,
+      statements: 95
     }
   },
 
@@ -50,14 +93,20 @@ const config: Config = {
       tsconfig: {
         allowJs: true,
         esModuleInterop: true,
-        skipLibCheck: true
+        skipLibCheck: true,
+        module: 'commonjs',
+        target: 'es2020',
+        allowSyntheticDefaultImports: true,
+        resolveJsonModule: true
       }
     }],
     '^.+\\.jsx?$': ['ts-jest', {
       tsconfig: {
         allowJs: true,
         esModuleInterop: true,
-        skipLibCheck: true
+        skipLibCheck: true,
+        module: 'commonjs',
+        target: 'es2020'
       }
     }]
   },

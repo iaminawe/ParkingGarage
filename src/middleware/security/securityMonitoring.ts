@@ -19,20 +19,20 @@ const MONITORING_CONFIG = {
   REQUESTS_PER_MINUTE: 60,
   UNIQUE_ENDPOINTS_PER_MINUTE: 20,
   FAILED_AUTH_ATTEMPTS: 5,
-  
+
   // Time windows (in milliseconds)
   TRACKING_WINDOW: 60 * 1000, // 1 minute
   SUSPICIOUS_IP_TIMEOUT: 15 * 60 * 1000, // 15 minutes
-  
+
   // Patterns that indicate potential attacks
   SUSPICIOUS_PATTERNS: [
-    /\.\.(\/|\\)/,                    // Path traversal
+    /\.\.(\/|\\)/, // Path traversal
     /(union|select|insert|delete|drop|create|alter)/i, // SQL injection
     /<script|javascript:|vbscript:/i, // XSS attempts
-    /(%27|%22|%3C|%3E|%28|%29)/i,    // URL encoded injection attempts
-    /(\||\||&&|;|`)/,                // Command injection
+    /(%27|%22|%3C|%3E|%28|%29)/i, // URL encoded injection attempts
+    /(\||\||&&|;|`)/, // Command injection
     /(eval|exec|system|shell_exec)/i, // Code execution attempts
-  ]
+  ],
 };
 
 /**
@@ -41,7 +41,7 @@ const MONITORING_CONFIG = {
 const cleanOldData = (): void => {
   const now = Date.now();
   const cutoff = now - MONITORING_CONFIG.TRACKING_WINDOW;
-  
+
   // Clean request tracking
   Array.from(requestTracker.entries()).forEach(([ip, requests]) => {
     const recentRequests = requests.filter(req => req.timestamp > cutoff);
@@ -51,7 +51,7 @@ const cleanOldData = (): void => {
       requestTracker.set(ip, recentRequests);
     }
   });
-  
+
   // Clean suspicious IPs (they expire after timeout)
   // This is handled by the timeout mechanism in the detection logic
 };
@@ -62,36 +62,38 @@ const cleanOldData = (): void => {
 const detectSuspiciousActivity = (req: Request): boolean => {
   const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
   const now = Date.now();
-  
+
   // Initialize tracking for this IP
   if (!requestTracker.has(clientIP)) {
     requestTracker.set(clientIP, []);
   }
-  
+
   const requests = requestTracker.get(clientIP)!;
   requests.push({
     timestamp: now,
-    endpoint: `${req.method} ${req.path}`
+    endpoint: `${req.method} ${req.path}`,
   });
-  
+
   // Clean old requests
-  const recentRequests = requests.filter(r => r.timestamp > now - MONITORING_CONFIG.TRACKING_WINDOW);
+  const recentRequests = requests.filter(
+    r => r.timestamp > now - MONITORING_CONFIG.TRACKING_WINDOW
+  );
   requestTracker.set(clientIP, recentRequests);
-  
+
   // Check for suspicious patterns
   const requestCount = recentRequests.length;
   const uniqueEndpoints = new Set(recentRequests.map(r => r.endpoint)).size;
-  
+
   // Too many requests
   if (requestCount > MONITORING_CONFIG.REQUESTS_PER_MINUTE) {
     return true;
   }
-  
+
   // Too many unique endpoints (scanning behavior)
   if (uniqueEndpoints > MONITORING_CONFIG.UNIQUE_ENDPOINTS_PER_MINUTE) {
     return true;
   }
-  
+
   // Check URL patterns
   const fullUrl = req.originalUrl || req.url;
   for (const pattern of MONITORING_CONFIG.SUSPICIOUS_PATTERNS) {
@@ -99,7 +101,7 @@ const detectSuspiciousActivity = (req: Request): boolean => {
       return true;
     }
   }
-  
+
   // Check request body for suspicious patterns
   if (req.body && typeof req.body === 'object') {
     const bodyStr = JSON.stringify(req.body);
@@ -109,7 +111,7 @@ const detectSuspiciousActivity = (req: Request): boolean => {
       }
     }
   }
-  
+
   return false;
 };
 
@@ -118,7 +120,7 @@ const detectSuspiciousActivity = (req: Request): boolean => {
  */
 const logSuspiciousActivity = async (req: Request, reason: string): Promise<void> => {
   const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
-  
+
   await SecurityAuditUtils.createSecurityAlert({
     title: 'Suspicious Activity Detected',
     description: `Potential security threat from IP ${clientIP}: ${reason}`,
@@ -134,13 +136,13 @@ const logSuspiciousActivity = async (req: Request, reason: string): Promise<void
       headers: req.headers,
       body: req.body ? JSON.stringify(req.body).substring(0, 1000) : undefined,
       queryParams: req.query,
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   });
-  
+
   // Mark IP as suspicious
   suspiciousIPs.add(clientIP);
-  
+
   // Remove from suspicious list after timeout
   setTimeout(() => {
     suspiciousIPs.delete(clientIP);
@@ -150,21 +152,26 @@ const logSuspiciousActivity = async (req: Request, reason: string): Promise<void
 /**
  * Security monitoring middleware
  */
-export const securityMonitoring = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const securityMonitoring = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   const startTime = Date.now();
   const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
-  
+
   try {
     // Clean old data periodically
-    if (Math.random() < 0.01) { // 1% chance to clean on each request
+    if (Math.random() < 0.01) {
+      // 1% chance to clean on each request
       cleanOldData();
     }
-    
+
     // Skip monitoring for health checks and static assets
     if (req.path === '/health' || req.path.startsWith('/api-docs')) {
       return next();
     }
-    
+
     // Check if IP is already flagged as suspicious
     if (suspiciousIPs.has(clientIP)) {
       await SecurityAuditUtils.logSecurityEvent({
@@ -175,25 +182,26 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
         details: {
           userAgent: req.get('User-Agent'),
           url: req.originalUrl,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
     }
-    
+
     // Detect suspicious activity
     if (detectSuspiciousActivity(req)) {
       const reason = 'Pattern matching detected potential threat';
       await logSuspiciousActivity(req, reason);
     }
-    
+
     // Monitor response for additional security checks
     const originalSend = res.send;
-    res.send = function(data: any) {
+    res.send = function (data: any) {
       const endTime = Date.now();
       const responseTime = endTime - startTime;
-      
+
       // Log slow responses (potential DoS)
-      if (responseTime > 5000) { // 5 seconds
+      if (responseTime > 5000) {
+        // 5 seconds
         SecurityAuditUtils.logSecurityEvent({
           event: 'SLOW_RESPONSE_DETECTED',
           severity: 'MEDIUM',
@@ -202,15 +210,15 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
           details: {
             responseTime,
             statusCode: res.statusCode,
-            timestamp: new Date().toISOString()
-          }
+            timestamp: new Date().toISOString(),
+          },
         });
       }
-      
+
       // Log error responses that might indicate attacks
       if (res.statusCode >= 400) {
         const severity = res.statusCode >= 500 ? 'MEDIUM' : 'LOW';
-        
+
         SecurityAuditUtils.logSecurityEvent({
           event: `HTTP_${res.statusCode}_RESPONSE`,
           severity,
@@ -221,14 +229,14 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
             statusCode: res.statusCode,
             responseTime,
             userAgent: req.get('User-Agent'),
-            timestamp: new Date().toISOString()
-          }
+            timestamp: new Date().toISOString(),
+          },
         });
       }
-      
+
       return originalSend.call(this, data);
     };
-    
+
     next();
   } catch (error) {
     console.error('Security monitoring error:', error);
@@ -241,16 +249,16 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
  */
 export const collectRequestMetrics = (req: Request, res: Response, next: NextFunction): void => {
   const startTime = Date.now();
-  
+
   // Add timing to response headers (for monitoring)
   res.on('finish', () => {
     const endTime = Date.now();
     const duration = endTime - startTime;
-    
+
     res.setHeader('X-Response-Time', `${duration}ms`);
     res.setHeader('X-Request-ID', req.headers['x-request-id'] || 'unknown');
   });
-  
+
   next();
 };
 
@@ -267,11 +275,11 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  
+
   // Remove server information
   res.removeHeader('X-Powered-By');
   res.removeHeader('Server');
-  
+
   next();
 };
 
@@ -281,10 +289,10 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
 export const getMonitoringStats = () => {
   const now = Date.now();
   const cutoff = now - MONITORING_CONFIG.TRACKING_WINDOW;
-  
+
   let totalRequests = 0;
   let activeIPs = 0;
-  
+
   Array.from(requestTracker.entries()).forEach(([ip, requests]) => {
     const recentRequests = requests.filter(req => req.timestamp > cutoff);
     if (recentRequests.length > 0) {
@@ -292,7 +300,7 @@ export const getMonitoringStats = () => {
       activeIPs++;
     }
   });
-  
+
   return {
     activeIPs,
     totalRequests,
@@ -301,9 +309,9 @@ export const getMonitoringStats = () => {
     monitoring: {
       trackingWindow: MONITORING_CONFIG.TRACKING_WINDOW,
       requestThreshold: MONITORING_CONFIG.REQUESTS_PER_MINUTE,
-      endpointThreshold: MONITORING_CONFIG.UNIQUE_ENDPOINTS_PER_MINUTE
+      endpointThreshold: MONITORING_CONFIG.UNIQUE_ENDPOINTS_PER_MINUTE,
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 };
 
@@ -313,7 +321,7 @@ export const getMonitoringStats = () => {
 export const getSecurityHealthCheck = async () => {
   const stats = getMonitoringStats();
   const circuitBreakerHealth = circuitBreakerManager.getHealthCheck();
-  
+
   return {
     status: 'healthy',
     security: {
@@ -321,10 +329,10 @@ export const getSecurityHealthCheck = async () => {
         status: stats.suspiciousIPs === 0 ? 'normal' : 'alert',
         activeThreats: stats.suspiciousIPs,
         activeConnections: stats.activeIPs,
-        requestsPerMinute: stats.totalRequests
+        requestsPerMinute: stats.totalRequests,
       },
       circuitBreakers: circuitBreakerHealth,
-      lastCheck: new Date().toISOString()
-    }
+      lastCheck: new Date().toISOString(),
+    },
   };
 };

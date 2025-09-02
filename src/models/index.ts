@@ -1,9 +1,9 @@
 /**
  * Model exports for the parking garage system
- * 
+ *
  * This module provides centralized exports for all model classes
  * and types, making it easy to import them throughout the application.
- * 
+ *
  * @module Models
  */
 
@@ -39,7 +39,7 @@ export type {
   ParkingError,
   Optional,
   RequiredFields,
-  DeepReadonly
+  DeepReadonly,
 } from '../types/models';
 
 // Default exports for CommonJS compatibility
@@ -50,5 +50,5 @@ import Garage from './garage';
 export default {
   Vehicle,
   Spot,
-  Garage
+  Garage,
 };

@@ -1,9 +1,9 @@
 /**
  * Query Optimizer Service for database performance optimization
- * 
+ *
  * Analyzes query patterns, implements caching strategies, and provides
  * performance monitoring for database operations.
- * 
+ *
  * @module QueryOptimizer
  */
 
@@ -45,9 +45,9 @@ export class QueryOptimizer {
   private readonly MAX_METRICS_RETENTION = 10000;
   private readonly CACHE_TTL = {
     VEHICLE_LOOKUP: 300, // 5 minutes
-    SPOT_STATUS: 60,     // 1 minute  
-    ANALYTICS: 1800,     // 30 minutes
-    CONFIG: 3600         // 1 hour
+    SPOT_STATUS: 60, // 1 minute
+    ANALYTICS: 1800, // 30 minutes
+    CONFIG: 3600, // 1 hour
   };
 
   constructor(prisma: PrismaClient, cache: CacheService) {
@@ -59,10 +59,10 @@ export class QueryOptimizer {
   /**
    * Optimized vehicle lookup with multi-level caching
    */
-  async findVehicleByLicensePlate(licensePlate: string, useCache: boolean = true) {
+  async findVehicleByLicensePlate(licensePlate: string, useCache = true) {
     const startTime = Date.now();
     const cacheKey = CacheKeys.VEHICLE(licensePlate);
-    
+
     // Try cache first
     if (useCache) {
       const cached = await this.cache.get(cacheKey);
@@ -75,7 +75,7 @@ export class QueryOptimizer {
     // Database lookup with optimized query
     const vehicle = await this.prisma.vehicle.findUnique({
       where: {
-        licensePlate: licensePlate.toUpperCase()
+        licensePlate: licensePlate.toUpperCase(),
       },
       include: {
         spot: {
@@ -84,8 +84,8 @@ export class QueryOptimizer {
             spotNumber: true,
             level: true,
             section: true,
-            spotType: true
-          }
+            spotType: true,
+          },
         },
         sessions: {
           select: {
@@ -93,14 +93,14 @@ export class QueryOptimizer {
             startTime: true,
             endTime: true,
             status: true,
-            totalAmount: true
+            totalAmount: true,
           },
           orderBy: {
-            startTime: 'desc'
+            startTime: 'desc',
           },
-          take: 10 // Limit to recent sessions
-        }
-      }
+          take: 10, // Limit to recent sessions
+        },
+      },
     });
 
     const executionTime = Date.now() - startTime;
@@ -117,15 +117,21 @@ export class QueryOptimizer {
   /**
    * Optimized spot availability lookup
    */
-  async findAvailableSpots(spotType?: string, level?: number, useCache: boolean = true) {
+  async findAvailableSpots(spotType?: string, level?: number, useCache = true) {
     const startTime = Date.now();
     const cacheKey = `spots:available:${spotType || 'all'}:${level || 'all'}`;
-    
+
     // Try cache first
     if (useCache) {
       const cached = await this.cache.get(cacheKey);
       if (cached) {
-        this.recordMetrics('SELECT', 'parking_spots', Date.now() - startTime, Array.isArray(cached) ? cached.length : 0, true);
+        this.recordMetrics(
+          'SELECT',
+          'parking_spots',
+          Date.now() - startTime,
+          Array.isArray(cached) ? cached.length : 0,
+          true
+        );
         return cached;
       }
     }
@@ -133,13 +139,13 @@ export class QueryOptimizer {
     // Optimized query with selective fetching
     const whereClause: any = {
       status: 'AVAILABLE',
-      isActive: true
+      isActive: true,
     };
-    
+
     if (spotType) {
       whereClause.spotType = spotType.toUpperCase();
     }
-    
+
     if (level !== undefined) {
       whereClause.level = level;
     }
@@ -154,13 +160,9 @@ export class QueryOptimizer {
         spotType: true,
         width: true,
         length: true,
-        height: true
+        height: true,
       },
-      orderBy: [
-        { level: 'asc' },
-        { section: 'asc' },
-        { spotNumber: 'asc' }
-      ]
+      orderBy: [{ level: 'asc' }, { section: 'asc' }, { spotNumber: 'asc' }],
     });
 
     const executionTime = Date.now() - startTime;
@@ -177,10 +179,10 @@ export class QueryOptimizer {
   /**
    * Optimized parking statistics with caching
    */
-  async getParkingStatistics(useCache: boolean = true) {
+  async getParkingStatistics(useCache = true) {
     const startTime = Date.now();
     const cacheKey = CacheKeys.VEHICLES_STATS;
-    
+
     if (useCache) {
       const cached = await this.cache.get(cacheKey);
       if (cached) {
@@ -190,69 +192,67 @@ export class QueryOptimizer {
     }
 
     // Optimized aggregation queries
-    const [
-      totalSpots,
-      availableSpots,
-      occupiedSpots,
-      vehiclesByType,
-      revenueStats
-    ] = await Promise.all([
-      this.prisma.parkingSpot.count({
-        where: { isActive: true }
-      }),
-      this.prisma.parkingSpot.count({
-        where: { 
-          status: 'AVAILABLE',
-          isActive: true 
-        }
-      }),
-      this.prisma.parkingSpot.count({
-        where: { 
-          status: 'OCCUPIED',
-          isActive: true 
-        }
-      }),
-      this.prisma.vehicle.groupBy({
-        by: ['vehicleType'],
-        where: {
-          checkOutTime: null // Currently parked
-        },
-        _count: {
-          id: true
-        }
-      }),
-      this.prisma.parkingSession.aggregate({
-        where: {
-          isPaid: true,
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-          }
-        },
-        _sum: {
-          totalAmount: true
-        },
-        _count: {
-          id: true
-        },
-        _avg: {
-          duration: true
-        }
-      })
-    ]);
+    const [totalSpots, availableSpots, occupiedSpots, vehiclesByType, revenueStats] =
+      await Promise.all([
+        this.prisma.parkingSpot.count({
+          where: { isActive: true },
+        }),
+        this.prisma.parkingSpot.count({
+          where: {
+            status: 'AVAILABLE',
+            isActive: true,
+          },
+        }),
+        this.prisma.parkingSpot.count({
+          where: {
+            status: 'OCCUPIED',
+            isActive: true,
+          },
+        }),
+        this.prisma.vehicle.groupBy({
+          by: ['vehicleType'],
+          where: {
+            checkOutTime: null, // Currently parked
+          },
+          _count: {
+            id: true,
+          },
+        }),
+        this.prisma.parkingSession.aggregate({
+          where: {
+            isPaid: true,
+            createdAt: {
+              gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+            },
+          },
+          _sum: {
+            totalAmount: true,
+          },
+          _count: {
+            id: true,
+          },
+          _avg: {
+            duration: true,
+          },
+        }),
+      ]);
 
     const stats = {
       totalSpots,
       availableSpots,
       occupiedSpots,
       occupancyRate: totalSpots > 0 ? Math.round((occupiedSpots / totalSpots) * 10000) / 100 : 0,
-      vehiclesByType: vehiclesByType.reduce((acc, item) => {
-        acc[item.vehicleType.toLowerCase()] = item._count.id;
-        return acc;
-      }, {} as Record<string, number>),
+      vehiclesByType: vehiclesByType.reduce(
+        (acc, item) => {
+          acc[item.vehicleType.toLowerCase()] = item._count.id;
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
       todayRevenue: revenueStats._sum.totalAmount || 0,
       todayTransactions: revenueStats._count.id || 0,
       avgSessionDuration: Math.round((revenueStats._avg.duration || 0) / 60), // Convert to hours
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
 
     const executionTime = Date.now() - startTime;
@@ -269,65 +269,67 @@ export class QueryOptimizer {
   /**
    * Batch vehicle check-in operation
    */
-  async batchVehicleOperations(operations: Array<{
-    type: 'CHECK_IN' | 'CHECK_OUT' | 'UPDATE';
-    vehicleData: any;
-  }>) {
+  async batchVehicleOperations(
+    operations: Array<{
+      type: 'CHECK_IN' | 'CHECK_OUT' | 'UPDATE';
+      vehicleData: any;
+    }>
+  ) {
     const startTime = Date.now();
-    
+
     try {
-      const result = await this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async tx => {
         const results = [];
-        
+
         for (const op of operations) {
           switch (op.type) {
             case 'CHECK_IN':
               const checkedIn = await tx.vehicle.create({
                 data: {
                   ...op.vehicleData,
-                  licensePlate: op.vehicleData.licensePlate.toUpperCase()
-                }
+                  licensePlate: op.vehicleData.licensePlate.toUpperCase(),
+                },
               });
               results.push({ type: 'CHECK_IN', result: checkedIn });
-              
+
               // Update spot status
               if (op.vehicleData.spotId) {
                 await tx.parkingSpot.update({
                   where: { id: op.vehicleData.spotId },
-                  data: { status: 'OCCUPIED' }
+                  data: { status: 'OCCUPIED' },
                 });
               }
               break;
-              
+
             case 'CHECK_OUT':
               const checkedOut = await tx.vehicle.update({
                 where: { id: op.vehicleData.id },
                 data: {
                   checkOutTime: new Date(),
-                  ...op.vehicleData.updates
-                }
+                  ...op.vehicleData.updates,
+                },
               });
               results.push({ type: 'CHECK_OUT', result: checkedOut });
-              
+
               // Update spot status
               if (checkedOut.spotId) {
                 await tx.parkingSpot.update({
                   where: { id: checkedOut.spotId },
-                  data: { status: 'AVAILABLE' }
+                  data: { status: 'AVAILABLE' },
                 });
               }
               break;
-              
+
             case 'UPDATE':
               const updated = await tx.vehicle.update({
                 where: { id: op.vehicleData.id },
-                data: op.vehicleData.updates
+                data: op.vehicleData.updates,
               });
               results.push({ type: 'UPDATE', result: updated });
               break;
           }
         }
-        
+
         return results;
       });
 
@@ -340,7 +342,12 @@ export class QueryOptimizer {
       return result;
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      this.recordSlowQuery('BATCH_TRANSACTION', executionTime, error instanceof Error ? error.stack : undefined, operations);
+      this.recordSlowQuery(
+        'BATCH_TRANSACTION',
+        executionTime,
+        error instanceof Error ? error.stack : undefined,
+        operations
+      );
       throw error;
     }
   }
@@ -360,30 +367,34 @@ export class QueryOptimizer {
   }) {
     const startTime = Date.now();
     const { limit = 50, offset = 0, ...filters } = params;
-    
+
     // Build optimized where clause
     const whereClause: any = {};
-    
+
     if (filters.licensePlate) {
       whereClause.licensePlate = {
-        contains: filters.licensePlate.toUpperCase()
+        contains: filters.licensePlate.toUpperCase(),
       };
     }
-    
+
     if (filters.vehicleType) {
       whereClause.vehicleType = filters.vehicleType.toUpperCase();
     }
-    
+
     if (filters.ownerId) {
       whereClause.ownerId = filters.ownerId;
     }
-    
+
     if (filters.dateFrom || filters.dateTo) {
       whereClause.checkInTime = {};
-      if (filters.dateFrom) whereClause.checkInTime.gte = filters.dateFrom;
-      if (filters.dateTo) whereClause.checkInTime.lte = filters.dateTo;
+      if (filters.dateFrom) {
+        whereClause.checkInTime.gte = filters.dateFrom;
+      }
+      if (filters.dateTo) {
+        whereClause.checkInTime.lte = filters.dateTo;
+      }
     }
-    
+
     // Add status filter logic
     if (filters.status) {
       switch (filters.status.toLowerCase()) {
@@ -411,19 +422,19 @@ export class QueryOptimizer {
             select: {
               spotNumber: true,
               level: true,
-              section: true
-            }
-          }
+              section: true,
+            },
+          },
         },
         orderBy: {
-          checkInTime: 'desc'
+          checkInTime: 'desc',
         },
         take: limit,
-        skip: offset
+        skip: offset,
       }),
       this.prisma.vehicle.count({
-        where: whereClause
-      })
+        where: whereClause,
+      }),
     ]);
 
     const executionTime = Date.now() - startTime;
@@ -437,8 +448,8 @@ export class QueryOptimizer {
         limit,
         offset,
         totalPages: Math.ceil(totalCount / limit),
-        currentPage: Math.floor(offset / limit) + 1
-      }
+        currentPage: Math.floor(offset / limit) + 1,
+      },
     };
   }
 
@@ -456,12 +467,13 @@ export class QueryOptimizer {
         slowQueries: [],
         averageExecutionTime: 0,
         slowestQuery: null,
-        suggestions: []
+        suggestions: [],
       };
     }
 
-    const avgTime = this.slowQueries.reduce((sum, q) => sum + q.executionTime, 0) / this.slowQueries.length;
-    const slowest = this.slowQueries.reduce((slowest, current) => 
+    const avgTime =
+      this.slowQueries.reduce((sum, q) => sum + q.executionTime, 0) / this.slowQueries.length;
+    const slowest = this.slowQueries.reduce((slowest, current) =>
       current.executionTime > slowest.executionTime ? current : slowest
     );
 
@@ -471,7 +483,7 @@ export class QueryOptimizer {
       slowQueries: this.slowQueries.slice(-20), // Recent 20
       averageExecutionTime: Math.round(avgTime),
       slowestQuery: slowest,
-      suggestions
+      suggestions,
     };
   }
 
@@ -482,54 +494,68 @@ export class QueryOptimizer {
     totalQueries: number;
     cacheHitRate: number;
     averageExecutionTime: number;
-    metricsByTable: Record<string, {
-      queryCount: number;
-      avgExecutionTime: number;
-      cacheHitRate: number;
-    }>;
+    metricsByTable: Record<
+      string,
+      {
+        queryCount: number;
+        avgExecutionTime: number;
+        cacheHitRate: number;
+      }
+    >;
   } {
     if (this.queryMetrics.length === 0) {
       return {
         totalQueries: 0,
         cacheHitRate: 0,
         averageExecutionTime: 0,
-        metricsByTable: {}
+        metricsByTable: {},
       };
     }
 
     const totalQueries = this.queryMetrics.length;
     const cacheHits = this.queryMetrics.filter(m => m.cacheHit).length;
     const cacheHitRate = (cacheHits / totalQueries) * 100;
-    const avgExecutionTime = this.queryMetrics.reduce((sum, m) => sum + m.executionTime, 0) / totalQueries;
+    const avgExecutionTime =
+      this.queryMetrics.reduce((sum, m) => sum + m.executionTime, 0) / totalQueries;
 
     // Group by table
-    const byTable = this.queryMetrics.reduce((acc, metric) => {
-      if (!acc[metric.tableName]) {
-        acc[metric.tableName] = {
-          queries: [],
-          cacheHits: 0
-        };
-      }
-      acc[metric.tableName].queries.push(metric);
-      if (metric.cacheHit) acc[metric.tableName].cacheHits++;
-      return acc;
-    }, {} as Record<string, { queries: QueryMetrics[]; cacheHits: number }>);
+    const byTable = this.queryMetrics.reduce(
+      (acc, metric) => {
+        if (!acc[metric.tableName]) {
+          acc[metric.tableName] = {
+            queries: [],
+            cacheHits: 0,
+          };
+        }
+        acc[metric.tableName].queries.push(metric);
+        if (metric.cacheHit) {
+          acc[metric.tableName].cacheHits++;
+        }
+        return acc;
+      },
+      {} as Record<string, { queries: QueryMetrics[]; cacheHits: number }>
+    );
 
-    const metricsByTable = Object.entries(byTable).reduce((acc, [table, data]) => {
-      const queries = data.queries;
-      acc[table] = {
-        queryCount: queries.length,
-        avgExecutionTime: Math.round(queries.reduce((sum, q) => sum + q.executionTime, 0) / queries.length),
-        cacheHitRate: Math.round((data.cacheHits / queries.length) * 10000) / 100
-      };
-      return acc;
-    }, {} as Record<string, any>);
+    const metricsByTable = Object.entries(byTable).reduce(
+      (acc, [table, data]) => {
+        const queries = data.queries;
+        acc[table] = {
+          queryCount: queries.length,
+          avgExecutionTime: Math.round(
+            queries.reduce((sum, q) => sum + q.executionTime, 0) / queries.length
+          ),
+          cacheHitRate: Math.round((data.cacheHits / queries.length) * 10000) / 100,
+        };
+        return acc;
+      },
+      {} as Record<string, any>
+    );
 
     return {
       totalQueries,
       cacheHitRate: Math.round(cacheHitRate * 100) / 100,
       averageExecutionTime: Math.round(avgExecutionTime),
-      metricsByTable
+      metricsByTable,
     };
   }
 
@@ -538,14 +564,20 @@ export class QueryOptimizer {
     // For now, we'll rely on manual recording in our methods
   }
 
-  private recordMetrics(queryType: string, tableName: string, executionTime: number, rowsAffected: number, cacheHit: boolean): void {
+  private recordMetrics(
+    queryType: string,
+    tableName: string,
+    executionTime: number,
+    rowsAffected: number,
+    cacheHit: boolean
+  ): void {
     const metric: QueryMetrics = {
       queryType,
       tableName,
       executionTime,
       rowsAffected,
       cacheHit,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     this.queryMetrics.push(metric);
@@ -561,17 +593,22 @@ export class QueryOptimizer {
     }
   }
 
-  private recordSlowQuery(query: string, executionTime: number, stackTrace?: string, parameters?: any): void {
+  private recordSlowQuery(
+    query: string,
+    executionTime: number,
+    stackTrace?: string,
+    parameters?: any
+  ): void {
     const slowQuery: SlowQuery = {
       query,
       executionTime,
       timestamp: Date.now(),
       stackTrace,
-      parameters
+      parameters,
     };
 
     this.slowQueries.push(slowQuery);
-    
+
     // Keep only recent slow queries
     if (this.slowQueries.length > 100) {
       this.slowQueries = this.slowQueries.slice(-100);
@@ -580,7 +617,9 @@ export class QueryOptimizer {
     logger.warn('Slow query detected', slowQuery);
   }
 
-  private async invalidateVehicleCaches(operations: Array<{ type: string; vehicleData: any }>): Promise<void> {
+  private async invalidateVehicleCaches(
+    operations: Array<{ type: string; vehicleData: any }>
+  ): Promise<void> {
     const cacheKeysToInvalidate = new Set<string>();
 
     operations.forEach(op => {
@@ -605,19 +644,23 @@ export class QueryOptimizer {
     const suggestions: OptimizationSuggestion[] = [];
 
     // Analyze slow queries for suggestions
-    const slowQueryTypes = this.slowQueries.reduce((acc, query) => {
-      acc[query.query] = (acc[query.query] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const slowQueryTypes = this.slowQueries.reduce(
+      (acc, query) => {
+        acc[query.query] = (acc[query.query] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     Object.entries(slowQueryTypes).forEach(([queryType, count]) => {
-      if (count > 5) { // Frequently slow query
+      if (count > 5) {
+        // Frequently slow query
         suggestions.push({
           type: 'INDEX',
           priority: 'HIGH',
           description: `Frequent slow query detected: ${queryType}`,
           impact: `${count} slow queries could be optimized`,
-          implementation: 'Consider adding database indexes for frequently queried columns'
+          implementation: 'Consider adding database indexes for frequently queried columns',
         });
       }
     });
@@ -630,7 +673,7 @@ export class QueryOptimizer {
         priority: 'MEDIUM',
         description: `Low cache hit rate: ${cacheHitRate.toFixed(1)}%`,
         impact: 'Improving cache hit rate could reduce database load',
-        implementation: 'Review caching strategy and increase TTL for stable data'
+        implementation: 'Review caching strategy and increase TTL for stable data',
       });
     }
 

@@ -24,7 +24,7 @@ async function startServer(): Promise<Server> {
       console.log(`📊 Health check available at http://${HOST}:${PORT}/health`);
       console.log(`📝 API info available at http://${HOST}:${PORT}/api`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      
+
       if (process.env.NODE_ENV !== 'production') {
         console.log('\n💡 Tip: Seed data has been loaded. Try these endpoints:');
         console.log('   curl http://localhost:3000/api/garage/status');
@@ -44,7 +44,7 @@ async function startServer(): Promise<Server> {
 let server: Server | undefined;
 startServer().then((s: Server) => {
   server = s;
-  
+
   // Handle server errors
   server.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code === 'EADDRINUSE') {

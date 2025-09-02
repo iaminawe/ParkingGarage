@@ -120,7 +120,9 @@ class SecurityAuditService {
   /**
    * Get security analytics for dashboard
    */
-  async getSecurityAnalytics(timeframe: 'day' | 'week' | 'month' = 'week'): Promise<SecurityAnalytics> {
+  async getSecurityAnalytics(
+    timeframe: 'day' | 'week' | 'month' = 'week'
+  ): Promise<SecurityAnalytics> {
     try {
       const startDate = this.getTimeframeStartDate(timeframe);
 
@@ -265,10 +267,16 @@ class SecurityAuditService {
       });
 
       let securityScore = 0;
-      if (!user?.isTwoFactorEnabled) securityScore += 15;
-      if (!user?.isEmailVerified) securityScore += 10;
-      if (user?.lastPasswordChange && 
-          user.lastPasswordChange < new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)) {
+      if (!user?.isTwoFactorEnabled) {
+        securityScore += 15;
+      }
+      if (!user?.isEmailVerified) {
+        securityScore += 10;
+      }
+      if (
+        user?.lastPasswordChange &&
+        user.lastPasswordChange < new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+      ) {
         securityScore += 10;
       }
 
@@ -293,11 +301,16 @@ class SecurityAuditService {
       // Calculate final risk level
       const finalScore = Math.min(Math.round(totalScore), 100);
       let level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-      
-      if (finalScore < 25) level = 'LOW';
-      else if (finalScore < 50) level = 'MEDIUM';
-      else if (finalScore < 75) level = 'HIGH';
-      else level = 'CRITICAL';
+
+      if (finalScore < 25) {
+        level = 'LOW';
+      } else if (finalScore < 50) {
+        level = 'MEDIUM';
+      } else if (finalScore < 75) {
+        level = 'HIGH';
+      } else {
+        level = 'CRITICAL';
+      }
 
       // Generate recommendations
       const recommendations = this.generateRecommendations(factors, user);
@@ -327,20 +340,20 @@ class SecurityAuditService {
       PASSWORD_CHANGE: 'MEDIUM',
       PASSWORD_RESET_REQUESTED: 'MEDIUM',
       EMAIL_VERIFIED: 'LOW',
-      
+
       // Security events
       TWO_FA_ENABLED: 'LOW',
       TWO_FA_DISABLED: 'HIGH',
       SUSPICIOUS_LOGIN: 'HIGH',
       MULTIPLE_FAILED_ATTEMPTS: 'HIGH',
       BRUTE_FORCE_DETECTED: 'CRITICAL',
-      
+
       // System events
       RATE_LIMIT_EXCEEDED: 'MEDIUM',
       EMAIL_RATE_LIMIT_EXCEEDED: 'MEDIUM',
       UNAUTHORIZED_ACCESS_ATTEMPT: 'CRITICAL',
       DATA_BREACH_ATTEMPT: 'CRITICAL',
-      
+
       // Communication events
       EMAIL_SENT: 'LOW',
       EMAIL_SEND_FAILED: 'LOW',
@@ -349,8 +362,11 @@ class SecurityAuditService {
     let baseRisk = riskMatrix[event.action as keyof typeof riskMatrix] || 'LOW';
 
     // Elevate risk based on context
-    if (event.severity === 'CRITICAL') baseRisk = 'CRITICAL';
-    else if (event.severity === 'HIGH') baseRisk = 'HIGH';
+    if (event.severity === 'CRITICAL') {
+      baseRisk = 'CRITICAL';
+    } else if (event.severity === 'HIGH') {
+      baseRisk = 'HIGH';
+    }
 
     return baseRisk as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   }
@@ -361,7 +377,9 @@ class SecurityAuditService {
   private async detectAnomaly(event: SecurityEvent): Promise<boolean> {
     try {
       // Simple anomaly detection based on frequency and patterns
-      if (!event.userId && !event.ipAddress) return false;
+      if (!event.userId && !event.ipAddress) {
+        return false;
+      }
 
       const lookbackHours = 24;
       const lookbackDate = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
@@ -435,7 +453,7 @@ class SecurityAuditService {
 
       // Calculate new risk score
       const riskAssessment = await this.assessUserRisk(userId);
-      
+
       // Cache the result
       this.riskScoreCache.set(cacheKey, {
         score: riskAssessment.score,
@@ -502,17 +520,25 @@ class SecurityAuditService {
         take: 50,
       });
 
-      if (recentLogins.length < 2) return 0;
+      if (recentLogins.length < 2) {
+        return 0;
+      }
 
       // Analyze geographic patterns
       const locations = recentLogins.map(login => login.geoLocation).filter(Boolean);
       const uniqueLocations = new Set(locations);
-      
+
       // Risk increases with number of different locations
-      if (uniqueLocations.size > 5) return 20;
-      if (uniqueLocations.size > 3) return 10;
-      if (uniqueLocations.size > 1) return 5;
-      
+      if (uniqueLocations.size > 5) {
+        return 20;
+      }
+      if (uniqueLocations.size > 3) {
+        return 10;
+      }
+      if (uniqueLocations.size > 1) {
+        return 5;
+      }
+
       return 0;
     } catch (error) {
       console.error('Calculate geographic risk error:', error);
@@ -534,28 +560,38 @@ class SecurityAuditService {
       recommendations.push('Verify your email address to improve account security');
     }
 
-    if (user?.lastPasswordChange && 
-        user.lastPasswordChange < new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)) {
+    if (
+      user?.lastPasswordChange &&
+      user.lastPasswordChange < new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    ) {
       recommendations.push('Change your password regularly (last change was over 90 days ago)');
     }
 
     const failedLoginFactor = factors.find(f => f.factor.includes('Failed Login'));
     if (failedLoginFactor && failedLoginFactor.value > 10) {
-      recommendations.push('Review recent login attempts and secure your account if unauthorized access is suspected');
+      recommendations.push(
+        'Review recent login attempts and secure your account if unauthorized access is suspected'
+      );
     }
 
     const suspiciousFactor = factors.find(f => f.factor.includes('Suspicious'));
     if (suspiciousFactor && suspiciousFactor.value > 15) {
-      recommendations.push('Review recent account activity and contact support if you notice unauthorized actions');
+      recommendations.push(
+        'Review recent account activity and contact support if you notice unauthorized actions'
+      );
     }
 
     const geoFactor = factors.find(f => f.factor.includes('Geographic'));
     if (geoFactor && geoFactor.value > 10) {
-      recommendations.push('Review login locations and enable login notifications for enhanced security');
+      recommendations.push(
+        'Review login locations and enable login notifications for enhanced security'
+      );
     }
 
     if (recommendations.length === 0) {
-      recommendations.push('Your account security is good. Continue following security best practices.');
+      recommendations.push(
+        'Your account security is good. Continue following security best practices.'
+      );
     }
 
     return recommendations;
@@ -581,12 +617,17 @@ class SecurityAuditService {
   /**
    * Generate timeline summary for analytics
    */
-  private async generateTimelineSummary(startDate: Date, timeframe: string): Promise<Array<{
-    date: string;
-    eventCount: number;
-    criticalCount: number;
-    anomalyCount: number;
-  }>> {
+  private async generateTimelineSummary(
+    startDate: Date,
+    timeframe: string
+  ): Promise<
+    Array<{
+      date: string;
+      eventCount: number;
+      criticalCount: number;
+      anomalyCount: number;
+    }>
+  > {
     // This would generate daily/hourly summaries based on timeframe
     // For now, return empty array
     return [];
@@ -622,8 +663,8 @@ export class SecurityAuditUtils {
         userAgent: event.userAgent,
         metadata: {
           endpoint: event.endpoint,
-          ...event.details
-        }
+          ...event.details,
+        },
       };
 
       await securityAuditServiceInstance.logSecurityEvent(auditEvent);
@@ -637,17 +678,27 @@ export class SecurityAuditUtils {
    * Map event types to categories
    */
   private static mapEventToCategory(eventType: string): SecurityEvent['category'] {
-    if (eventType.includes('AUTH') || eventType.includes('LOGIN')) return 'AUTH';
-    if (eventType.includes('SQL_INJECTION') || eventType.includes('XSS')) return 'SECURITY';
-    if (eventType.includes('RATE_LIMIT')) return 'SYSTEM';
-    if (eventType.includes('DATA')) return 'DATA_ACCESS';
+    if (eventType.includes('AUTH') || eventType.includes('LOGIN')) {
+      return 'AUTH';
+    }
+    if (eventType.includes('SQL_INJECTION') || eventType.includes('XSS')) {
+      return 'SECURITY';
+    }
+    if (eventType.includes('RATE_LIMIT')) {
+      return 'SYSTEM';
+    }
+    if (eventType.includes('DATA')) {
+      return 'DATA_ACCESS';
+    }
     return 'SECURITY';
   }
 
   /**
    * Log multiple related security events in batch
    */
-  static async logSecurityEvents(events: Array<Parameters<typeof SecurityAuditUtils.logSecurityEvent>[0]>): Promise<void> {
+  static async logSecurityEvents(
+    events: Array<Parameters<typeof SecurityAuditUtils.logSecurityEvent>[0]>
+  ): Promise<void> {
     try {
       await Promise.all(events.map(event => SecurityAuditUtils.logSecurityEvent(event)));
     } catch (error) {
@@ -678,8 +729,8 @@ export class SecurityAuditUtils {
         description: alert.description,
         evidence: alert.evidence,
         timestamp: new Date().toISOString(),
-        requiresInvestigation: alert.severity === 'HIGH' || alert.severity === 'CRITICAL'
-      }
+        requiresInvestigation: alert.severity === 'HIGH' || alert.severity === 'CRITICAL',
+      },
     });
   }
 }

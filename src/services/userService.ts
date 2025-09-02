@@ -1,16 +1,16 @@
 /**
  * User service for business logic operations
- * 
+ *
  * This module provides business logic for user management operations,
  * including CRUD operations, role management, and user-related workflows.
- * 
+ *
  * @module UserService
  */
 
-import UserRepository, { 
-  CreateUserData, 
-  UpdateUserData, 
-  UserSearchCriteria 
+import UserRepository, {
+  CreateUserData,
+  UpdateUserData,
+  UserSearchCriteria,
 } from '../repositories/UserRepository';
 import { User } from '@prisma/client';
 import { UserRole } from '../config/constants';
@@ -105,9 +105,9 @@ export class UserService {
    */
   async getAllUsers(
     criteria?: UserSearchCriteria,
-    page: number = 1,
-    limit: number = 20,
-    sortBy: string = 'createdAt',
+    page = 1,
+    limit = 20,
+    sortBy = 'createdAt',
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<ServiceResponse<PaginatedResult<UserProfile>>> {
     try {
@@ -115,7 +115,7 @@ export class UserService {
       const options = {
         skip: offset,
         take: limit,
-        orderBy: { [sortBy]: sortOrder }
+        orderBy: { [sortBy]: sortOrder },
       };
 
       let users: User[];
@@ -127,7 +127,7 @@ export class UserService {
       }
 
       // Get total count for pagination
-      const totalItems = criteria 
+      const totalItems = criteria
         ? await this.userRepository.count(criteria as any)
         : await this.userRepository.count();
 
@@ -141,28 +141,27 @@ export class UserService {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
-        totalPages
+        totalPages,
       };
 
       this.logger.info('Retrieved users list', {
         count: users.length,
         totalItems,
         page,
-        limit
+        limit,
       });
 
       return {
         success: true,
         data: paginatedResult,
-        message: 'Users retrieved successfully'
+        message: 'Users retrieved successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to get users list', error as Error);
       return {
         success: false,
         message: 'Failed to retrieve users',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -175,11 +174,11 @@ export class UserService {
   async getUserById(id: string): Promise<ServiceResponse<UserProfile | null>> {
     try {
       const user = await this.userRepository.findById(id);
-      
+
       if (!user) {
         return {
           success: false,
-          message: 'User not found'
+          message: 'User not found',
         };
       }
 
@@ -190,15 +189,14 @@ export class UserService {
       return {
         success: true,
         data: userProfile,
-        message: 'User retrieved successfully'
+        message: 'User retrieved successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to get user by ID', error as Error, { userId: id });
       return {
         success: false,
         message: 'Failed to retrieve user',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -211,11 +209,11 @@ export class UserService {
   async getUserByEmail(email: string): Promise<ServiceResponse<UserProfile | null>> {
     try {
       const user = await this.userRepository.findByEmail(email);
-      
+
       if (!user) {
         return {
           success: false,
-          message: 'User not found'
+          message: 'User not found',
         };
       }
 
@@ -226,15 +224,14 @@ export class UserService {
       return {
         success: true,
         data: userProfile,
-        message: 'User retrieved successfully'
+        message: 'User retrieved successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to get user by email', error as Error, { email });
       return {
         success: false,
         message: 'Failed to retrieve user',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -255,7 +252,7 @@ export class UserService {
       if (!existingUser) {
         return {
           success: false,
-          message: 'User not found'
+          message: 'User not found',
         };
       }
 
@@ -265,7 +262,7 @@ export class UserService {
         if (emailExists) {
           return {
             success: false,
-            message: 'Email address is already in use'
+            message: 'Email address is already in use',
           };
         }
       }
@@ -273,7 +270,7 @@ export class UserService {
       // Prepare update data
       const userUpdateData: UpdateUserData = {
         ...updateData,
-        email: updateData.email?.toLowerCase()
+        email: updateData.email?.toLowerCase(),
       };
 
       const updatedUser = await this.userRepository.update(id, userUpdateData);
@@ -281,21 +278,20 @@ export class UserService {
 
       this.logger.info('User updated successfully', {
         userId: id,
-        updatedFields: Object.keys(updateData)
+        updatedFields: Object.keys(updateData),
       });
 
       return {
         success: true,
         data: userProfile,
-        message: 'User updated successfully'
+        message: 'User updated successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to update user', error as Error, { userId: id });
       return {
         success: false,
         message: 'Failed to update user',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -311,14 +307,14 @@ export class UserService {
       if (!user) {
         return {
           success: false,
-          message: 'User not found'
+          message: 'User not found',
         };
       }
 
       if (!user.isActive) {
         return {
           success: false,
-          message: 'User is already deactivated'
+          message: 'User is already deactivated',
         };
       }
 
@@ -328,15 +324,14 @@ export class UserService {
 
       return {
         success: true,
-        message: 'User deactivated successfully'
+        message: 'User deactivated successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to deactivate user', error as Error, { userId: id });
       return {
         success: false,
         message: 'Failed to deactivate user',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -352,14 +347,14 @@ export class UserService {
       if (!user) {
         return {
           success: false,
-          message: 'User not found'
+          message: 'User not found',
         };
       }
 
       if (user.isActive) {
         return {
           success: false,
-          message: 'User is already active'
+          message: 'User is already active',
         };
       }
 
@@ -369,15 +364,14 @@ export class UserService {
 
       return {
         success: true,
-        message: 'User activated successfully'
+        message: 'User activated successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to activate user', error as Error, { userId: id });
       return {
         success: false,
         message: 'Failed to activate user',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -393,29 +387,28 @@ export class UserService {
       if (!user) {
         return {
           success: false,
-          message: 'User not found'
+          message: 'User not found',
         };
       }
 
       // Soft delete to maintain referential integrity
       await this.userRepository.softDelete(id);
 
-      this.logger.info('User deleted successfully', { 
-        userId: id, 
-        email: user.email 
+      this.logger.info('User deleted successfully', {
+        userId: id,
+        email: user.email,
       });
 
       return {
         success: true,
-        message: 'User deleted successfully'
+        message: 'User deleted successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to delete user', error as Error, { userId: id });
       return {
         success: false,
         message: 'Failed to delete user',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -429,15 +422,15 @@ export class UserService {
    */
   async getUsersByRole(
     role: UserRole,
-    page: number = 1,
-    limit: number = 20
+    page = 1,
+    limit = 20
   ): Promise<ServiceResponse<PaginatedResult<UserProfile>>> {
     try {
       const offset = (page - 1) * limit;
       const options = {
         skip: offset,
         take: limit,
-        orderBy: { createdAt: 'desc' as const }
+        orderBy: { createdAt: 'desc' as const },
       };
 
       const users = await this.userRepository.findByRole(role, options);
@@ -452,27 +445,26 @@ export class UserService {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
-        totalPages
+        totalPages,
       };
 
       this.logger.info('Retrieved users by role', {
         role,
         count: users.length,
-        totalItems
+        totalItems,
       });
 
       return {
         success: true,
         data: paginatedResult,
-        message: `Users with role ${role} retrieved successfully`
+        message: `Users with role ${role} retrieved successfully`,
       };
-
     } catch (error) {
       this.logger.error('Failed to get users by role', error as Error, { role });
       return {
         success: false,
         message: 'Failed to retrieve users by role',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -483,23 +475,20 @@ export class UserService {
    * @param newRole - New user role
    * @returns Updated user profile
    */
-  async updateUserRole(
-    id: string,
-    newRole: UserRole
-  ): Promise<ServiceResponse<UserProfile>> {
+  async updateUserRole(id: string, newRole: UserRole): Promise<ServiceResponse<UserProfile>> {
     try {
       const user = await this.userRepository.findById(id);
       if (!user) {
         return {
           success: false,
-          message: 'User not found'
+          message: 'User not found',
         };
       }
 
       if (user.role === newRole) {
         return {
           success: false,
-          message: `User already has role ${newRole}`
+          message: `User already has role ${newRole}`,
         };
       }
 
@@ -509,24 +498,23 @@ export class UserService {
       this.logger.info('User role updated successfully', {
         userId: id,
         oldRole: user.role,
-        newRole
+        newRole,
       });
 
       return {
         success: true,
         data: userProfile,
-        message: 'User role updated successfully'
+        message: 'User role updated successfully',
       };
-
     } catch (error) {
-      this.logger.error('Failed to update user role', error as Error, { 
-        userId: id, 
-        newRole 
+      this.logger.error('Failed to update user role', error as Error, {
+        userId: id,
+        newRole,
       });
       return {
         success: false,
         message: 'Failed to update user role',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -535,14 +523,16 @@ export class UserService {
    * Get user statistics
    * @returns User statistics
    */
-  async getUserStats(): Promise<ServiceResponse<{
-    total: number;
-    active: number;
-    inactive: number;
-    verified: number;
-    unverified: number;
-    byRole: Record<string, number>;
-  }>> {
+  async getUserStats(): Promise<
+    ServiceResponse<{
+      total: number;
+      active: number;
+      inactive: number;
+      verified: number;
+      unverified: number;
+      byRole: Record<string, number>;
+    }>
+  > {
     try {
       const [total, active, inactive, verified, unverified, byRole] = await Promise.all([
         this.userRepository.count(),
@@ -550,7 +540,7 @@ export class UserService {
         this.userRepository.count({ isActive: false }),
         this.userRepository.count({ isEmailVerified: true }),
         this.userRepository.count({ isEmailVerified: false }),
-        this.userRepository.getStatsByRole()
+        this.userRepository.getStatsByRole(),
       ]);
 
       const stats = {
@@ -559,7 +549,7 @@ export class UserService {
         inactive,
         verified,
         unverified,
-        byRole
+        byRole,
       };
 
       this.logger.info('Retrieved user statistics', stats);
@@ -567,15 +557,14 @@ export class UserService {
       return {
         success: true,
         data: stats,
-        message: 'User statistics retrieved successfully'
+        message: 'User statistics retrieved successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to get user statistics', error as Error);
       return {
         success: false,
         message: 'Failed to retrieve user statistics',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -591,9 +580,9 @@ export class UserService {
    */
   async searchUsers(
     criteria: UserSearchCriteria,
-    page: number = 1,
-    limit: number = 20,
-    sortBy: string = 'createdAt',
+    page = 1,
+    limit = 20,
+    sortBy = 'createdAt',
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<ServiceResponse<PaginatedResult<UserProfile>>> {
     try {
@@ -601,7 +590,7 @@ export class UserService {
       const options = {
         skip: offset,
         take: limit,
-        orderBy: { [sortBy]: sortOrder }
+        orderBy: { [sortBy]: sortOrder },
       };
 
       const users = await this.userRepository.search(criteria, options);
@@ -616,27 +605,26 @@ export class UserService {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
-        totalPages
+        totalPages,
       };
 
       this.logger.info('User search completed', {
         criteria,
         count: users.length,
-        totalItems
+        totalItems,
       });
 
       return {
         success: true,
         data: paginatedResult,
-        message: 'User search completed successfully'
+        message: 'User search completed successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to search users', error as Error, { criteria });
       return {
         success: false,
         message: 'Failed to search users',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }

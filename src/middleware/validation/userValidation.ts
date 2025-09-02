@@ -1,20 +1,20 @@
 /**
  * User validation middleware
- * 
+ *
  * This module provides validation middleware for user-related API endpoints.
  * Validates input data, enforces business rules, and ensures data integrity.
- * 
+ *
  * @module UserValidation
  */
 
 import { Request, Response, NextFunction } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
-import { 
-  HTTP_STATUS, 
-  API_RESPONSES, 
+import {
+  HTTP_STATUS,
+  API_RESPONSES,
   VALIDATION,
   USER_ROLES,
-  UserRole 
+  UserRole,
 } from '../../config/constants';
 
 /**
@@ -22,7 +22,7 @@ import {
  */
 const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
   const errors = validationResult(req);
-  
+
   if (!errors.isEmpty()) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
@@ -30,12 +30,12 @@ const handleValidationErrors = (req: Request, res: Response, next: NextFunction)
       errors: errors.array().map(error => ({
         field: error.type === 'field' ? error.path : 'unknown',
         message: error.msg,
-        value: error.type === 'field' ? error.value : undefined
-      }))
+        value: error.type === 'field' ? error.value : undefined,
+      })),
     });
     return;
   }
-  
+
   next();
 };
 
@@ -46,14 +46,18 @@ export const validateUserUpdate = [
   body('firstName')
     .optional()
     .isLength({ min: VALIDATION.MIN_NAME_LENGTH, max: VALIDATION.MAX_NAME_LENGTH })
-    .withMessage(`First name must be between ${VALIDATION.MIN_NAME_LENGTH} and ${VALIDATION.MAX_NAME_LENGTH} characters`)
+    .withMessage(
+      `First name must be between ${VALIDATION.MIN_NAME_LENGTH} and ${VALIDATION.MAX_NAME_LENGTH} characters`
+    )
     .matches(VALIDATION.NAME_REGEX)
     .withMessage('First name can only contain letters, spaces, hyphens, and apostrophes'),
 
   body('lastName')
     .optional()
     .isLength({ min: VALIDATION.MIN_NAME_LENGTH, max: VALIDATION.MAX_NAME_LENGTH })
-    .withMessage(`Last name must be between ${VALIDATION.MIN_NAME_LENGTH} and ${VALIDATION.MAX_NAME_LENGTH} characters`)
+    .withMessage(
+      `Last name must be between ${VALIDATION.MIN_NAME_LENGTH} and ${VALIDATION.MAX_NAME_LENGTH} characters`
+    )
     .matches(VALIDATION.NAME_REGEX)
     .withMessage('Last name can only contain letters, spaces, hyphens, and apostrophes'),
 
@@ -85,23 +89,18 @@ export const validateUserUpdate = [
     .isIn(Object.values(USER_ROLES))
     .withMessage(`Role must be one of: ${Object.values(USER_ROLES).join(', ')}`),
 
-  body('isActive')
-    .optional()
-    .isBoolean()
-    .withMessage('isActive must be a boolean value'),
+  body('isActive').optional().isBoolean().withMessage('isActive must be a boolean value'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
  * Validation for user ID parameter
  */
 export const validateUserId = [
-  param('id')
-    .isUUID()
-    .withMessage('User ID must be a valid UUID'),
+  param('id').isUUID().withMessage('User ID must be a valid UUID'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
@@ -112,7 +111,7 @@ export const validateRoleParam = [
     .isIn(Object.values(USER_ROLES))
     .withMessage(`Role must be one of: ${Object.values(USER_ROLES).join(', ')}`),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
@@ -125,17 +124,14 @@ export const validateRoleUpdate = [
     .isIn(Object.values(USER_ROLES))
     .withMessage(`Role must be one of: ${Object.values(USER_ROLES).join(', ')}`),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
  * Validation for user search/filter parameters
  */
 export const validateUserFilters = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
 
   query('limit')
     .optional()
@@ -145,27 +141,23 @@ export const validateUserFilters = [
   query('sortBy')
     .optional()
     .isIn(['createdAt', 'updatedAt', 'email', 'firstName', 'lastName', 'lastLoginAt'])
-    .withMessage('Sort field must be one of: createdAt, updatedAt, email, firstName, lastName, lastLoginAt'),
+    .withMessage(
+      'Sort field must be one of: createdAt, updatedAt, email, firstName, lastName, lastLoginAt'
+    ),
 
   query('sortOrder')
     .optional()
     .isIn(['asc', 'desc'])
     .withMessage('Sort order must be either asc or desc'),
 
-  query('email')
-    .optional()
-    .isEmail()
-    .withMessage('Email filter must be a valid email address'),
+  query('email').optional().isEmail().withMessage('Email filter must be a valid email address'),
 
   query('role')
     .optional()
     .isIn(Object.values(USER_ROLES))
     .withMessage(`Role filter must be one of: ${Object.values(USER_ROLES).join(', ')}`),
 
-  query('isActive')
-    .optional()
-    .isBoolean()
-    .withMessage('isActive filter must be a boolean value'),
+  query('isActive').optional().isBoolean().withMessage('isActive filter must be a boolean value'),
 
   query('isEmailVerified')
     .optional()
@@ -182,7 +174,7 @@ export const validateUserFilters = [
     .isISO8601()
     .withMessage('createdBefore must be a valid ISO 8601 date'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
@@ -199,9 +191,11 @@ export const validatePasswordChange = [
     .isLength({ min: 8, max: 128 })
     .withMessage('New password must be between 8 and 128 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('New password must contain at least one lowercase letter, one uppercase letter, and one number'),
+    .withMessage(
+      'New password must contain at least one lowercase letter, one uppercase letter, and one number'
+    ),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
@@ -218,9 +212,11 @@ export const validatePasswordReset = [
     .isLength({ min: 8, max: 128 })
     .withMessage('New password must be between 8 and 128 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('New password must contain at least one lowercase letter, one uppercase letter, and one number'),
+    .withMessage(
+      'New password must contain at least one lowercase letter, one uppercase letter, and one number'
+    ),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 export default {
@@ -230,5 +226,5 @@ export default {
   validateRoleUpdate,
   validateUserFilters,
   validatePasswordChange,
-  validatePasswordReset
+  validatePasswordReset,
 };

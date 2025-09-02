@@ -1,18 +1,18 @@
 /**
  * Transaction repository for data access operations using Prisma
- * 
+ *
  * This module provides data access methods for transactions using the PrismaAdapter pattern.
  * It handles transaction CRUD operations, status management, and financial tracking.
- * 
+ *
  * @module TransactionRepository
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
 import { Transaction, Prisma } from '@prisma/client';
-import type { 
+import type {
   QueryOptions,
   PaginatedResult,
-  IAdapterLogger
+  IAdapterLogger,
 } from '../adapters/interfaces/BaseAdapter';
 import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
@@ -86,17 +86,18 @@ export interface TransactionStats {
 /**
  * Repository for managing transactions using Prisma
  */
-export class TransactionRepository extends PrismaAdapter<Transaction, CreateTransactionData, UpdateTransactionData> {
+export class TransactionRepository extends PrismaAdapter<
+  Transaction,
+  CreateTransactionData,
+  UpdateTransactionData
+> {
   protected readonly modelName = 'transaction';
   protected readonly delegate: Prisma.TransactionDelegate;
 
-  constructor(
-    databaseService?: DatabaseService,
-    logger?: IAdapterLogger
-  ) {
+  constructor(databaseService?: DatabaseService, logger?: IAdapterLogger) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prismaClient = dbService.getClient();
-    
+
     super(prismaClient, logger || createLogger('TransactionRepository'));
     this.delegate = prismaClient.transaction;
   }
@@ -107,10 +108,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * @param options - Query options
    * @returns Array of transactions for the garage
    */
-  async findByGarageId(
-    garageId: string,
-    options?: QueryOptions
-  ): Promise<Transaction[]> {
+  async findByGarageId(garageId: string, options?: QueryOptions): Promise<Transaction[]> {
     return this.findMany({ garageId }, options);
   }
 
@@ -120,10 +118,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * @param options - Query options
    * @returns Array of transactions for the ticket
    */
-  async findByTicketId(
-    ticketId: string,
-    options?: QueryOptions
-  ): Promise<Transaction[]> {
+  async findByTicketId(ticketId: string, options?: QueryOptions): Promise<Transaction[]> {
     return this.findMany({ ticketId }, options);
   }
 
@@ -133,10 +128,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * @param options - Query options
    * @returns Array of transactions with the specified status
    */
-  async findByStatus(
-    status: string,
-    options?: QueryOptions
-  ): Promise<Transaction[]> {
+  async findByStatus(status: string, options?: QueryOptions): Promise<Transaction[]> {
     return this.findMany({ status }, options);
   }
 
@@ -146,10 +138,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * @param options - Query options
    * @returns Array of transactions with the specified type
    */
-  async findByType(
-    transactionType: string,
-    options?: QueryOptions
-  ): Promise<Transaction[]> {
+  async findByType(transactionType: string, options?: QueryOptions): Promise<Transaction[]> {
     return this.findMany({ transactionType }, options);
   }
 
@@ -159,10 +148,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * @param options - Query options
    * @returns Array of transactions with the specified payment method
    */
-  async findByPaymentMethod(
-    paymentMethod: string,
-    options?: QueryOptions
-  ): Promise<Transaction[]> {
+  async findByPaymentMethod(paymentMethod: string, options?: QueryOptions): Promise<Transaction[]> {
     return this.findMany({ paymentMethod }, options);
   }
 
@@ -181,16 +167,16 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         where: { paymentReference },
         include: {
           garage: true,
-          ticket: true
+          ticket: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found transaction by payment reference', {
         paymentReference,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find transaction by payment reference: ${paymentReference}`);
   }
@@ -254,7 +240,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
 
       if (criteria.transactionType) {
         whereClause.transactionType = {
-          contains: criteria.transactionType
+          contains: criteria.transactionType,
         };
       }
 
@@ -268,13 +254,13 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
 
       if (criteria.paymentReference) {
         whereClause.paymentReference = {
-          contains: criteria.paymentReference
+          contains: criteria.paymentReference,
         };
       }
 
       if (criteria.description) {
         whereClause.description = {
-          contains: criteria.description
+          contains: criteria.description,
         };
       }
 
@@ -304,16 +290,16 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         where: whereClause,
         include: {
           garage: true,
-          ticket: true
+          ticket: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Transaction search completed', {
         criteria,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, 'search transactions');
   }
@@ -333,7 +319,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
       const createData = {
         ...transactionData,
         status: transactionData.status || 'PENDING',
-        currency: transactionData.currency || 'USD'
+        currency: transactionData.currency || 'USD',
       };
 
       const transaction = await this.create(createData, tx);
@@ -343,7 +329,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         garageId: transaction.garageId,
         type: transaction.transactionType,
         amount: transaction.amount,
-        status: transaction.status
+        status: transaction.status,
       });
 
       return transaction;
@@ -382,7 +368,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
 
       const updateData: UpdateTransactionData = {
         status: 'COMPLETED',
-        processedAt
+        processedAt,
       };
 
       if (paymentReference) {
@@ -399,7 +385,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         transactionId,
         amount: transaction.amount,
         paymentReference,
-        processedAt
+        processedAt,
       });
 
       return updatedTransaction;
@@ -437,7 +423,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         {
           status: 'FAILED',
           description: reason,
-          processedAt: new Date()
+          processedAt: new Date(),
         },
         undefined,
         tx
@@ -446,7 +432,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
       this.logger.info('Transaction failed', {
         transactionId,
         amount: transaction.amount,
-        reason
+        reason,
       });
 
       return updatedTransaction;
@@ -480,7 +466,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         {
           status: 'CANCELLED',
           description: reason,
-          processedAt: new Date()
+          processedAt: new Date(),
         },
         undefined,
         tx
@@ -489,7 +475,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
       this.logger.info('Transaction cancelled', {
         transactionId,
         amount: transaction.amount,
-        reason
+        reason,
       });
 
       return updatedTransaction;
@@ -503,26 +489,26 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * @param endDate - Optional end date
    * @returns Transaction statistics
    */
-  async getStats(
-    garageId?: string,
-    startDate?: Date,
-    endDate?: Date
-  ): Promise<TransactionStats> {
+  async getStats(garageId?: string, startDate?: Date, endDate?: Date): Promise<TransactionStats> {
     return this.executeWithRetry(async () => {
       const whereClause: any = {};
-      if (garageId) whereClause.garageId = garageId;
+      if (garageId) {
+        whereClause.garageId = garageId;
+      }
       if (startDate || endDate) {
         whereClause.createdAt = {};
-        if (startDate) whereClause.createdAt.gte = startDate;
-        if (endDate) whereClause.createdAt.lte = endDate;
+        if (startDate) {
+          whereClause.createdAt.gte = startDate;
+        }
+        if (endDate) {
+          whereClause.createdAt.lte = endDate;
+        }
       }
-      
+
       const total = await this.count(whereClause);
-      
+
       // Get total amount
-      const totalAmountResult = await this.prisma.$queryRaw<
-        Array<{ totalAmount: number | null }>
-      >`
+      const totalAmountResult = await this.prisma.$queryRaw<Array<{ totalAmount: number | null }>>`
         SELECT SUM(amount) as totalAmount
         FROM transactions
         WHERE ${garageId ? Prisma.sql`garageId = ${garageId}` : Prisma.sql`1=1`}
@@ -579,7 +565,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         averageAmount: total > 0 ? totalAmount / total : 0,
         pendingAmount: 0,
         completedAmount: 0,
-        failedAmount: 0
+        failedAmount: 0,
       };
 
       // Process status stats
@@ -587,7 +573,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         const countNum = Number(count);
         const amountNum = Number(amount) || 0;
         stats.byStatus[status] = { count: countNum, amount: amountNum };
-        
+
         // Set specific amounts
         switch (status) {
           case 'PENDING':
@@ -606,7 +592,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
       typeStats.forEach(({ transactionType, count, amount }) => {
         stats.byType[transactionType] = {
           count: Number(count),
-          amount: Number(amount) || 0
+          amount: Number(amount) || 0,
         };
       });
 
@@ -615,7 +601,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         if (paymentMethod) {
           stats.byPaymentMethod[paymentMethod] = {
             count: Number(count),
-            amount: Number(amount) || 0
+            amount: Number(amount) || 0,
           };
         }
       });
@@ -624,9 +610,9 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         garageId,
         startDate,
         endDate,
-        stats
+        stats,
       });
-      
+
       return stats;
     }, 'get transaction statistics');
   }
@@ -662,14 +648,14 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
       const dailyVolume = result.map(({ date, volume, count }) => ({
         date,
         volume: Number(volume) || 0,
-        count: Number(count)
+        count: Number(count),
       }));
 
       this.logger.debug('Daily transaction volume calculated', {
         startDate,
         endDate,
         garageId,
-        daysCount: dailyVolume.length
+        daysCount: dailyVolume.length,
       });
 
       return dailyVolume;

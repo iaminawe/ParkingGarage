@@ -16,7 +16,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       email,
       password,
       firstName,
-      lastName
+      lastName,
     });
 
     if (!result.success) {
@@ -30,15 +30,14 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       data: {
         user: result.user,
         token: result.token,
-        refreshToken: result.refreshToken
-      }
+        refreshToken: result.refreshToken,
+      },
     });
-
   } catch (error) {
     console.error('Signup controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -49,18 +48,15 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
-    
+
     // Enhanced device fingerprinting
     const deviceInfo: DeviceInfo = {
       userAgent: req.get('User-Agent') || 'Unknown',
       ipAddress: req.ip,
-      deviceFingerprint: generateDeviceFingerprint(req)
+      deviceFingerprint: generateDeviceFingerprint(req),
     };
 
-    const result = await authService.login(
-      { email, password },
-      deviceInfo
-    );
+    const result = await authService.login({ email, password }, deviceInfo);
 
     if (!result.success) {
       res.status(HTTP_STATUS.UNAUTHORIZED).json(result);
@@ -69,20 +65,24 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Create enhanced session
     if (result.token && result.user) {
-      await sessionManager.createSession(result.token, {
-        userId: result.user.id as string,
-        userRole: result.user.role as string,
-        userEmail: result.user.email as string,
-        deviceInfo: deviceInfo.userAgent,
-        ipAddress: deviceInfo.ipAddress,
-        deviceFingerprint: deviceInfo.deviceFingerprint,
-        createdAt: Date.now(),
-        lastAccessedAt: Date.now(),
-        isActive: true
-      }, {
-        maxConcurrentSessions: 5,
-        requireDeviceConsistency: true
-      });
+      await sessionManager.createSession(
+        result.token,
+        {
+          userId: result.user.id as string,
+          userRole: result.user.role as string,
+          userEmail: result.user.email as string,
+          deviceInfo: deviceInfo.userAgent,
+          ipAddress: deviceInfo.ipAddress,
+          deviceFingerprint: deviceInfo.deviceFingerprint,
+          createdAt: Date.now(),
+          lastAccessedAt: Date.now(),
+          isActive: true,
+        },
+        {
+          maxConcurrentSessions: 5,
+          requireDeviceConsistency: true,
+        }
+      );
     }
 
     res.status(HTTP_STATUS.OK).json({
@@ -91,15 +91,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       data: {
         user: result.user,
         token: result.token,
-        refreshToken: result.refreshToken
-      }
+        refreshToken: result.refreshToken,
+      },
     });
-
   } catch (error) {
     console.error('Login controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -124,15 +123,14 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       data: {
         user: result.user,
         token: result.token,
-        refreshToken: result.refreshToken
-      }
+        refreshToken: result.refreshToken,
+      },
     });
-
   } catch (error) {
     console.error('Refresh token controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -147,27 +145,26 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     if (!token) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
-        message: 'Access token required'
+        message: 'Access token required',
       });
       return;
     }
 
     // Logout from auth service (revokes session and blacklists token)
     const result = await authService.logout(token);
-    
+
     // Clean up session data
     await sessionManager.deleteSession(token);
 
     res.status(HTTP_STATUS.OK).json({
       success: result.success,
-      message: result.message
+      message: result.message,
     });
-
   } catch (error) {
     console.error('Logout controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -182,26 +179,33 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
     if (!user) {
       res.status(401).json({
         success: false,
-        message: 'User not authenticated'
+        message: 'User not authenticated',
       });
       return;
     }
 
     // Remove sensitive data
-    const { passwordHash, loginAttempts, lockoutUntil, emailVerificationToken, 
-            passwordResetToken, passwordResetExpires, twoFactorSecret, ...safeUser } = user;
+    const {
+      passwordHash,
+      loginAttempts,
+      lockoutUntil,
+      emailVerificationToken,
+      passwordResetToken,
+      passwordResetExpires,
+      twoFactorSecret,
+      ...safeUser
+    } = user;
 
     res.status(200).json({
       success: true,
       message: 'Profile retrieved successfully',
-      data: { user: safeUser }
+      data: { user: safeUser },
     });
-
   } catch (error) {
     console.error('Get profile controller error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
     });
   }
 };
@@ -217,7 +221,7 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     if (!user) {
       res.status(401).json({
         success: false,
-        message: 'User not authenticated'
+        message: 'User not authenticated',
       });
       return;
     }
@@ -232,39 +236,45 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
         data: {
           ...(firstName !== undefined && { firstName }),
           ...(lastName !== undefined && { lastName }),
-          ...(email !== undefined && { email: email.toLowerCase() })
-        }
+          ...(email !== undefined && { email: email.toLowerCase() }),
+        },
       });
 
       // Remove sensitive data
-      const { passwordHash, loginAttempts, lockoutUntil, emailVerificationToken, 
-              passwordResetToken, passwordResetExpires, twoFactorSecret, ...safeUser } = updatedUser;
+      const {
+        passwordHash,
+        loginAttempts,
+        lockoutUntil,
+        emailVerificationToken,
+        passwordResetToken,
+        passwordResetExpires,
+        twoFactorSecret,
+        ...safeUser
+      } = updatedUser;
 
       res.status(200).json({
         success: true,
         message: 'Profile updated successfully',
-        data: { user: safeUser }
+        data: { user: safeUser },
       });
-
     } finally {
       await prisma.$disconnect();
     }
-
   } catch (error) {
     console.error('Update profile controller error:', error);
-    
+
     // Handle unique constraint violation (email already exists)
     if ((error as any).code === 'P2002' && (error as any).meta?.target?.includes('email')) {
       res.status(400).json({
         success: false,
-        message: 'Email address is already in use'
+        message: 'Email address is already in use',
       });
       return;
     }
 
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
     });
   }
 };
@@ -280,7 +290,7 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
     if (!user) {
       res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: API_RESPONSES.ERRORS.TOKEN_REQUIRED
+        message: API_RESPONSES.ERRORS.TOKEN_REQUIRED,
       });
       return;
     }
@@ -289,7 +299,7 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
     const result = await authService.changePassword({
       userId: user.id,
       currentPassword,
-      newPassword
+      newPassword,
     });
 
     if (!result.success) {
@@ -299,17 +309,16 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
 
     // Revoke all other sessions for security (user will need to re-login everywhere)
     await authService.logoutAllDevices(user.id);
-    
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: result.message
+      message: result.message,
     });
-
   } catch (error) {
     console.error('Change password controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -324,7 +333,7 @@ export const validatePasswordStrength = (req: Request, res: Response): void => {
     if (!password) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
-        message: 'Password is required'
+        message: 'Password is required',
       });
       return;
     }
@@ -336,15 +345,14 @@ export const validatePasswordStrength = (req: Request, res: Response): void => {
       message: 'Password validation completed',
       data: {
         isValid: validation.isValid,
-        errors: validation.errors
-      }
+        errors: validation.errors,
+      },
     });
-
   } catch (error) {
     console.error('Password validation controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -359,7 +367,7 @@ export const requestPasswordReset = async (req: Request, res: Response): Promise
     if (!email) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
-        message: 'Email is required'
+        message: 'Email is required',
       });
       return;
     }
@@ -369,14 +377,14 @@ export const requestPasswordReset = async (req: Request, res: Response): Promise
     // Always return success to prevent email enumeration
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: result.message
+      message: result.message,
     });
-
   } catch (error) {
     console.error('Password reset request controller error:', error);
-    res.status(HTTP_STATUS.OK).json({ // Still return success for security
+    res.status(HTTP_STATUS.OK).json({
+      // Still return success for security
       success: true,
-      message: 'If an account with this email exists, a password reset link has been sent.'
+      message: 'If an account with this email exists, a password reset link has been sent.',
     });
   }
 };
@@ -391,7 +399,7 @@ export const confirmPasswordReset = async (req: Request, res: Response): Promise
     if (!token || !newPassword) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
-        message: 'Token and new password are required'
+        message: 'Token and new password are required',
       });
       return;
     }
@@ -400,12 +408,11 @@ export const confirmPasswordReset = async (req: Request, res: Response): Promise
 
     const statusCode = result.success ? HTTP_STATUS.OK : HTTP_STATUS.BAD_REQUEST;
     res.status(statusCode).json(result);
-
   } catch (error) {
     console.error('Password reset confirmation controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -420,13 +427,13 @@ export const logoutAllDevices = async (req: AuthRequest, res: Response): Promise
     if (!user) {
       res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: API_RESPONSES.ERRORS.TOKEN_REQUIRED
+        message: API_RESPONSES.ERRORS.TOKEN_REQUIRED,
       });
       return;
     }
 
     const result = await authService.logoutAllDevices(user.id);
-    
+
     // Clean up all sessions
     await sessionManager.revokeAllUserSessions(user.id);
 
@@ -434,15 +441,14 @@ export const logoutAllDevices = async (req: AuthRequest, res: Response): Promise
       success: result.success,
       message: result.message,
       data: {
-        devicesLoggedOut: result.count
-      }
+        devicesLoggedOut: result.count,
+      },
     });
-
   } catch (error) {
     console.error('Logout all devices controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -457,7 +463,7 @@ export const getUserSessions = async (req: AuthRequest, res: Response): Promise<
     if (!user) {
       res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: API_RESPONSES.ERRORS.TOKEN_REQUIRED
+        message: API_RESPONSES.ERRORS.TOKEN_REQUIRED,
       });
       return;
     }
@@ -474,17 +480,16 @@ export const getUserSessions = async (req: AuthRequest, res: Response): Promise<
           ipAddress: session.ipAddress,
           createdAt: new Date(session.createdAt).toISOString(),
           lastAccessedAt: new Date(session.lastAccessedAt).toISOString(),
-          isActive: session.isActive
+          isActive: session.isActive,
         })),
-        totalActiveSessions: activeSessionCount
-      }
+        totalActiveSessions: activeSessionCount,
+      },
     });
-
   } catch (error) {
     console.error('Get user sessions controller error:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
     });
   }
 };
@@ -497,12 +502,8 @@ function generateDeviceFingerprint(req: Request): string {
     req.get('User-Agent') || '',
     req.get('Accept-Language') || '',
     req.get('Accept-Encoding') || '',
-    req.ip || ''
+    req.ip || '',
   ];
-  
-  return crypto
-    .createHash('sha256')
-    .update(components.join('|'))
-    .digest('hex')
-    .substring(0, 16); // First 16 chars for brevity
+
+  return crypto.createHash('sha256').update(components.join('|')).digest('hex').substring(0, 16); // First 16 chars for brevity
 }

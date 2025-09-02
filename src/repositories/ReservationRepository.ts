@@ -1,10 +1,10 @@
 /**
  * Reservation repository for parking spot reservations using Prisma
- * 
+ *
  * This module provides data access methods for parking spot reservations.
  * Since there's no explicit Reservation model in the schema, this repository
  * manages reservations through the ParkingSpot status and sessions.
- * 
+ *
  * @module ReservationRepository
  */
 
@@ -37,10 +37,10 @@ type SessionWithSpot = Prisma.ParkingSessionGetPayload<{
     spot: true;
   };
 }>;
-import type { 
+import type {
   QueryOptions,
   PaginatedResult,
-  IAdapterLogger
+  IAdapterLogger,
 } from '../adapters/interfaces/BaseAdapter';
 import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
@@ -109,10 +109,7 @@ export class ReservationRepository {
   private prisma: any;
   private logger: IAdapterLogger;
 
-  constructor(
-    databaseService?: DatabaseService,
-    logger?: IAdapterLogger
-  ) {
+  constructor(databaseService?: DatabaseService, logger?: IAdapterLogger) {
     const dbService = databaseService || DatabaseService.getInstance();
     this.prisma = dbService.getClient();
     this.logger = logger || createLogger('ReservationRepository');
@@ -131,27 +128,29 @@ export class ReservationRepository {
           where: {
             id: reservationData.spotId,
             status: 'AVAILABLE',
-            isActive: true
+            isActive: true,
           },
           include: {
             floor: {
               include: {
-                garage: true
-              }
-            }
-          }
+                garage: true,
+              },
+            },
+          },
         });
 
         if (!spot) {
-          throw new Error(`Parking spot ${reservationData.spotId} is not available for reservation`);
+          throw new Error(
+            `Parking spot ${reservationData.spotId} is not available for reservation`
+          );
         }
 
         // Check if vehicle exists
         const vehicle = await tx.vehicle.findFirst({
           where: {
             id: reservationData.vehicleId,
-            deletedAt: null
-          }
+            deletedAt: null,
+          },
         });
 
         if (!vehicle) {
@@ -162,8 +161,8 @@ export class ReservationRepository {
         const activeSession = await tx.parkingSession.findFirst({
           where: {
             vehicleId: reservationData.vehicleId,
-            status: 'ACTIVE'
-          }
+            status: 'ACTIVE',
+          },
         });
 
         if (activeSession) {
@@ -173,7 +172,7 @@ export class ReservationRepository {
         // Reserve the spot by updating its status
         await tx.parkingSpot.update({
           where: { id: reservationData.spotId },
-          data: { status: 'RESERVED' }
+          data: { status: 'RESERVED' },
         });
 
         // Create a placeholder session to track the reservation
@@ -192,7 +191,7 @@ export class ReservationRepository {
             totalAmount: 0,
             amountPaid: 0,
             isPaid: true, // Mark as paid to avoid charging for reservation
-            notes: `RESERVATION: ${reservationData.notes || 'Auto-generated reservation'}`
+            notes: `RESERVATION: ${reservationData.notes || 'Auto-generated reservation'}`,
           },
           include: {
             vehicle: true,
@@ -200,12 +199,12 @@ export class ReservationRepository {
               include: {
                 floor: {
                   include: {
-                    garage: true
-                  }
-                }
-              }
-            }
-          }
+                    garage: true,
+                  },
+                },
+              },
+            },
+          },
         });
 
         const reservation: ReservationData = {
@@ -218,14 +217,14 @@ export class ReservationRepository {
           status: 'ACTIVE',
           spot: session.spot,
           vehicle: session.vehicle,
-          session
+          session,
         };
 
         this.logger.info('Reservation created', {
           reservationId: session.id,
           spotNumber: spot.spotNumber,
           licensePlate: vehicle.licensePlate,
-          expiresAt
+          expiresAt,
         });
 
         return reservation;
@@ -239,17 +238,14 @@ export class ReservationRepository {
    * @param options - Query options
    * @returns Found reservation or null
    */
-  async findById(
-    reservationId: string,
-    options?: QueryOptions
-  ): Promise<ReservationData | null> {
+  async findById(reservationId: string, options?: QueryOptions): Promise<ReservationData | null> {
     return this.executeWithRetry(async () => {
       const session = await this.prisma.parkingSession.findFirst({
         where: {
           id: reservationId,
           notes: {
-            contains: 'RESERVATION:'
-          }
+            contains: 'RESERVATION:',
+          },
         },
         include: {
           vehicle: true,
@@ -257,12 +253,12 @@ export class ReservationRepository {
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
-          }
-        }
+                  garage: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!session) {
@@ -279,17 +275,14 @@ export class ReservationRepository {
    * @param options - Query options
    * @returns Array of reservations for the vehicle
    */
-  async findByVehicleId(
-    vehicleId: string,
-    options?: QueryOptions
-  ): Promise<ReservationData[]> {
+  async findByVehicleId(vehicleId: string, options?: QueryOptions): Promise<ReservationData[]> {
     return this.executeWithRetry(async () => {
       const sessions = await this.prisma.parkingSession.findMany({
         where: {
           vehicleId,
           notes: {
-            contains: 'RESERVATION:'
-          }
+            contains: 'RESERVATION:',
+          },
         },
         include: {
           vehicle: true,
@@ -297,13 +290,13 @@ export class ReservationRepository {
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
-          }
+                  garage: true,
+                },
+              },
+            },
+          },
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
 
       return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
@@ -316,17 +309,14 @@ export class ReservationRepository {
    * @param options - Query options
    * @returns Array of reservations for the spot
    */
-  async findBySpotId(
-    spotId: string,
-    options?: QueryOptions
-  ): Promise<ReservationData[]> {
+  async findBySpotId(spotId: string, options?: QueryOptions): Promise<ReservationData[]> {
     return this.executeWithRetry(async () => {
       const sessions = await this.prisma.parkingSession.findMany({
         where: {
           spotId,
           notes: {
-            contains: 'RESERVATION:'
-          }
+            contains: 'RESERVATION:',
+          },
         },
         include: {
           vehicle: true,
@@ -334,13 +324,13 @@ export class ReservationRepository {
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
-          }
+                  garage: true,
+                },
+              },
+            },
+          },
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
 
       return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
@@ -358,12 +348,12 @@ export class ReservationRepository {
       const sessions = await this.prisma.parkingSession.findMany({
         where: {
           notes: {
-            contains: 'RESERVATION:'
+            contains: 'RESERVATION:',
           },
           status: 'ACTIVE',
           endTime: {
-            gt: now // Not expired
-          }
+            gt: now, // Not expired
+          },
         },
         include: {
           vehicle: true,
@@ -371,13 +361,13 @@ export class ReservationRepository {
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
-          }
+                  garage: true,
+                },
+              },
+            },
+          },
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
 
       return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
@@ -395,12 +385,12 @@ export class ReservationRepository {
       const sessions = await this.prisma.parkingSession.findMany({
         where: {
           notes: {
-            contains: 'RESERVATION:'
+            contains: 'RESERVATION:',
           },
           status: 'ACTIVE',
           endTime: {
-            lt: now // Expired
-          }
+            lt: now, // Expired
+          },
         },
         include: {
           vehicle: true,
@@ -408,13 +398,13 @@ export class ReservationRepository {
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
-          }
+                  garage: true,
+                },
+              },
+            },
+          },
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
 
       return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
@@ -427,24 +417,21 @@ export class ReservationRepository {
    * @param actualStartTime - Actual parking start time
    * @returns Updated session
    */
-  async useReservation(
-    reservationId: string,
-    actualStartTime?: Date
-  ): Promise<ParkingSession> {
+  async useReservation(reservationId: string, actualStartTime?: Date): Promise<ParkingSession> {
     return this.executeWithRetry(async () => {
       return this.prisma.$transaction(async (tx: TransactionClient) => {
         const session = await tx.parkingSession.findFirst({
           where: {
             id: reservationId,
             notes: {
-              contains: 'RESERVATION:'
+              contains: 'RESERVATION:',
             },
-            status: 'ACTIVE'
+            status: 'ACTIVE',
           },
           include: {
             spot: true,
-            vehicle: true
-          }
+            vehicle: true,
+          },
         });
 
         if (!session) {
@@ -469,25 +456,26 @@ export class ReservationRepository {
             totalAmount: 0,
             amountPaid: 0,
             isPaid: false, // Now requires payment
-            notes: session.notes?.replace('RESERVATION:', 'USED_RESERVATION:') || 'Used reservation'
+            notes:
+              session.notes?.replace('RESERVATION:', 'USED_RESERVATION:') || 'Used reservation',
           },
           include: {
             vehicle: true,
-            spot: true
-          }
+            spot: true,
+          },
         });
 
         // Update spot status to occupied
         await tx.parkingSpot.update({
           where: { id: session.spotId },
-          data: { status: 'OCCUPIED' }
+          data: { status: 'OCCUPIED' },
         });
 
         this.logger.info('Reservation used and converted to parking session', {
           reservationId,
           sessionId: updatedSession.id,
           spotNumber: session.spot?.spotNumber,
-          licensePlate: session.vehicle?.licensePlate
+          licensePlate: session.vehicle?.licensePlate,
         });
 
         return updatedSession;
@@ -501,24 +489,21 @@ export class ReservationRepository {
    * @param reason - Cancellation reason
    * @returns Updated reservation data
    */
-  async cancelReservation(
-    reservationId: string,
-    reason?: string
-  ): Promise<ReservationData> {
+  async cancelReservation(reservationId: string, reason?: string): Promise<ReservationData> {
     return this.executeWithRetry(async () => {
       return this.prisma.$transaction(async (tx: TransactionClient) => {
         const session = await tx.parkingSession.findFirst({
           where: {
             id: reservationId,
             notes: {
-              contains: 'RESERVATION:'
+              contains: 'RESERVATION:',
             },
-            status: 'ACTIVE'
+            status: 'ACTIVE',
           },
           include: {
             spot: true,
-            vehicle: true
-          }
+            vehicle: true,
+          },
         });
 
         if (!session) {
@@ -530,7 +515,7 @@ export class ReservationRepository {
           where: { id: reservationId },
           data: {
             status: 'CANCELLED',
-            notes: `${session.notes} - CANCELLED: ${reason || 'User cancelled'}`
+            notes: `${session.notes} - CANCELLED: ${reason || 'User cancelled'}`,
           },
           include: {
             vehicle: true,
@@ -538,18 +523,18 @@ export class ReservationRepository {
               include: {
                 floor: {
                   include: {
-                    garage: true
-                  }
-                }
-              }
-            }
-          }
+                    garage: true,
+                  },
+                },
+              },
+            },
+          },
         });
 
         // Make spot available again
         await tx.parkingSpot.update({
           where: { id: session.spotId },
-          data: { status: 'AVAILABLE' }
+          data: { status: 'AVAILABLE' },
         });
 
         const reservation = this.sessionToReservation(cancelledSession);
@@ -558,7 +543,7 @@ export class ReservationRepository {
           reservationId,
           spotNumber: session.spot?.spotNumber,
           licensePlate: session.vehicle?.licensePlate,
-          reason
+          reason,
         });
 
         return reservation;
@@ -574,21 +559,21 @@ export class ReservationRepository {
     return this.executeWithRetry(async () => {
       return this.prisma.$transaction(async (tx: TransactionClient) => {
         const now = new Date();
-        
+
         // Find expired reservations
         const expiredSessions = await tx.parkingSession.findMany({
           where: {
             notes: {
-              contains: 'RESERVATION:'
+              contains: 'RESERVATION:',
             },
             status: 'ACTIVE',
             endTime: {
-              lt: now
-            }
+              lt: now,
+            },
           },
           include: {
-            spot: true
-          }
+            spot: true,
+          },
         });
 
         if (expiredSessions.length === 0) {
@@ -599,15 +584,15 @@ export class ReservationRepository {
         await tx.parkingSession.updateMany({
           where: {
             id: {
-              in: expiredSessions.map((s: SessionWithSpot) => s.id)
-            }
+              in: expiredSessions.map((s: SessionWithSpot) => s.id),
+            },
           },
           data: {
             status: 'EXPIRED',
             notes: {
-              set: 'EXPIRED_RESERVATION: Automatically expired'
-            }
-          }
+              set: 'EXPIRED_RESERVATION: Automatically expired',
+            },
+          },
         });
 
         // Make spots available again
@@ -615,18 +600,18 @@ export class ReservationRepository {
         await tx.parkingSpot.updateMany({
           where: {
             id: {
-              in: spotIds
+              in: spotIds,
             },
-            status: 'RESERVED' // Only update if still reserved
+            status: 'RESERVED', // Only update if still reserved
           },
           data: {
-            status: 'AVAILABLE'
-          }
+            status: 'AVAILABLE',
+          },
         });
 
         this.logger.info('Cleaned up expired reservations', {
           count: expiredSessions.length,
-          spotIds
+          spotIds,
         });
 
         return expiredSessions.length;
@@ -643,15 +628,15 @@ export class ReservationRepository {
     return this.executeWithRetry(async () => {
       const whereClause: any = {
         notes: {
-          contains: 'RESERVATION:'
-        }
+          contains: 'RESERVATION:',
+        },
       };
 
       if (garageId) {
         whereClause.spot = {
           floor: {
-            garageId
-          }
+            garageId,
+          },
         };
       }
 
@@ -663,12 +648,12 @@ export class ReservationRepository {
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
-          }
-        }
+                  garage: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       const stats: ReservationStats = {
@@ -679,7 +664,7 @@ export class ReservationRepository {
         cancelled: 0,
         byGarage: {},
         averageDuration: 0,
-        utilizationRate: 0
+        utilizationRate: 0,
       };
 
       let totalDuration = 0;
@@ -715,12 +700,13 @@ export class ReservationRepository {
         }
       });
 
-      stats.averageDuration = sessions.length > 0 ? totalDuration / sessions.length / (1000 * 60) : 0; // minutes
+      stats.averageDuration =
+        sessions.length > 0 ? totalDuration / sessions.length / (1000 * 60) : 0; // minutes
       stats.utilizationRate = sessions.length > 0 ? (usedCount / sessions.length) * 100 : 0;
 
       this.logger.debug('Reservation statistics calculated', {
         garageId,
-        stats
+        stats,
       });
 
       return stats;
@@ -752,7 +738,7 @@ export class ReservationRepository {
       status,
       spot: session.spot,
       vehicle: session.vehicle,
-      session
+      session,
     };
   }
 
@@ -760,14 +746,24 @@ export class ReservationRepository {
    * Build query options for Prisma
    */
   private buildQueryOptions(options?: QueryOptions): any {
-    if (!options) return {};
+    if (!options) {
+      return {};
+    }
 
     const queryOptions: any = {};
 
-    if (options.skip !== undefined) queryOptions.skip = options.skip;
-    if (options.take !== undefined) queryOptions.take = options.take;
-    if (options.cursor) queryOptions.cursor = options.cursor;
-    if (options.orderBy) queryOptions.orderBy = options.orderBy;
+    if (options.skip !== undefined) {
+      queryOptions.skip = options.skip;
+    }
+    if (options.take !== undefined) {
+      queryOptions.take = options.take;
+    }
+    if (options.cursor) {
+      queryOptions.cursor = options.cursor;
+    }
+    if (options.orderBy) {
+      queryOptions.orderBy = options.orderBy;
+    }
 
     return queryOptions;
   }
@@ -777,7 +773,7 @@ export class ReservationRepository {
    */
   private async executeWithRetry<T>(
     operation: () => Promise<T>,
-    operationName: string = 'operation'
+    operationName = 'operation'
   ): Promise<T> {
     try {
       const startTime = Date.now();
@@ -786,7 +782,7 @@ export class ReservationRepository {
 
       this.logger.debug(`${operationName} completed`, {
         duration,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       return result;

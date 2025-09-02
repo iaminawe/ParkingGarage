@@ -1,0 +1,58 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "reporters": ["html", "clear-text", "progress", "dashboard"],
+  "testRunner": "jest",
+  "jest": {
+    "projectType": "custom",
+    "config": "./jest.config.ts",
+    "enableFindRelatedTests": true
+  },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/**/*.ts",
+    "src/**/*.js",
+    "!src/**/*.test.{js,ts}",
+    "!src/**/*.spec.{js,ts}",
+    "!src/**/*.d.ts",
+    "!src/server.{js,ts}",
+    "!src/generated/**/*",
+    "!src/types/**/*"
+  ],
+  "testPathIgnorePatterns": [
+    "/node_modules/",
+    "/coverage/",
+    "/dist/",
+    "/build/"
+  ],
+  "thresholds": {
+    "high": 95,
+    "low": 90,
+    "break": 80
+  },
+  "timeoutMS": 60000,
+  "timeoutFactor": 2,
+  "maxConcurrentTestRunners": 2,
+  "cleanTempDir": true,
+  "tempDirName": "stryker-tmp",
+  "htmlReporter": {
+    "baseDir": "reports/mutation"
+  },
+  "dashboard": {
+    "reportType": "mutationScore"
+  },
+  "plugins": [
+    "@stryker-mutator/jest-runner",
+    "@stryker-mutator/typescript-checker"
+  ],
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/coverage/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.test.{js,ts}",
+    "**/*.spec.{js,ts}"
+  ]
+}

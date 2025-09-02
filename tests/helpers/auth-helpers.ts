@@ -8,7 +8,8 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { DatabaseService } from '../../src/services/DatabaseService';
-import { User, UserRole, Prisma } from '@prisma/client';
+import { User, Prisma } from '@prisma/client';
+import { USER_ROLES } from '../../src/config/constants';
 import { faker } from '@faker-js/faker';
 
 export interface TestUserOptions {
@@ -38,12 +39,10 @@ export async function createTestUser(
 
   const userData: Prisma.UserCreateInput = {
     email,
-    name,
+    passwordHash: hashedPassword,
     role,
-    password: hashedPassword,
     isActive,
-    emailVerified: true,
-    emailVerifiedAt: new Date(),
+    isEmailVerified: true,
     lastLoginAt: faker.date.recent({ days: 1 })
   };
 
@@ -69,11 +68,11 @@ export function generateAuthToken(user: User, options: {
   const payload = {
     id: user.id,
     email: user.email,
-    role: user.role,
-    name: user.name
+    role: user.role
   };
 
-  return jwt.sign(payload, secret, { expiresIn });
+  const secretKey = secret || 'test-secret';
+  return jwt.sign(payload, secretKey, { expiresIn: expiresIn || '1h' });
 }
 
 /**
@@ -86,7 +85,6 @@ export function generateExpiredToken(user: User): string {
     id: user.id,
     email: user.email,
     role: user.role,
-    name: user.name,
     exp: Math.floor(Date.now() / 1000) - 3600 // Expired 1 hour ago
   };
 

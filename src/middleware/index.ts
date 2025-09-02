@@ -1,10 +1,10 @@
 /**
  * Middleware index
- * 
+ *
  * Central export point for all middleware functions in the application.
  * This module re-exports middleware from individual modules for easy
  * importing throughout the application.
- * 
+ *
  * @module MiddlewareIndex
  */
 

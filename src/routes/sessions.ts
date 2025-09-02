@@ -1,10 +1,10 @@
 /**
  * Sessions management routes
- * 
+ *
  * This module defines routes for parking session operations,
  * including listing sessions, managing session lifecycle,
  * and generating session analytics.
- * 
+ *
  * @module SessionsRoutes
  */
 
@@ -18,7 +18,7 @@ import {
   validateExtendSessionRequest,
   validateSessionContentType,
   validateSessionRequestBody,
-  sanitizeSessionRequest
+  sanitizeSessionRequest,
 } from '../middleware/validation';
 
 const router: Router = Router();
@@ -36,9 +36,14 @@ const sessionsController = new SessionsController();
  * @query   {string} [sort=createdAt] - Sort field (createdAt|endTime|duration|cost)
  * @query   {string} [order=desc] - Sort order (asc|desc)
  */
-router.get('/', sanitizeSessionRequest, validateSessionQuery, async (req: Request, res: Response): Promise<void> => {
-  await sessionsController.getSessions(req, res);
-});
+router.get(
+  '/',
+  sanitizeSessionRequest,
+  validateSessionQuery,
+  async (req: Request, res: Response): Promise<void> => {
+    await sessionsController.getSessions(req, res);
+  }
+);
 
 /**
  * @route   GET /api/sessions/stats
@@ -46,9 +51,14 @@ router.get('/', sanitizeSessionRequest, validateSessionQuery, async (req: Reques
  * @access  Public
  * @query   {string} [period] - Time period for stats (today|week|month|year|all)
  */
-router.get('/stats', sanitizeSessionRequest, validateSessionQuery, async (req: Request, res: Response): Promise<void> => {
-  await sessionsController.getSessionStats(req, res);
-});
+router.get(
+  '/stats',
+  sanitizeSessionRequest,
+  validateSessionQuery,
+  async (req: Request, res: Response): Promise<void> => {
+    await sessionsController.getSessionStats(req, res);
+  }
+);
 
 /**
  * @route   GET /api/sessions/analytics
@@ -57,9 +67,14 @@ router.get('/stats', sanitizeSessionRequest, validateSessionQuery, async (req: R
  * @query   {string} [type] - Analytics type (revenue|duration|peak|trends)
  * @query   {string} [period] - Time period (day|week|month|year)
  */
-router.get('/analytics', sanitizeSessionRequest, validateSessionQuery, async (req: Request, res: Response): Promise<void> => {
-  await sessionsController.getSessionAnalytics(req, res);
-});
+router.get(
+  '/analytics',
+  sanitizeSessionRequest,
+  validateSessionQuery,
+  async (req: Request, res: Response): Promise<void> => {
+    await sessionsController.getSessionAnalytics(req, res);
+  }
+);
 
 /**
  * @route   GET /api/sessions/:id
@@ -67,9 +82,13 @@ router.get('/analytics', sanitizeSessionRequest, validateSessionQuery, async (re
  * @access  Public
  * @param   {string} id - Session ID
  */
-router.get('/:id', validateSessionId, async (req: Request<{ id: any }>, res: Response): Promise<void> => {
-  await sessionsController.getSessionById(req, res);
-});
+router.get(
+  '/:id',
+  validateSessionId,
+  async (req: Request<{ id: any }>, res: Response): Promise<void> => {
+    await sessionsController.getSessionById(req, res);
+  }
+);
 
 /**
  * @route   POST /api/sessions/:id/end
@@ -78,9 +97,16 @@ router.get('/:id', validateSessionId, async (req: Request<{ id: any }>, res: Res
  * @param   {string} id - Session ID
  * @body    {string} [reason] - Optional reason for ending session
  */
-router.post('/:id/end', validateSessionContentType, validateSessionId, sanitizeSessionRequest, validateEndSessionRequest, async (req: Request<{ id: any }>, res: Response): Promise<void> => {
-  await sessionsController.endSession(req, res);
-});
+router.post(
+  '/:id/end',
+  validateSessionContentType,
+  validateSessionId,
+  sanitizeSessionRequest,
+  validateEndSessionRequest,
+  async (req: Request<{ id: any }>, res: Response): Promise<void> => {
+    await sessionsController.endSession(req, res);
+  }
+);
 
 /**
  * @route   POST /api/sessions/:id/cancel
@@ -89,9 +115,16 @@ router.post('/:id/end', validateSessionContentType, validateSessionId, sanitizeS
  * @param   {string} id - Session ID
  * @body    {string} [reason] - Optional reason for cancellation
  */
-router.post('/:id/cancel', validateSessionContentType, validateSessionId, sanitizeSessionRequest, validateCancelSessionRequest, async (req: Request<{ id: any }>, res: Response): Promise<void> => {
-  await sessionsController.cancelSession(req, res);
-});
+router.post(
+  '/:id/cancel',
+  validateSessionContentType,
+  validateSessionId,
+  sanitizeSessionRequest,
+  validateCancelSessionRequest,
+  async (req: Request<{ id: any }>, res: Response): Promise<void> => {
+    await sessionsController.cancelSession(req, res);
+  }
+);
 
 /**
  * @route   POST /api/sessions/:id/extend
@@ -100,9 +133,17 @@ router.post('/:id/cancel', validateSessionContentType, validateSessionId, saniti
  * @param   {string} id - Session ID
  * @body    {number} additionalHours - Hours to extend the session
  */
-router.post('/:id/extend', validateSessionContentType, validateSessionId, sanitizeSessionRequest, validateSessionRequestBody, validateExtendSessionRequest, async (req: Request<{ id: any }>, res: Response): Promise<void> => {
-  await sessionsController.extendSession(req, res);
-});
+router.post(
+  '/:id/extend',
+  validateSessionContentType,
+  validateSessionId,
+  sanitizeSessionRequest,
+  validateSessionRequestBody,
+  validateExtendSessionRequest,
+  async (req: Request<{ id: any }>, res: Response): Promise<void> => {
+    await sessionsController.extendSession(req, res);
+  }
+);
 
 /**
  * @route   GET /api/sessions/export/csv
@@ -112,8 +153,13 @@ router.post('/:id/extend', validateSessionContentType, validateSessionId, saniti
  * @query   {string} [dateRange] - Filter by date range
  * @query   {string} [search] - Search filter
  */
-router.get('/export/csv', sanitizeSessionRequest, validateSessionQuery, async (req: Request, res: Response): Promise<void> => {
-  await sessionsController.exportSessionsCSV(req, res);
-});
+router.get(
+  '/export/csv',
+  sanitizeSessionRequest,
+  validateSessionQuery,
+  async (req: Request, res: Response): Promise<void> => {
+    await sessionsController.exportSessionsCSV(req, res);
+  }
+);
 
 export default router;

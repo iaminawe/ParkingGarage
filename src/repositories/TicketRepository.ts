@@ -1,23 +1,22 @@
 /**
  * Ticket repository for data access operations using Prisma
- * 
+ *
  * This module provides data access methods for parking tickets and violations
  * using the PrismaAdapter pattern. It handles ticket CRUD operations,
  * violation tracking, and fine management.
- * 
+ *
  * @module TicketRepository
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
 import { Ticket, Prisma } from '@prisma/client';
-import type { 
+import type {
   QueryOptions,
   PaginatedResult,
-  IAdapterLogger
+  IAdapterLogger,
 } from '../adapters/interfaces/BaseAdapter';
 import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
-
 
 /**
  * Ticket creation data interface
@@ -106,13 +105,10 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
   protected readonly modelName = 'ticket';
   protected readonly delegate: Prisma.TicketDelegate;
 
-  constructor(
-    databaseService?: DatabaseService,
-    logger?: IAdapterLogger
-  ) {
+  constructor(databaseService?: DatabaseService, logger?: IAdapterLogger) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prismaClient = dbService.getClient();
-    
+
     super(prismaClient, logger || createLogger('TicketRepository'));
     this.delegate = prismaClient.ticket;
   }
@@ -123,27 +119,24 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
    * @param options - Query options
    * @returns Found ticket or null
    */
-  async findByTicketNumber(
-    ticketNumber: string,
-    options?: QueryOptions
-  ): Promise<Ticket | null> {
+  async findByTicketNumber(ticketNumber: string, options?: QueryOptions): Promise<Ticket | null> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findFirst({
         where: {
-          ticketNumber
+          ticketNumber,
         },
         include: {
           garage: true,
-          transactions: true
+          transactions: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found ticket by ticket number', {
         ticketNumber,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find ticket by number: ${ticketNumber}`);
   }
@@ -154,10 +147,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
    * @param options - Query options
    * @returns Array of tickets matching the status
    */
-  async findByStatus(
-    status: string,
-    options?: QueryOptions
-  ): Promise<Ticket[]> {
+  async findByStatus(status: string, options?: QueryOptions): Promise<Ticket[]> {
     return this.findMany({ status }, options);
   }
 
@@ -167,10 +157,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
    * @param options - Query options
    * @returns Array of tickets matching the payment status
    */
-  async findByPaymentStatus(
-    paymentStatus: string,
-    options?: QueryOptions
-  ): Promise<Ticket[]> {
+  async findByPaymentStatus(paymentStatus: string, options?: QueryOptions): Promise<Ticket[]> {
     return this.findMany({ paymentStatus }, options);
   }
 
@@ -180,27 +167,24 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
    * @param options - Query options
    * @returns Array of tickets for the vehicle
    */
-  async findByVehiclePlate(
-    vehiclePlate: string,
-    options?: QueryOptions
-  ): Promise<Ticket[]> {
+  async findByVehiclePlate(vehiclePlate: string, options?: QueryOptions): Promise<Ticket[]> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findMany({
         where: {
-          vehiclePlate: vehiclePlate.toUpperCase()
+          vehiclePlate: vehiclePlate.toUpperCase(),
         },
         include: {
           garage: true,
-          transactions: true
+          transactions: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found tickets by vehicle plate', {
         vehiclePlate,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, `find tickets by vehicle plate: ${vehiclePlate}`);
   }
@@ -211,10 +195,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
    * @param options - Query options
    * @returns Array of tickets for the garage
    */
-  async findByGarageId(
-    garageId: string,
-    options?: QueryOptions
-  ): Promise<Ticket[]> {
+  async findByGarageId(garageId: string, options?: QueryOptions): Promise<Ticket[]> {
     return this.findMany({ garageId }, options);
   }
 
@@ -242,10 +223,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
    * @param options - Query options
    * @returns Array of tickets matching all criteria
    */
-  async search(
-    criteria: TicketSearchCriteria,
-    options?: QueryOptions
-  ): Promise<Ticket[]> {
+  async search(criteria: TicketSearchCriteria, options?: QueryOptions): Promise<Ticket[]> {
     return this.executeWithRetry(async () => {
       const whereClause: Prisma.TicketWhereInput = {};
 
@@ -260,7 +238,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
 
       if (criteria.vehiclePlate) {
         whereClause.vehiclePlate = {
-          contains: criteria.vehiclePlate.toUpperCase()
+          contains: criteria.vehiclePlate.toUpperCase(),
         };
       }
 
@@ -306,16 +284,16 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
         where: whereClause,
         include: {
           garage: true,
-          transactions: true
+          transactions: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Ticket search completed', {
         criteria,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, 'search tickets');
   }
@@ -342,7 +320,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
         entryTime: ticketData.entryTime || new Date(),
         totalAmount: ticketData.totalAmount || 0,
         paidAmount: ticketData.paidAmount || 0,
-        isLostTicket: ticketData.isLostTicket || false
+        isLostTicket: ticketData.isLostTicket || false,
       };
 
       const ticket = await this.create(createData);
@@ -351,7 +329,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
         vehiclePlate: ticket.vehiclePlate,
-        totalAmount: ticket.totalAmount
+        totalAmount: ticket.totalAmount,
       });
 
       return ticket;
@@ -368,8 +346,8 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
     return this.executeWithRetry(async () => {
       const ticket = await this.delegate.findFirst({
         where: {
-          id: ticketId
-        }
+          id: ticketId,
+        },
       });
 
       if (!ticket) {
@@ -389,14 +367,14 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
       const updatedTicket = await this.update(ticketId, {
         paymentStatus: 'PAID',
         paidAmount: paymentAmount,
-        status: 'PAID'
+        status: 'PAID',
       });
 
       this.logger.info('Ticket marked as paid', {
         ticketId,
         ticketNumber: ticket.ticketNumber,
         totalAmount: ticket.totalAmount,
-        paymentAmount
+        paymentAmount,
       });
 
       return updatedTicket;
@@ -414,8 +392,8 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
       const ticket = await this.delegate.findFirst({
         where: {
           id: ticketId,
-          status: 'ACTIVE'
-        }
+          status: 'ACTIVE',
+        },
       });
 
       if (!ticket) {
@@ -424,13 +402,13 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
 
       const updatedTicket = await this.update(ticketId, {
         status: 'CANCELLED',
-        notes: cancellationReason
+        notes: cancellationReason,
       });
 
       this.logger.info('Ticket cancelled', {
         ticketId,
         ticketNumber: ticket.ticketNumber,
-        cancellationReason
+        cancellationReason,
       });
 
       return updatedTicket;
@@ -447,8 +425,8 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
     return this.executeWithRetry(async () => {
       const ticket = await this.delegate.findFirst({
         where: {
-          id: ticketId
-        }
+          id: ticketId,
+        },
       });
 
       if (!ticket) {
@@ -459,14 +437,14 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
         status: 'LOST',
         isLostTicket: true,
         lostTicketFee,
-        totalAmount: ticket.totalAmount + lostTicketFee
+        totalAmount: ticket.totalAmount + lostTicketFee,
       });
 
       this.logger.info('Ticket reported as lost', {
         ticketId,
         ticketNumber: ticket.ticketNumber,
         lostTicketFee,
-        newTotalAmount: ticket.totalAmount + lostTicketFee
+        newTotalAmount: ticket.totalAmount + lostTicketFee,
       });
 
       return updatedTicket;
@@ -481,14 +459,12 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
   async getStats(garageId?: string): Promise<TicketStats> {
     return this.executeWithRetry(async () => {
       const whereClause = garageId ? { garageId } : {};
-      
+
       // Get total count
       const totalCount = await this.count(whereClause);
 
       // Count by status
-      const statusCounts = await this.prisma.$queryRaw<
-        Array<{ status: string; count: bigint }>
-      >`
+      const statusCounts = await this.prisma.$queryRaw<Array<{ status: string; count: bigint }>>`
         SELECT status, COUNT(*) as count
         FROM tickets
         ${garageId ? Prisma.sql`WHERE garageId = ${garageId}` : Prisma.empty}
@@ -532,14 +508,14 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
         totalPaid: financialStats[0]?.totalPaid || 0,
         totalOutstanding: financialStats[0]?.totalOutstanding || 0,
         byStatus: {},
-        byPaymentStatus: {}
+        byPaymentStatus: {},
       };
 
       // Process status counts
       statusCounts.forEach(({ status, count }) => {
         const countNum = Number(count);
         stats.byStatus[status] = countNum;
-        
+
         switch (status) {
           case 'ACTIVE':
             stats.active = countNum;
@@ -563,9 +539,9 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
 
       this.logger.debug('Ticket statistics calculated', {
         garageId,
-        stats
+        stats,
       });
-      
+
       return stats;
     }, 'get ticket statistics');
   }
@@ -578,17 +554,17 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
     const ticketNumber = `TKT-${timestamp}-${random}`;
-    
+
     // Ensure uniqueness
     const existing = await this.delegate.findFirst({
-      where: { ticketNumber }
+      where: { ticketNumber },
     });
-    
+
     if (existing) {
       // If collision (very rare), try again
       return this.generateTicketNumber();
     }
-    
+
     return ticketNumber;
   }
 

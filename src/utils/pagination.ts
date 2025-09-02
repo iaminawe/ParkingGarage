@@ -1,9 +1,9 @@
 /**
  * Pagination utilities for API responses
- * 
+ *
  * This module provides utility functions for implementing pagination
  * in API responses, including offset/limit calculations and metadata.
- * 
+ *
  * @module PaginationUtils
  */
 
@@ -68,21 +68,29 @@ export interface FilterMetadata {
 export function calculatePagination(query: any, totalCount: number): PaginationResult {
   // Parse and validate limit
   let limit = parseInt(String(query.limit)) || 20;
-  if (limit < 1) limit = 20;
-  if (limit > 100) limit = 100;
-  
+  if (limit < 1) {
+    limit = 20;
+  }
+  if (limit > 100) {
+    limit = 100;
+  }
+
   // Parse and validate offset
   let offset = parseInt(String(query.offset)) || 0;
-  if (offset < 0) offset = 0;
-  if (offset >= totalCount && totalCount > 0) offset = 0;
-  
+  if (offset < 0) {
+    offset = 0;
+  }
+  if (offset >= totalCount && totalCount > 0) {
+    offset = 0;
+  }
+
   // Calculate pagination metadata
   const hasMore = offset + limit < totalCount;
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(totalCount / limit);
   const nextOffset = hasMore ? offset + limit : null;
   const prevOffset = offset > 0 ? Math.max(0, offset - limit) : null;
-  
+
   return {
     limit,
     offset,
@@ -91,7 +99,7 @@ export function calculatePagination(query: any, totalCount: number): PaginationR
     totalPages,
     nextOffset,
     prevOffset,
-    totalCount
+    totalCount,
   };
 }
 
@@ -114,8 +122,8 @@ export function paginateArray<T>(items: T[], pagination: PaginationResult): T[] 
  * @returns Complete API response with pagination
  */
 export function createPaginatedResponse<T>(
-  items: T[], 
-  pagination: PaginationResult, 
+  items: T[],
+  pagination: PaginationResult,
   metadata: Record<string, unknown> = {}
 ): PaginatedResponse<T> {
   return {
@@ -128,13 +136,13 @@ export function createPaginatedResponse<T>(
       totalPages: pagination.totalPages,
       nextOffset: pagination.nextOffset,
       prevOffset: pagination.prevOffset,
-      total: pagination.totalCount
+      total: pagination.totalCount,
     },
     metadata: {
       ...metadata,
       resultCount: items.length,
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+    },
   };
 }
 
@@ -146,48 +154,48 @@ export function createPaginatedResponse<T>(
  * @returns Links object with self, next, prev, first, last
  */
 export function createPaginationLinks(
-  baseUrl: string, 
-  pagination: PaginationResult, 
+  baseUrl: string,
+  pagination: PaginationResult,
   queryParams: Record<string, unknown> = {}
 ): PaginationLinks {
   const { limit, offset, totalPages, nextOffset, prevOffset } = pagination;
-  
+
   // Create query string helper
   const createQuery = (offsetValue: number): string => {
     const params = new URLSearchParams();
-    
+
     // Add all query parameters
     Object.entries(queryParams).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         params.set(key, String(value));
       }
     });
-    
+
     params.set('limit', limit.toString());
     params.set('offset', offsetValue.toString());
-    
+
     return params.toString();
   };
-  
+
   const links: PaginationLinks = {
-    self: `${baseUrl}?${createQuery(offset)}`
+    self: `${baseUrl}?${createQuery(offset)}`,
   };
-  
+
   // Add navigation links if applicable
   if (nextOffset !== null) {
     links.next = `${baseUrl}?${createQuery(nextOffset)}`;
   }
-  
+
   if (prevOffset !== null) {
     links.prev = `${baseUrl}?${createQuery(prevOffset)}`;
   }
-  
+
   // Add first and last page links
   if (totalPages > 1) {
     links.first = `${baseUrl}?${createQuery(0)}`;
     links.last = `${baseUrl}?${createQuery((totalPages - 1) * limit)}`;
   }
-  
+
   return links;
 }
 
@@ -198,17 +206,17 @@ export function createPaginationLinks(
  * @returns Parsed and validated filter parameters
  */
 export function parseFilters(
-  query: Record<string, unknown>, 
+  query: Record<string, unknown>,
   allowedFilters: string[] = []
 ): Record<string, unknown> {
   const filters: Record<string, unknown> = {};
-  
+
   allowedFilters.forEach(filterName => {
     if (query[filterName] !== undefined && query[filterName] !== '') {
       filters[filterName] = query[filterName];
     }
   });
-  
+
   return filters;
 }
 
@@ -220,17 +228,17 @@ export function parseFilters(
  * @returns Metadata about filtering results
  */
 export function createFilterMetadata<T>(
-  allItems: T[], 
-  filteredItems: T[], 
+  allItems: T[],
+  filteredItems: T[],
   filters: Record<string, unknown> = {}
 ): FilterMetadata {
   const hasFilters = Object.keys(filters).length > 0;
-  
+
   return {
     totalAvailable: allItems.length,
     totalFiltered: filteredItems.length,
     filtersApplied: filters,
-    hasFilters
+    hasFilters,
   };
 }
 
@@ -241,7 +249,7 @@ export class PaginationError extends Error {
   public status: number;
   public errors: string[];
 
-  constructor(message: string, errors: string[] = [], status: number = 400) {
+  constructor(message: string, errors: string[] = [], status = 400) {
     super(message);
     this.name = 'PaginationError';
     this.status = status;
@@ -256,7 +264,7 @@ export class PaginationError extends Error {
  */
 export function validatePaginationParams(query: any): void {
   const errors: string[] = [];
-  
+
   if (query.limit !== undefined) {
     const limit = parseInt(String(query.limit));
     if (isNaN(limit)) {
@@ -267,7 +275,7 @@ export function validatePaginationParams(query: any): void {
       errors.push('Limit cannot exceed 100');
     }
   }
-  
+
   if (query.offset !== undefined) {
     const offset = parseInt(String(query.offset));
     if (isNaN(offset)) {
@@ -276,12 +284,9 @@ export function validatePaginationParams(query: any): void {
       errors.push('Offset cannot be negative');
     }
   }
-  
+
   if (errors.length > 0) {
-    throw new PaginationError(
-      `Invalid pagination parameters: ${errors.join(', ')}`,
-      errors
-    );
+    throw new PaginationError(`Invalid pagination parameters: ${errors.join(', ')}`, errors);
   }
 }
 

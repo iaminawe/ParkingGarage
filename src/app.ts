@@ -7,11 +7,11 @@ import dotenv from 'dotenv';
 import routes from './routes';
 import errorHandler from './middleware/errorHandler';
 import { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } from '../docs/swagger';
-import { 
-  helmetSecurity, 
-  csrfProtection, 
+import {
+  helmetSecurity,
+  csrfProtection,
   requestSanitization,
-  SecurityMiddleware 
+  SecurityMiddleware,
 } from './middleware/security';
 import { sessionManager } from './services/SessionManager';
 import authService, { AuthService } from './services/authService';
@@ -21,7 +21,10 @@ import { HTTP_STATUS, TIME_CONSTANTS } from './config/constants';
 // Import monitoring and logging configurations
 import { monitoring } from './config/monitoring.config';
 import { systemLogger } from './config/logger.config';
-import { createMonitoringMiddleware, errorTrackingMiddleware } from './middleware/monitoring.middleware';
+import {
+  createMonitoringMiddleware,
+  errorTrackingMiddleware,
+} from './middleware/monitoring.middleware';
 import healthRoutes from './routes/health';
 
 // Load environment variables
@@ -50,13 +53,15 @@ app.use(
     origin: function (origin, callback) {
       const allowedOrigins = env.CORS_ORIGIN?.split(',') || [
         'http://localhost:3000',
-        'http://127.0.0.1:9000', 
-        'http://localhost:9000'
+        'http://127.0.0.1:9000',
+        'http://localhost:9000',
       ];
-      
+
       // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
-      
+      if (!origin) {
+        return callback(null, true);
+      }
+
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -66,15 +71,15 @@ app.use(
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
-      'Origin', 
-      'X-Requested-With', 
-      'Content-Type', 
-      'Accept', 
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
       'Authorization',
-      'X-CSRF-Token'
+      'X-CSRF-Token',
     ],
     exposedHeaders: ['X-CSRF-Token'],
-    maxAge: 86400 // 24 hours
+    maxAge: 86400, // 24 hours
   })
 );
 
@@ -82,29 +87,33 @@ app.use(
 app.use(compression());
 app.use(cookieParser()); // Required for CSRF protection
 app.use(requestSanitization); // Sanitize all inputs
-app.use(express.json({ 
-  limit: '1mb', // Reduced from 10mb for security
-  strict: true,
-  type: 'application/json'
-}));
-app.use(express.urlencoded({ 
-  extended: false, // Set to false for security (prevents prototype pollution)
-  limit: '1mb',
-  parameterLimit: 20 // Limit number of parameters
-}));
+app.use(
+  express.json({
+    limit: '1mb', // Reduced from 10mb for security
+    strict: true,
+    type: 'application/json',
+  })
+);
+app.use(
+  express.urlencoded({
+    extended: false, // Set to false for security (prevents prototype pollution)
+    limit: '1mb',
+    parameterLimit: 20, // Limit number of parameters
+  })
+);
 
 // Enhanced request logging with security context
 app.use((req: Request, res: Response, next) => {
   if (env.NODE_ENV === 'development') {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path} - IP: ${req.ip}`);
   }
-  
+
   // Add security headers to all responses
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
+
   next();
 });
 
@@ -126,7 +135,7 @@ app.get('/api-docs/openapi.yaml', downloadOpenApiSpec);
 app.use('/api', routes);
 
 // Enhanced health check endpoint with system info
-app.get('/health', async (req: Request, res: Response) => {
+app.get('/health', async (_req: Request, res: Response) => {
   try {
     // Basic health info
     const health = {
@@ -134,7 +143,7 @@ app.get('/health', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: env.NODE_ENV,
-      version: process.env.npm_package_version || '1.0.0',
+      version: process.env['npm_package_version'] || '1.0.0',
     };
 
     // Add session statistics if available
@@ -150,7 +159,7 @@ app.get('/health', async (req: Request, res: Response) => {
     res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      error: 'Service temporarily unavailable'
+      error: 'Service temporarily unavailable',
     });
   }
 });
@@ -159,14 +168,16 @@ app.get('/health', async (req: Request, res: Response) => {
 app.use('*', (req: Request, res: Response) => {
   // Log potential scanning attempts
   if (env.NODE_ENV === 'production') {
-    console.warn(`404 - Potential scanning attempt: ${req.method} ${req.originalUrl} from ${req.ip}`);
+    console.warn(
+      `404 - Potential scanning attempt: ${req.method} ${req.originalUrl} from ${req.ip}`
+    );
   }
-  
+
   res.status(HTTP_STATUS.NOT_FOUND).json({
     success: false,
     message: 'Resource not found',
     path: req.originalUrl,
-    method: req.method
+    method: req.method,
   });
 });
 
@@ -190,17 +201,17 @@ process.on('SIGINT', async () => {
 async function gracefulShutdown() {
   try {
     systemLogger.info('Starting graceful shutdown process');
-    
+
     // Close session manager
     await sessionManager.close();
     systemLogger.info('Session manager closed');
-    
+
     // Report shutdown event to monitoring
     monitoring.reportEvent('application.shutdown', {
       reason: 'graceful_shutdown',
       uptime: process.uptime(),
     });
-    
+
     // Clean up any other resources
     systemLogger.info('Graceful shutdown completed');
     process.exit(0);
@@ -214,7 +225,7 @@ async function gracefulShutdown() {
 // Start periodic session cleanup
 if (env.NODE_ENV !== 'test') {
   AuthService.startPeriodicCleanup(authService);
-  
+
   // Also start session cleanup
   setInterval(async () => {
     try {

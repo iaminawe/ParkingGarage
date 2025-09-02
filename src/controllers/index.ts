@@ -1,9 +1,9 @@
 /**
  * Controllers barrel export
- * 
+ *
  * This module provides a centralized export point for all controller classes,
  * making it easier to import controllers in other parts of the application.
- * 
+ *
  * @module Controllers
  */
 
@@ -27,5 +27,5 @@ export type {
   ApiResponse,
   PaginatedApiResponse,
   HealthCheckResponse,
-  StatsResponse
+  StatsResponse,
 } from '../types/api';

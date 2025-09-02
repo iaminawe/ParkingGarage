@@ -1,20 +1,20 @@
 /**
  * Vehicle model definition for parking records
- * 
+ *
  * This module defines the Vehicle class which represents a vehicle
  * with parking session information, owner details, and payment status.
  * It includes comprehensive vehicle management for CRUD operations.
- * 
+ *
  * @module Vehicle
  */
 
-import { 
-  VehicleData, 
-  VehicleRecord, 
-  VehicleStatus, 
-  VehicleType, 
+import {
+  VehicleData,
+  VehicleRecord,
+  VehicleStatus,
+  VehicleType,
   RateType,
-  ValidationResult 
+  ValidationResult,
 } from '../types/models';
 import { validateVehicle, isValidLicensePlate } from '../utils/validators';
 
@@ -52,17 +52,17 @@ export class Vehicle {
   public vehicleType: VehicleType;
   public rateType: RateType;
   public checkOutTime: string | null = null;
-  public totalAmount: number = 0;
-  public isPaid: boolean = false;
+  public totalAmount = 0;
+  public isPaid = false;
   public readonly createdAt: string;
   public updatedAt: string;
-  
+
   // Extended vehicle properties
   public make?: string;
   public model?: string;
   public color?: string;
   public year?: number;
-  
+
   // Owner information
   public ownerId?: string;
   public ownerName?: string;
@@ -87,20 +87,20 @@ export class Vehicle {
     this.checkInTime = vehicleData.checkInTime;
     this.vehicleType = vehicleData.vehicleType;
     this.rateType = vehicleData.rateType;
-    
+
     // Extended vehicle information
     this.make = vehicleData.make;
     this.model = vehicleData.model;
     this.color = vehicleData.color;
     this.year = vehicleData.year;
-    
+
     // Owner information
     this.ownerId = vehicleData.ownerId;
     this.ownerName = vehicleData.ownerName;
     this.ownerEmail = vehicleData.ownerEmail;
     this.ownerPhone = vehicleData.ownerPhone;
     this.notes = vehicleData.notes;
-    
+
     // Timestamps
     this.createdAt = new Date().toISOString();
     this.updatedAt = new Date().toISOString();
@@ -116,9 +116,9 @@ export class Vehicle {
    * @returns New vehicle parking record
    */
   static checkIn(
-    licensePlate: string, 
-    spotId: string, 
-    vehicleType: VehicleType = 'standard', 
+    licensePlate: string,
+    spotId: string,
+    vehicleType: VehicleType = 'standard',
     rateType: RateType = 'hourly',
     additionalData?: Partial<ExtendedVehicleData>
   ): Vehicle {
@@ -132,7 +132,7 @@ export class Vehicle {
       checkInTime: new Date().toISOString(),
       vehicleType,
       rateType,
-      ...additionalData
+      ...additionalData,
     });
   }
 
@@ -141,7 +141,9 @@ export class Vehicle {
    * @param updates - Fields to update
    * @returns Validation result
    */
-  update(updates: Partial<Omit<ExtendedVehicleData, 'licensePlate' | 'checkInTime'>>): ValidationResult {
+  update(
+    updates: Partial<Omit<ExtendedVehicleData, 'licensePlate' | 'checkInTime'>>
+  ): ValidationResult {
     const errors: string[] = [];
 
     // Validate vehicle type if provided
@@ -203,7 +205,7 @@ export class Vehicle {
    * Check out the vehicle and calculate total time parked
    * @param hourlyRate - Rate per hour for billing
    */
-  checkOut(hourlyRate: number = 5.00): void {
+  checkOut(hourlyRate = 5.0): void {
     if (this.isCheckedOut()) {
       throw new Error(`Vehicle ${this.licensePlate} is already checked out`);
     }
@@ -245,7 +247,7 @@ export class Vehicle {
    * @param hourlyRate - Rate per hour
    * @returns Total amount owed
    */
-  calculateTotalAmount(hourlyRate: number = 5.00): number {
+  calculateTotalAmount(hourlyRate = 5.0): number {
     const hours = this.getParkingDurationHours();
     let amount = hours * hourlyRate;
 
@@ -293,11 +295,11 @@ export class Vehicle {
     if (!this.checkOutTime) {
       return 'parked';
     }
-    
+
     if (!this.isPaid) {
       return 'checked_out_unpaid';
     }
-    
+
     return 'completed';
   }
 
@@ -315,7 +317,7 @@ export class Vehicle {
       durationHours: this.getParkingDurationHours(),
       totalAmount: this.totalAmount,
       isPaid: this.isPaid,
-      status: this.getStatus()
+      status: this.getStatus(),
     };
   }
 
@@ -328,7 +330,7 @@ export class Vehicle {
       ownerId: this.ownerId,
       ownerName: this.ownerName,
       ownerEmail: this.ownerEmail,
-      ownerPhone: this.ownerPhone
+      ownerPhone: this.ownerPhone,
     };
   }
 
@@ -342,7 +344,7 @@ export class Vehicle {
       model: this.model,
       color: this.color,
       year: this.year,
-      vehicleType: this.vehicleType
+      vehicleType: this.vehicleType,
     };
   }
 
@@ -370,7 +372,7 @@ export class Vehicle {
       ownerName: this.ownerName,
       ownerEmail: this.ownerEmail,
       ownerPhone: this.ownerPhone,
-      notes: this.notes
+      notes: this.notes,
     };
   }
 
@@ -389,11 +391,21 @@ export class Vehicle {
    */
   static fromObject(obj: FullVehicleRecord): Vehicle {
     const vehicle = new Vehicle(obj);
-    if (obj.checkOutTime) vehicle.checkOutTime = obj.checkOutTime;
-    if (obj.totalAmount) vehicle.totalAmount = obj.totalAmount;
-    if (obj.isPaid) vehicle.isPaid = obj.isPaid;
-    if (obj.createdAt) Object.defineProperty(vehicle, 'createdAt', { value: obj.createdAt, writable: false });
-    if (obj.updatedAt) vehicle.updatedAt = obj.updatedAt;
+    if (obj.checkOutTime) {
+      vehicle.checkOutTime = obj.checkOutTime;
+    }
+    if (obj.totalAmount) {
+      vehicle.totalAmount = obj.totalAmount;
+    }
+    if (obj.isPaid) {
+      vehicle.isPaid = obj.isPaid;
+    }
+    if (obj.createdAt) {
+      Object.defineProperty(vehicle, 'createdAt', { value: obj.createdAt, writable: false });
+    }
+    if (obj.updatedAt) {
+      vehicle.updatedAt = obj.updatedAt;
+    }
     return vehicle;
   }
 
@@ -406,11 +418,11 @@ export class Vehicle {
   static validateUniqueness(licensePlate: string, existingVehicles: Vehicle[]): ValidationResult {
     const normalizedPlate = licensePlate.toUpperCase();
     const exists = existingVehicles.some(v => v.licensePlate === normalizedPlate);
-    
+
     if (exists) {
       return {
         isValid: false,
-        errors: [`Vehicle with license plate ${normalizedPlate} already exists`]
+        errors: [`Vehicle with license plate ${normalizedPlate} already exists`],
       };
     }
 

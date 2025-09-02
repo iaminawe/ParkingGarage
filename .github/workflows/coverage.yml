@@ -1,0 +1,268 @@
+name: 📊 Coverage Analysis & Reporting
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 2 AM UTC for trend analysis
+    - cron: '0 2 * * *'
+
+jobs:
+  coverage-analysis:
+    name: 🔍 Coverage Analysis
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for trend analysis
+    
+    - name: 📦 Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: 🔧 Install dependencies
+      run: |
+        npm ci
+        npm run db:generate
+    
+    - name: 🏗️ Setup test database
+      run: npm run test:setup
+    
+    - name: 🧪 Run tests with coverage
+      run: npm run test:coverage:threshold
+      env:
+        NODE_ENV: test
+        CI: true
+    
+    - name: 📊 Generate coverage reports
+      run: npm run test:coverage:report
+      if: success() || failure()
+    
+    - name: 📈 Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-${{ matrix.node-version }}
+        fail_ci_if_error: true
+        verbose: true
+    
+    - name: 📊 Coverage Comment (PR)
+      uses: marocchino/sticky-pull-request-comment@v2
+      if: github.event_name == 'pull_request'
+      with:
+        recreate: true
+        path: reports/badges/README-snippet.md
+    
+    - name: 🚨 Coverage Threshold Check
+      run: |
+        # Extract coverage percentages from coverage-summary.json
+        STATEMENTS=$(node -p "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json', 'utf8')).total.statements.pct")
+        BRANCHES=$(node -p "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json', 'utf8')).total.branches.pct")
+        FUNCTIONS=$(node -p "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json', 'utf8')).total.functions.pct")
+        LINES=$(node -p "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json', 'utf8')).total.lines.pct")
+        
+        echo "Coverage Results:"
+        echo "Statements: ${STATEMENTS}%"
+        echo "Branches: ${BRANCHES}%"
+        echo "Functions: ${FUNCTIONS}%"
+        echo "Lines: ${LINES}%"
+        
+        # Check if any coverage metric is below 95%
+        if (( $(echo "${STATEMENTS} < 95" | bc -l) )); then
+          echo "❌ Statements coverage (${STATEMENTS}%) is below 95% threshold"
+          exit 1
+        fi
+        
+        if (( $(echo "${BRANCHES} < 95" | bc -l) )); then
+          echo "❌ Branch coverage (${BRANCHES}%) is below 95% threshold"
+          exit 1
+        fi
+        
+        if (( $(echo "${FUNCTIONS} < 95" | bc -l) )); then
+          echo "❌ Function coverage (${FUNCTIONS}%) is below 95% threshold"
+          exit 1
+        fi
+        
+        if (( $(echo "${LINES} < 95" | bc -l) )); then
+          echo "❌ Line coverage (${LINES}%) is below 95% threshold"
+          exit 1
+        fi
+        
+        echo "✅ All coverage metrics meet the 95% threshold!"
+    
+    - name: 📤 Upload Coverage Reports
+      uses: actions/upload-artifact@v4
+      if: success() || failure()
+      with:
+        name: coverage-reports-node-${{ matrix.node-version }}
+        path: |
+          coverage/
+          reports/
+        retention-days: 30
+    
+    - name: 📈 Coverage Trend Analysis
+      run: |
+        # Create coverage trend data
+        mkdir -p .coverage-trends
+        echo "{
+          \"date\": \"$(date -I)\",
+          \"commit\": \"${{ github.sha }}\",
+          \"branch\": \"${{ github.ref_name }}\",
+          \"statements\": ${STATEMENTS},
+          \"branches\": ${BRANCHES},
+          \"functions\": ${FUNCTIONS},
+          \"lines\": ${LINES}
+        }" > .coverage-trends/$(date -I)-${{ github.sha }}.json
+      if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+
+  mutation-testing:
+    name: 🧬 Mutation Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: 🔧 Install dependencies
+      run: |
+        npm ci
+        npm run db:generate
+    
+    - name: 🏗️ Setup test database
+      run: npm run test:setup
+    
+    - name: 🧬 Run mutation tests
+      run: npm run test:mutation:ci
+      timeout-minutes: 30
+      env:
+        NODE_ENV: test
+    
+    - name: 📤 Upload Mutation Report
+      uses: actions/upload-artifact@v4
+      if: success() || failure()
+      with:
+        name: mutation-testing-report
+        path: reports/mutation/
+        retention-days: 30
+
+  coverage-validation:
+    name: ✅ Coverage Validation
+    needs: [coverage-analysis]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: 📥 Download coverage reports
+      uses: actions/download-artifact@v4
+      with:
+        name: coverage-reports-node-20.x
+        path: ./coverage-data
+    
+    - name: 🔍 Validate Coverage Requirements
+      run: |
+        echo "🔍 Validating coverage requirements..."
+        
+        # Check if coverage meets business-critical requirements
+        if [ -f "./coverage-data/reports/coverage-analysis-$(date -I).json" ]; then
+          echo "✅ Coverage analysis report found"
+          
+          # Extract critical issues count
+          CRITICAL_ISSUES=$(node -p "JSON.parse(require('fs').readFileSync('./coverage-data/reports/coverage-analysis-$(date -I).json', 'utf8')).criticalIssues.length")
+          
+          if [ "$CRITICAL_ISSUES" -gt "0" ]; then
+            echo "❌ Found $CRITICAL_ISSUES critical coverage issues"
+            echo "🔗 Please review the coverage report for details"
+            exit 1
+          else
+            echo "✅ No critical coverage issues found"
+          fi
+        else
+          echo "⚠️ Coverage analysis report not found"
+        fi
+    
+    - name: 📊 Coverage Summary
+      run: |
+        echo "## 📊 Coverage Analysis Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "./coverage-data/coverage/coverage-summary.json" ]; then
+          echo "| Metric | Percentage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+          
+          STATEMENTS=$(node -p "JSON.parse(require('fs').readFileSync('./coverage-data/coverage/coverage-summary.json', 'utf8')).total.statements.pct")
+          BRANCHES=$(node -p "JSON.parse(require('fs').readFileSync('./coverage-data/coverage/coverage-summary.json', 'utf8')).total.branches.pct")
+          FUNCTIONS=$(node -p "JSON.parse(require('fs').readFileSync('./coverage-data/coverage/coverage-summary.json', 'utf8')).total.functions.pct")
+          LINES=$(node -p "JSON.parse(require('fs').readFileSync('./coverage-data/coverage/coverage-summary.json', 'utf8')).total.lines.pct")
+          
+          STATUS_STATEMENTS=$([ $(echo "${STATEMENTS} >= 95" | bc -l) ] && echo "✅" || echo "❌")
+          STATUS_BRANCHES=$([ $(echo "${BRANCHES} >= 95" | bc -l) ] && echo "✅" || echo "❌")
+          STATUS_FUNCTIONS=$([ $(echo "${FUNCTIONS} >= 95" | bc -l) ] && echo "✅" || echo "❌")
+          STATUS_LINES=$([ $(echo "${LINES} >= 95" | bc -l) ] && echo "✅" || echo "❌")
+          
+          echo "| Statements | ${STATEMENTS}% | ${STATUS_STATEMENTS} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branches | ${BRANCHES}% | ${STATUS_BRANCHES} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Functions | ${FUNCTIONS}% | ${STATUS_FUNCTIONS} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lines | ${LINES}% | ${STATUS_LINES} |" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  performance-testing:
+    name: ⚡ Performance Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: 🔧 Install dependencies
+      run: |
+        npm ci
+        npm run db:generate
+    
+    - name: 🏗️ Setup test database
+      run: npm run test:setup
+    
+    - name: ⚡ Run performance tests
+      run: npm run test:performance
+      env:
+        NODE_ENV: test
+    
+    - name: 📊 Performance Benchmarks
+      run: npm run test:validation
+      env:
+        NODE_ENV: test
+    
+    - name: 📤 Upload Performance Reports
+      uses: actions/upload-artifact@v4
+      if: success() || failure()
+      with:
+        name: performance-reports
+        path: |
+          coverage/
+          reports/
+        retention-days: 30

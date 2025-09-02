@@ -10,17 +10,17 @@ export const TIME_CONSTANTS = {
   REFRESH_TOKEN_DURATION_MS: 7 * 24 * 60 * 60 * 1000, // 7 days
   PASSWORD_RESET_EXPIRY_MS: 60 * 60 * 1000, // 1 hour
   EMAIL_VERIFICATION_EXPIRY_MS: 24 * 60 * 60 * 1000, // 24 hours
-  
+
   // Rate limiting windows
   AUTH_RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
   SIGNUP_RATE_LIMIT_WINDOW_MS: 60 * 60 * 1000, // 1 hour
   PASSWORD_VALIDATION_WINDOW_MS: 60 * 1000, // 1 minute
   PROFILE_UPDATE_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-  
+
   // Database and cleanup
   SESSION_CLEANUP_INTERVAL_MS: 60 * 60 * 1000, // 1 hour
   EXPIRED_SESSION_GRACE_PERIOD_MS: 24 * 60 * 60 * 1000, // 24 hours
-  
+
   // Connection timeouts
   DATABASE_QUERY_TIMEOUT_MS: 5000, // 5 seconds
   DATABASE_CONNECTION_TIMEOUT_MS: 10000, // 10 seconds
@@ -33,11 +33,11 @@ export const RATE_LIMITS = {
   SIGNUP_MAX_ATTEMPTS: 3,
   PASSWORD_VALIDATION_MAX_ATTEMPTS: 20,
   PROFILE_UPDATE_MAX_ATTEMPTS: 10,
-  
+
   // General API rate limits
   DEFAULT_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
   DEFAULT_MAX_REQUESTS: 100,
-  
+
   // Specific endpoint limits
   LOGIN_MAX_ATTEMPTS: 5,
   REFRESH_TOKEN_MAX_ATTEMPTS: 10,
@@ -50,23 +50,23 @@ export const SECURITY = {
   MAX_PASSWORD_LENGTH: 128,
   MIN_JWT_SECRET_LENGTH: 32,
   RECOMMENDED_JWT_SECRET_LENGTH: 64,
-  
+
   // Bcrypt settings
   MIN_SALT_ROUNDS: 10,
   MAX_SALT_ROUNDS: 15,
   DEFAULT_SALT_ROUNDS: 12,
-  
+
   // Account lockout
   MAX_LOGIN_ATTEMPTS: 5,
   MIN_LOCKOUT_TIME_MINUTES: 5,
   MAX_LOCKOUT_TIME_MINUTES: 60,
   DEFAULT_LOCKOUT_TIME_MINUTES: 15,
-  
+
   // Token settings
   JWT_ALGORITHM: 'HS256' as const,
   TOKEN_TYPE_ACCESS: 'access' as const,
   TOKEN_TYPE_REFRESH: 'refresh' as const,
-  
+
   // Headers
   AUTH_HEADER_NAME: 'Authorization',
   BEARER_PREFIX: 'Bearer ',
@@ -80,7 +80,7 @@ export const USER_ROLES = {
   ADMIN: 'ADMIN',
 } as const;
 
-export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
+export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
 
 // Role hierarchy for permissions (higher number = more permissions)
 export const ROLE_HIERARCHY = {
@@ -94,14 +94,23 @@ export const ROLE_HIERARCHY = {
 export const ROLE_PERMISSIONS = {
   [USER_ROLES.USER]: ['profile:read', 'profile:update', 'vehicle:read', 'vehicle:create'],
   [USER_ROLES.OPERATOR]: [
-    'profile:read', 'profile:update',
-    'vehicle:read', 'vehicle:create', 'vehicle:update',
-    'parking:read', 'parking:create', 'parking:update',
+    'profile:read',
+    'profile:update',
+    'vehicle:read',
+    'vehicle:create',
+    'vehicle:update',
+    'parking:read',
+    'parking:create',
+    'parking:update',
   ],
   [USER_ROLES.MANAGER]: [
-    'profile:read', 'profile:update',
-    'vehicle:*', 'parking:*', 'garage:*',
-    'reports:read', 'users:read',
+    'profile:read',
+    'profile:update',
+    'vehicle:*',
+    'parking:*',
+    'garage:*',
+    'reports:read',
+    'users:read',
   ],
   [USER_ROLES.ADMIN]: ['*'], // All permissions
 } as const;
@@ -113,7 +122,7 @@ export const DATABASE = {
   MAX_CONNECTION_POOL_SIZE: 50,
   CONNECTION_TIMEOUT_MS: TIME_CONSTANTS.DATABASE_CONNECTION_TIMEOUT_MS,
   QUERY_TIMEOUT_MS: TIME_CONSTANTS.DATABASE_QUERY_TIMEOUT_MS,
-  
+
   // Pagination defaults
   DEFAULT_PAGE_SIZE: 20,
   MAX_PAGE_SIZE: 100,
@@ -132,7 +141,7 @@ export const API_RESPONSES = {
     PASSWORD_CHANGED: 'Password changed successfully',
     EMAIL_VERIFIED: 'Email verified successfully',
   },
-  
+
   // Error messages
   ERRORS: {
     // Authentication errors
@@ -140,20 +149,21 @@ export const API_RESPONSES = {
     INVALID_TOKEN: 'Invalid or expired token',
     TOKEN_REQUIRED: 'Access token required',
     REFRESH_TOKEN_EXPIRED: 'Refresh token expired or invalid',
-    
+
     // Authorization errors
     INSUFFICIENT_PERMISSIONS: 'Insufficient permissions',
     ACCOUNT_DEACTIVATED: 'Account is deactivated. Please contact support.',
-    ACCOUNT_LOCKED: 'Account is temporarily locked due to too many failed login attempts. Please try again later.',
-    
+    ACCOUNT_LOCKED:
+      'Account is temporarily locked due to too many failed login attempts. Please try again later.',
+
     // User errors
     USER_EXISTS: 'User with this email already exists',
     USER_NOT_FOUND: 'User not found',
-    
+
     // Password errors
     WEAK_PASSWORD: 'Password does not meet security requirements',
     INVALID_PASSWORD: 'Invalid password format',
-    
+
     // General errors
     VALIDATION_ERROR: 'Validation error',
     INTERNAL_ERROR: 'Internal server error',
@@ -165,7 +175,7 @@ export const API_RESPONSES = {
 export const VALIDATION = {
   // Email validation
   EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  
+
   // Password validation patterns
   PASSWORD_PATTERNS: {
     LOWERCASE: /[a-z]/,
@@ -173,15 +183,14 @@ export const VALIDATION = {
     DIGIT: /\d/,
     SPECIAL_CHAR: /[!@#$%^&*(),.?":{}|<>]/,
   },
-  
+
   // Name validation
   MIN_NAME_LENGTH: 1,
   MAX_NAME_LENGTH: 50,
   NAME_REGEX: /^[a-zA-Z\s'-]+$/,
-  
+
   // License plate validation (flexible for different formats)
   LICENSE_PLATE_REGEX: /^[A-Z0-9\s-]{2,10}$/i,
-  
 } as const;
 
 // HTTP Status codes commonly used
@@ -210,7 +219,7 @@ export const PARKING = {
     HANDICAP: 'HANDICAP',
     ELECTRIC: 'ELECTRIC',
   },
-  
+
   // Spot status
   SPOT_STATUS: {
     AVAILABLE: 'AVAILABLE',
@@ -219,14 +228,14 @@ export const PARKING = {
     MAINTENANCE: 'MAINTENANCE',
     OUT_OF_ORDER: 'OUT_OF_ORDER',
   },
-  
+
   // Vehicle types
   VEHICLE_TYPES: {
     COMPACT: 'COMPACT',
     STANDARD: 'STANDARD',
     OVERSIZED: 'OVERSIZED',
   },
-  
+
   // Rate types
   RATE_TYPES: {
     HOURLY: 'HOURLY',
@@ -234,7 +243,7 @@ export const PARKING = {
     MONTHLY: 'MONTHLY',
     SPECIAL: 'SPECIAL',
   },
-  
+
   // Session status
   SESSION_STATUS: {
     ACTIVE: 'ACTIVE',
@@ -242,7 +251,7 @@ export const PARKING = {
     CANCELLED: 'CANCELLED',
     OVERSTAYED: 'OVERSTAYED',
   },
-  
+
   // Payment methods
   PAYMENT_METHODS: {
     CASH: 'CASH',
@@ -251,7 +260,7 @@ export const PARKING = {
     MOBILE_PAY: 'MOBILE_PAY',
     APP_PAYMENT: 'APP_PAYMENT',
   },
-  
+
   // Default rates
   DEFAULT_HOURLY_RATE: 5.0,
   DEFAULT_DAILY_RATE: 25.0,
@@ -259,12 +268,12 @@ export const PARKING = {
 } as const;
 
 // Export all types
-export type SecurityConstant = typeof SECURITY[keyof typeof SECURITY];
-export type RateLimit = typeof RATE_LIMITS[keyof typeof RATE_LIMITS];
-export type TimeConstant = typeof TIME_CONSTANTS[keyof typeof TIME_CONSTANTS];
-export type DatabaseConstant = typeof DATABASE[keyof typeof DATABASE];
-export type ValidationConstant = typeof VALIDATION[keyof typeof VALIDATION];
-export type ParkingConstant = typeof PARKING[keyof typeof PARKING];
+export type SecurityConstant = (typeof SECURITY)[keyof typeof SECURITY];
+export type RateLimit = (typeof RATE_LIMITS)[keyof typeof RATE_LIMITS];
+export type TimeConstant = (typeof TIME_CONSTANTS)[keyof typeof TIME_CONSTANTS];
+export type DatabaseConstant = (typeof DATABASE)[keyof typeof DATABASE];
+export type ValidationConstant = (typeof VALIDATION)[keyof typeof VALIDATION];
+export type ParkingConstant = (typeof PARKING)[keyof typeof PARKING];
 
 // Utility functions for working with constants
 export const UTILS = {
@@ -275,14 +284,14 @@ export const UTILS = {
     const rolePermissions = ROLE_PERMISSIONS[userRole] as readonly string[];
     return rolePermissions.includes('*') || rolePermissions.includes(permission);
   },
-  
+
   /**
    * Check if role has higher or equal permissions than another role
    */
   hasRoleLevel: (userRole: UserRole, requiredRole: UserRole): boolean => {
     return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[requiredRole];
   },
-  
+
   /**
    * Get all roles with equal or lower permissions
    */

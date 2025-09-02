@@ -1,9 +1,9 @@
 /**
  * Services module index
- * 
+ *
  * Centralized exports for all service classes in the parking garage system.
  * This module provides easy access to all business logic services.
- * 
+ *
  * @module Services
  */
 
@@ -36,5 +36,5 @@ export type {
   ServiceResponse,
   GarageStats,
   ParkingSession,
-  ParkingError
+  ParkingError,
 } from '../types/models';

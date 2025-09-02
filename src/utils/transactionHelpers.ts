@@ -1,9 +1,9 @@
 /**
  * Transaction helper utilities for common transaction operations
- * 
+ *
  * This module provides utility functions for handling transactions,
  * deadlock detection, retry logic, and transaction debugging.
- * 
+ *
  * @module TransactionHelpers
  */
 
@@ -17,7 +17,7 @@ import {
   TransactionPriority,
   ITransactionContext,
   ITransactionOptions,
-  TransactionCallback
+  TransactionCallback,
 } from '../types/transaction.types';
 import { createLogger } from './logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -36,7 +36,7 @@ export const DEFAULT_TRANSACTION_OPTIONS: Required<ITransactionOptions> = {
   maxRetries: 3,
   retryDelay: 1000,
   enableLogging: true,
-  metadata: {}
+  metadata: {},
 };
 
 /**
@@ -53,26 +53,33 @@ export const DEADLOCK_ERROR_CODES = [
  * Check if error is a deadlock or conflict error
  */
 export function isDeadlockError(error: any): boolean {
-  if (!error) return false;
-  
+  if (!error) {
+    return false;
+  }
+
   const errorMessage = error.message || '';
   const errorCode = error.code || '';
-  
-  return DEADLOCK_ERROR_CODES.some(code => 
-    errorCode.includes(code) || errorMessage.includes(code)
-  ) || errorMessage.toLowerCase().includes('deadlock') ||
-     errorMessage.toLowerCase().includes('database is locked');
+
+  return (
+    DEADLOCK_ERROR_CODES.some(code => errorCode.includes(code) || errorMessage.includes(code)) ||
+    errorMessage.toLowerCase().includes('deadlock') ||
+    errorMessage.toLowerCase().includes('database is locked')
+  );
 }
 
 /**
  * Check if error is a timeout error
  */
 export function isTimeoutError(error: any): boolean {
-  if (!error) return false;
-  
+  if (!error) {
+    return false;
+  }
+
   const errorMessage = error.message || '';
-  return errorMessage.toLowerCase().includes('timeout') ||
-         errorMessage.toLowerCase().includes('timed out');
+  return (
+    errorMessage.toLowerCase().includes('timeout') ||
+    errorMessage.toLowerCase().includes('timed out')
+  );
 }
 
 /**
@@ -85,7 +92,7 @@ export function createTransactionContext(
 ): ITransactionContext {
   const id = uuidv4();
   const opts = { ...DEFAULT_TRANSACTION_OPTIONS, ...options };
-  
+
   return {
     id,
     status: TransactionStatus.PENDING,
@@ -96,14 +103,14 @@ export function createTransactionContext(
     metadata: { ...opts.metadata },
     parentTransactionId,
     depth: parentTransactionId ? 1 : 0,
-    client
+    client,
   };
 }
 
 /**
  * Calculate exponential backoff delay
  */
-export function calculateBackoffDelay(attempt: number, baseDelay: number = 1000): number {
+export function calculateBackoffDelay(attempt: number, baseDelay = 1000): number {
   const jitter = Math.random() * 0.1; // 10% jitter
   const exponential = Math.pow(2, attempt - 1);
   return Math.floor(baseDelay * exponential * (1 + jitter));
@@ -119,44 +126,44 @@ export async function retryTransaction<T>(
 ): Promise<T> {
   const opts = { ...DEFAULT_TRANSACTION_OPTIONS, ...options };
   let lastError: Error | null = null;
-  
+
   for (let attempt = 1; attempt <= opts.maxRetries; attempt++) {
     try {
       if (opts.enableLogging && attempt > 1) {
         logger.info('Retrying transaction', {
           transactionId: context?.id,
           attempt,
-          maxRetries: opts.maxRetries
+          maxRetries: opts.maxRetries,
         });
       }
-      
+
       return await operation();
     } catch (error) {
       lastError = error as Error;
-      
+
       // Check if error is retryable
       if (!isDeadlockError(error) || attempt === opts.maxRetries) {
         break;
       }
-      
+
       // Calculate delay with exponential backoff
       const delay = calculateBackoffDelay(attempt, opts.retryDelay);
-      
+
       if (opts.enableLogging) {
         logger.warn('Transaction failed, will retry', {
           transactionId: context?.id,
           attempt,
           maxRetries: opts.maxRetries,
           error: (error as Error).message,
-          retryDelay: delay
+          retryDelay: delay,
         });
       }
-      
+
       // Wait before retry
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  
+
   // Transform retryable errors
   if (lastError && isDeadlockError(lastError)) {
     throw new TransactionDeadlockError(
@@ -165,7 +172,7 @@ export async function retryTransaction<T>(
       context
     );
   }
-  
+
   throw lastError || new Error('Transaction failed with unknown error');
 }
 
@@ -179,13 +186,9 @@ export async function executeWithTimeout<T>(
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeoutHandle = setTimeout(() => {
-      reject(new TransactionTimeoutError(
-        context?.id || 'unknown',
-        timeoutMs,
-        context
-      ));
+      reject(new TransactionTimeoutError(context?.id || 'unknown', timeoutMs, context));
     }, timeoutMs);
-    
+
     operation()
       .then(result => {
         clearTimeout(timeoutHandle);
@@ -206,17 +209,18 @@ export function logTransactionOperation(
   operation: string,
   details?: Record<string, any>
 ): void {
-  if (!context.metadata.enableLogging) return;
-  
+  if (!context.metadata.enableLogging) {
+    return;
+  }
+
   logger.debug('Transaction operation', {
     transactionId: context.id,
     operation,
     status: context.status,
-    duration: context.endTime ? 
-      context.endTime.getTime() - context.startTime.getTime() : null,
+    duration: context.endTime ? context.endTime.getTime() - context.startTime.getTime() : null,
     savepointCount: context.savepoints.length,
     depth: context.depth,
-    ...details
+    ...details,
   });
 }
 
@@ -227,19 +231,19 @@ export function validateTransactionOptions(options: ITransactionOptions): void {
   if (options.maxWait && options.maxWait < 0) {
     throw new Error('maxWait must be a positive number');
   }
-  
+
   if (options.timeout && options.timeout < 0) {
     throw new Error('timeout must be a positive number');
   }
-  
+
   if (options.maxRetries && options.maxRetries < 0) {
     throw new Error('maxRetries must be a positive number');
   }
-  
+
   if (options.retryDelay && options.retryDelay < 0) {
     throw new Error('retryDelay must be a positive number');
   }
-  
+
   if (options.priority && !Object.values(TransactionPriority).includes(options.priority)) {
     throw new Error('Invalid transaction priority');
   }
@@ -270,14 +274,13 @@ export function formatTransactionContext(context: ITransactionContext): Record<s
     status: context.status,
     startTime: context.startTime.toISOString(),
     endTime: context.endTime?.toISOString(),
-    duration: context.endTime ? 
-      context.endTime.getTime() - context.startTime.getTime() : null,
+    duration: context.endTime ? context.endTime.getTime() - context.startTime.getTime() : null,
     priority: context.priority,
     isolationLevel: context.isolationLevel,
     savepointCount: context.savepoints.length,
     depth: context.depth,
     parentTransactionId: context.parentTransactionId,
-    metadata: context.metadata
+    metadata: context.metadata,
   };
 }
 
@@ -324,22 +327,21 @@ export function getOptimalBatchSize(operationType: string, recordCount: number):
 /**
  * Extract meaningful error information from Prisma errors
  */
-export function extractTransactionError(error: any, context?: ITransactionContext): TransactionError {
+export function extractTransactionError(
+  error: any,
+  context?: ITransactionContext
+): TransactionError {
   if (error instanceof TransactionError) {
     return error;
   }
-  
+
   const message = error.message || 'Unknown transaction error';
   let code = 'UNKNOWN_ERROR';
-  
+
   if (isDeadlockError(error)) {
-    return new TransactionDeadlockError(
-      context?.id || 'unknown',
-      message,
-      context
-    );
+    return new TransactionDeadlockError(context?.id || 'unknown', message, context);
   }
-  
+
   if (isTimeoutError(error)) {
     return new TransactionTimeoutError(
       context?.id || 'unknown',
@@ -347,21 +349,18 @@ export function extractTransactionError(error: any, context?: ITransactionContex
       context
     );
   }
-  
+
   // Extract Prisma error codes
   if (error.code) {
     code = error.code;
   } else if (error.message.includes('P2')) {
     const match = error.message.match(/P\d{4}/);
-    if (match) code = match[0];
+    if (match) {
+      code = match[0];
+    }
   }
-  
-  return new TransactionError(
-    message,
-    code,
-    context?.id,
-    context
-  );
+
+  return new TransactionError(message, code, context?.id, context);
 }
 
 /**
@@ -402,5 +401,5 @@ export default {
   supportsTransactions,
   getOptimalBatchSize,
   extractTransactionError,
-  withTransactionCleanup
+  withTransactionCleanup,
 };

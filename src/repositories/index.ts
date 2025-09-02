@@ -1,11 +1,11 @@
 /**
  * Repository modules index
- * 
+ *
  * This module provides centralized exports for all repository classes
  * in the parking garage system using Prisma ORM. It enables clean imports,
  * consistent access to data access layer components, and provides a factory
  * for managing repository instances with shared database connections.
- * 
+ *
  * @module Repositories
  */
 
@@ -42,7 +42,7 @@ import { ReservationRepository } from './ReservationRepository';
 export class RepositoryFactory {
   private static instance: RepositoryFactory;
   private databaseService: DatabaseService;
-  
+
   // Repository instances
   private vehicleRepo?: VehicleRepository;
   private spotRepo?: SpotRepository;
@@ -186,7 +186,7 @@ export interface IRepositories {
  */
 export function createRepositories(databaseService?: DatabaseService): IRepositories {
   const factory = RepositoryFactory.getInstance(databaseService);
-  
+
   return {
     vehicleRepository: factory.getVehicleRepository(),
     spotRepository: factory.getSpotRepository(),
@@ -195,7 +195,7 @@ export function createRepositories(databaseService?: DatabaseService): IReposito
     paymentRepository: factory.getPaymentRepository(),
     userRepository: factory.getUserRepository(),
     transactionRepository: factory.getTransactionRepository(),
-    reservationRepository: factory.getReservationRepository()
+    reservationRepository: factory.getReservationRepository(),
   };
 }
 
@@ -228,54 +228,54 @@ export type {
   CreateVehicleData,
   UpdateVehicleData,
   VehicleSearchCriteria,
-  VehicleStats
+  VehicleStats,
 } from './VehicleRepository';
 
 export type {
   CreateSpotData,
   UpdateSpotData,
   SpotSearchCriteria,
-  SpotStats
+  SpotStats,
 } from './SpotRepository';
 
 export type {
   CreateSessionData,
   UpdateSessionData,
   SessionSearchCriteria,
-  SessionStats
+  SessionStats,
 } from './SessionRepository';
 
 export type {
   CreateTicketData,
   UpdateTicketData,
   TicketSearchCriteria,
-  TicketStats
+  TicketStats,
 } from './TicketRepository';
 
 export type {
   CreatePaymentData,
   UpdatePaymentData,
   PaymentSearchCriteria,
-  PaymentStats
+  PaymentStats,
 } from './PaymentRepository';
 
 export type {
   CreateUserData,
   UpdateUserData,
   UserSearchCriteria,
-  UserStats
+  UserStats,
 } from './UserRepository';
 
 export type {
   CreateTransactionData,
   UpdateTransactionData,
   TransactionSearchCriteria,
-  TransactionStats
+  TransactionStats,
 } from './TransactionRepository';
 
 export type {
   ReservationData,
   CreateReservationData,
   ReservationSearchCriteria,
-  ReservationStats
+  ReservationStats,
 } from './ReservationRepository';

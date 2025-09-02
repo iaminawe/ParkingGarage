@@ -1,20 +1,20 @@
 /**
  * Vehicle repository for data access operations using Prisma
- * 
+ *
  * This module provides data access methods for vehicle records
  * using the PrismaAdapter pattern. It handles vehicle CRUD operations,
  * search functionality, and maintains data consistency.
- * 
+ *
  * @module VehicleRepository
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
 import { Vehicle, Prisma, VehicleType, VehicleStatus } from '@prisma/client';
 import type { VehicleUpdateData } from '../adapters/VehicleAdapter';
-import type { 
+import type {
   QueryOptions,
   PaginatedResult,
-  IAdapterLogger
+  IAdapterLogger,
 } from '../adapters/interfaces/BaseAdapter';
 import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
@@ -81,17 +81,18 @@ export interface VehicleStats {
 /**
  * Repository for managing vehicle records using Prisma
  */
-export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData, UpdateVehicleData> {
+export class VehicleRepository extends PrismaAdapter<
+  Vehicle,
+  CreateVehicleData,
+  UpdateVehicleData
+> {
   protected readonly modelName = 'vehicle';
   protected readonly delegate: Prisma.VehicleDelegate;
 
-  constructor(
-    databaseService?: DatabaseService,
-    logger?: IAdapterLogger
-  ) {
+  constructor(databaseService?: DatabaseService, logger?: IAdapterLogger) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prismaClient = dbService.getClient();
-    
+
     super(prismaClient, logger || createLogger('VehicleRepository'));
     this.delegate = prismaClient.vehicle;
   }
@@ -113,16 +114,16 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
       const result = await client.vehicle.findFirst({
         where: {
           licensePlate: licensePlate.toUpperCase(),
-          deletedAt: null
+          deletedAt: null,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found vehicle by license plate', {
         licensePlate,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find vehicle by license plate: ${licensePlate}`);
   }
@@ -133,10 +134,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @param options - Query options
    * @returns Array of vehicles matching the status
    */
-  async findByStatus(
-    status: VehicleStatus,
-    options?: QueryOptions
-  ): Promise<Vehicle[]> {
+  async findByStatus(status: VehicleStatus, options?: QueryOptions): Promise<Vehicle[]> {
     return this.findMany({ status }, options);
   }
 
@@ -146,10 +144,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @param options - Query options
    * @returns Array of vehicles matching the type
    */
-  async findByType(
-    vehicleType: VehicleType,
-    options?: QueryOptions
-  ): Promise<Vehicle[]> {
+  async findByType(vehicleType: VehicleType, options?: QueryOptions): Promise<Vehicle[]> {
     return this.findMany({ vehicleType }, options);
   }
 
@@ -159,26 +154,23 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @param options - Query options
    * @returns Array of vehicles belonging to the owner
    */
-  async findByOwner(
-    ownerName: string,
-    options?: QueryOptions
-  ): Promise<Vehicle[]> {
+  async findByOwner(ownerName: string, options?: QueryOptions): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findMany({
         where: {
           ownerName: {
-            contains: ownerName
+            contains: ownerName,
           },
-          deletedAt: null
+          deletedAt: null,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found vehicles by owner', {
         ownerName,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, `find vehicles by owner: ${ownerName}`);
   }
@@ -190,39 +182,35 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @param options - Query options
    * @returns Array of vehicles matching criteria
    */
-  async findByMakeModel(
-    make?: string,
-    model?: string,
-    options?: QueryOptions
-  ): Promise<Vehicle[]> {
+  async findByMakeModel(make?: string, model?: string, options?: QueryOptions): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const whereClause: Prisma.VehicleWhereInput = {
-        deletedAt: null
+        deletedAt: null,
       };
 
       if (make) {
         whereClause.make = {
-          contains: make
+          contains: make,
         };
       }
 
       if (model) {
         whereClause.model = {
-          contains: model
+          contains: model,
         };
       }
 
       const result = await this.delegate.findMany({
         where: whereClause,
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found vehicles by make/model', {
         make,
         model,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, `find vehicles by make/model: ${make}/${model}`);
   }
@@ -233,19 +221,16 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @param options - Query options
    * @returns Array of vehicles matching all criteria
    */
-  async search(
-    criteria: VehicleSearchCriteria,
-    options?: QueryOptions
-  ): Promise<Vehicle[]> {
+  async search(criteria: VehicleSearchCriteria, options?: QueryOptions): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const whereClause: Prisma.VehicleWhereInput = {
-        deletedAt: null
+        deletedAt: null,
       };
 
       // License plate search
       if (criteria.licensePlate) {
         whereClause.licensePlate = {
-          contains: criteria.licensePlate.toUpperCase()
+          contains: criteria.licensePlate.toUpperCase(),
         };
       }
 
@@ -261,31 +246,31 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
       // Text searches
       if (criteria.make) {
         whereClause.make = {
-          contains: criteria.make
+          contains: criteria.make,
         };
       }
 
       if (criteria.model) {
         whereClause.model = {
-          contains: criteria.model
+          contains: criteria.model,
         };
       }
 
       if (criteria.color) {
         whereClause.color = {
-          contains: criteria.color
+          contains: criteria.color,
         };
       }
 
       if (criteria.ownerName) {
         whereClause.ownerName = {
-          contains: criteria.ownerName
+          contains: criteria.ownerName,
         };
       }
 
       if (criteria.ownerEmail) {
         whereClause.ownerEmail = {
-          contains: criteria.ownerEmail
+          contains: criteria.ownerEmail,
         };
       }
 
@@ -302,14 +287,14 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
 
       const result = await this.delegate.findMany({
         where: whereClause,
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Vehicle search completed', {
         criteria,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, 'search vehicles');
   }
@@ -324,36 +309,36 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
       const result = await this.delegate.findMany({
         where: {
           currentSpotId: {
-            not: null
+            not: null,
           },
           sessions: {
             some: {
               status: 'ACTIVE',
-              deletedAt: null
-            }
+              deletedAt: null,
+            },
           },
-          deletedAt: null
+          deletedAt: null,
         },
         include: {
           currentSpot: true,
           sessions: {
             where: {
               status: 'ACTIVE',
-              deletedAt: null
+              deletedAt: null,
             },
             take: 1,
             orderBy: {
-              checkInTime: 'desc'
-            }
-          }
+              checkInTime: 'desc',
+            },
+          },
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found currently parked vehicles', {
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, 'find currently parked vehicles');
   }
@@ -365,7 +350,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
   async getStats(): Promise<VehicleStats> {
     return this.executeWithRetry(async () => {
       const totalCount = await this.count();
-      
+
       // Count by status
       const statusCounts = await this.prisma.$queryRaw<
         Array<{ status: VehicleStatus; count: bigint }>
@@ -419,11 +404,11 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
         byStatus,
         byType,
         totalRevenue: revenueAndDuration[0]?.totalRevenue || 0,
-        averageSessionDuration: revenueAndDuration[0]?.avgDuration || 0
+        averageSessionDuration: revenueAndDuration[0]?.avgDuration || 0,
       };
 
       this.logger.debug('Vehicle statistics calculated', stats as any);
-      
+
       return stats;
     }, 'get vehicle statistics');
   }
@@ -434,10 +419,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @param options - Query options
    * @returns Array of overstaying vehicles
    */
-  async findOverstayed(
-    maxHours: number = 24,
-    options?: QueryOptions
-  ): Promise<Vehicle[]> {
+  async findOverstayed(maxHours = 24, options?: QueryOptions): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const cutoffTime = new Date();
       cutoffTime.setHours(cutoffTime.getHours() - maxHours);
@@ -445,41 +427,41 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
       const result = await this.delegate.findMany({
         where: {
           currentSpotId: {
-            not: null
+            not: null,
           },
           sessions: {
             some: {
               status: 'ACTIVE',
               checkInTime: {
-                lte: cutoffTime
+                lte: cutoffTime,
               },
-              deletedAt: null
-            }
+              deletedAt: null,
+            },
           },
-          deletedAt: null
+          deletedAt: null,
         },
         include: {
           currentSpot: true,
           sessions: {
             where: {
               status: 'ACTIVE',
-              deletedAt: null
+              deletedAt: null,
             },
             take: 1,
             orderBy: {
-              checkInTime: 'desc'
-            }
-          }
+              checkInTime: 'desc',
+            },
+          },
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found overstayed vehicles', {
         maxHours,
         count: result.length,
-        cutoffTime
+        cutoffTime,
       });
-      
+
       return result;
     }, `find overstayed vehicles (max ${maxHours}h)`);
   }
@@ -504,8 +486,8 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
           where: {
             licensePlate: normalizedPlate,
             id: { not: id },
-            deletedAt: null
-          }
+            deletedAt: null,
+          },
         });
 
         if (existing) {
@@ -528,13 +510,13 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
     return this.executeWithRetry(async () => {
       // Normalize license plate
       const normalizedPlate = data.licensePlate.toUpperCase();
-      
+
       // Check for uniqueness
       const existing = await this.delegate.findFirst({
         where: {
           licensePlate: normalizedPlate,
-          deletedAt: null
-        }
+          deletedAt: null,
+        },
       });
 
       if (existing) {
@@ -543,7 +525,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
 
       return this.create({
         ...data,
-        licensePlate: normalizedPlate
+        licensePlate: normalizedPlate,
       });
     }, 'create vehicle with validation');
   }
@@ -554,15 +536,12 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @returns Found vehicle or null
    * @deprecated Use findByLicensePlate instead
    */
-  async findById(
-    licensePlate: string,
-    options?: QueryOptions
-  ): Promise<Vehicle | null> {
+  override async findById(licensePlate: string, options?: QueryOptions): Promise<Vehicle | null> {
     // For backward compatibility, if the ID looks like a license plate, search by it
     if (licensePlate && licensePlate.length <= 10 && !licensePlate.includes('-')) {
       return this.findByLicensePlate(licensePlate, options);
     }
-    
+
     // Otherwise, use standard ID lookup
     return super.findById(licensePlate, options);
   }
@@ -573,27 +552,30 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @param updateData - Data to update
    * @returns Updated vehicle
    */
-  async updateByLicensePlate(licensePlate: string, updateData: VehicleUpdateData): Promise<Vehicle> {
+  async updateByLicensePlate(
+    licensePlate: string,
+    updateData: VehicleUpdateData
+  ): Promise<Vehicle> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.update({
-        where: { 
-          licensePlate: licensePlate.toUpperCase()
+        where: {
+          licensePlate: licensePlate.toUpperCase(),
         },
         data: updateData as Prisma.VehicleUpdateInput,
         include: {
           currentSpot: true,
           sessions: {
             orderBy: { createdAt: 'desc' },
-            take: 5
-          }
-        }
+            take: 5,
+          },
+        },
       });
-      
+
       this.logger.info('Updated vehicle by license plate', {
         licensePlate,
-        id: result.id
+        id: result.id,
       });
-      
+
       return result;
     }, `update vehicle by license plate: ${licensePlate}`);
   }
@@ -606,20 +588,20 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
   async deleteByLicensePlate(licensePlate: string): Promise<Vehicle> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.delete({
-        where: { 
-          licensePlate: licensePlate.toUpperCase()
+        where: {
+          licensePlate: licensePlate.toUpperCase(),
         },
         include: {
           currentSpot: true,
-          sessions: true
-        }
+          sessions: true,
+        },
       });
-      
+
       this.logger.info('Deleted vehicle by license plate', {
         licensePlate,
-        id: result.id
+        id: result.id,
       });
-      
+
       return result;
     }, `delete vehicle by license plate: ${licensePlate}`);
   }
@@ -628,7 +610,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * Find multiple vehicles with optional filtering
    * Overrides base class method with proper signature
    */
-  async findMany(
+  override async findMany(
     filter?: Record<string, unknown>,
     options?: QueryOptions,
     tx?: Prisma.TransactionClient
@@ -637,19 +619,19 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
-        deletedAt: null // Exclude soft-deleted records
+        deletedAt: null, // Exclude soft-deleted records
       };
       const result = await delegate.findMany({
         where,
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug(`Found ${this.modelName} records`, {
         count: result.length,
         filter,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as Vehicle[];
     }, `find many ${this.modelName}`);
   }
@@ -660,30 +642,30 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    * @param take - Number of records to take
    * @returns Array of vehicles
    */
-  async findManyWithIncludes(skip: number = 0, take: number = 50): Promise<Vehicle[]> {
+  async findManyWithIncludes(skip = 0, take = 50): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findMany({
         skip,
         take,
         where: {
-          deletedAt: null
+          deletedAt: null,
         },
         include: {
           currentSpot: true,
           sessions: {
             orderBy: { createdAt: 'desc' },
-            take: 3
-          }
+            take: 3,
+          },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
       });
-      
+
       this.logger.debug('Found vehicles with includes', {
         skip,
         take,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, 'find vehicles with includes');
   }
@@ -697,12 +679,12 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
     return this.executeWithRetry(async () => {
       const whereClause = criteria ? this.buildWhereClause(criteria) : { deletedAt: null };
       const count = await this.delegate.count({ where: whereClause });
-      
+
       this.logger.debug('Counted vehicles by criteria', {
         criteria,
-        count
+        count,
       });
-      
+
       return count;
     }, 'count vehicles by criteria');
   }
@@ -715,18 +697,18 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
   async existsByLicensePlate(licensePlate: string): Promise<boolean> {
     return this.executeWithRetry(async () => {
       const count = await this.delegate.count({
-        where: { 
+        where: {
           licensePlate: licensePlate.toUpperCase(),
-          deletedAt: null
-        }
+          deletedAt: null,
+        },
       });
-      
+
       const exists = count > 0;
       this.logger.debug('Checked vehicle existence by license plate', {
         licensePlate,
-        exists
+        exists,
       });
-      
+
       return exists;
     }, `check vehicle existence: ${licensePlate}`);
   }
@@ -746,27 +728,33 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
         this.delegate.groupBy({
           by: ['vehicleType'],
           _count: true,
-          where: { deletedAt: null }
+          where: { deletedAt: null },
         }),
         this.delegate.groupBy({
           by: ['status'],
           _count: true,
-          where: { deletedAt: null }
-        })
+          where: { deletedAt: null },
+        }),
       ]);
 
       const result = {
         totalVehicles,
-        byType: byType.reduce((acc, item) => {
-          acc[item.vehicleType] = item._count;
-          return acc;
-        }, {} as Record<string, number>),
-        byStatus: byStatus.reduce((acc, item) => {
-          acc[item.status] = item._count;
-          return acc;
-        }, {} as Record<string, number>)
+        byType: byType.reduce(
+          (acc, item) => {
+            acc[item.vehicleType] = item._count;
+            return acc;
+          },
+          {} as Record<string, number>
+        ),
+        byStatus: byStatus.reduce(
+          (acc, item) => {
+            acc[item.status] = item._count;
+            return acc;
+          },
+          {} as Record<string, number>
+        ),
       };
-      
+
       this.logger.debug('Retrieved detailed vehicle statistics', result);
       return result;
     }, 'get detailed vehicle statistics');
@@ -777,7 +765,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
    */
   private buildWhereClause(criteria: VehicleSearchCriteria): Prisma.VehicleWhereInput {
     const whereClause: Prisma.VehicleWhereInput = {
-      deletedAt: null // Always exclude soft-deleted records
+      deletedAt: null, // Always exclude soft-deleted records
     };
 
     if (criteria.licensePlate) {

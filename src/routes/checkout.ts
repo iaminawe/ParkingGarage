@@ -1,10 +1,10 @@
 /**
  * Checkout Routes
- * 
+ *
  * This module defines the Express routes for vehicle checkout operations,
  * including the main checkout endpoint, simulation, estimation, statistics,
  * and administrative functions.
- * 
+ *
  * @module CheckoutRoutes
  */
 
@@ -18,7 +18,7 @@ import {
   validateContentType,
   validateLicensePlateParam,
   validateCheckoutListQuery,
-  validateForceCheckoutRequest
+  validateForceCheckoutRequest,
 } from '../middleware/validation/checkoutValidation';
 
 const router: Router = Router();
@@ -31,7 +31,8 @@ const checkoutController = new CheckoutController();
  * @body    { licensePlate: string, applyGracePeriod?: boolean, removeRecord?: boolean, checkOutTime?: string }
  * @returns { success: boolean, licensePlate: string, spotId: string, timing: object, billing: object }
  */
-router.post('/',
+router.post(
+  '/',
   validateContentType,
   validateRequestBody,
   sanitizeCheckoutRequest,
@@ -48,7 +49,8 @@ router.post('/',
  * @body    { licensePlate: string, applyGracePeriod?: boolean, checkOutTime?: string }
  * @returns { success: boolean, simulation: object }
  */
-router.post('/simulate',
+router.post(
+  '/simulate',
   validateContentType,
   validateRequestBody,
   sanitizeCheckoutRequest,
@@ -63,11 +65,9 @@ router.post('/simulate',
  * @access  Public (will be restricted to admin in future)
  * @returns { success: boolean, statistics: object }
  */
-router.get('/stats',
-  (req: Request, res: Response): void => {
-    checkoutController.getCheckoutStats(req, res);
-  }
-);
+router.get('/stats', (req: Request, res: Response): void => {
+  checkoutController.getCheckoutStats(req, res);
+});
 
 /**
  * @route   GET /api/v1/checkout/ready
@@ -76,12 +76,9 @@ router.get('/stats',
  * @query   { minMinutes?: number, vehicleType?: string, rateType?: string, status?: string }
  * @returns { success: boolean, count: number, vehicles: array }
  */
-router.get('/ready',
-  validateCheckoutListQuery,
-  (req: Request, res: Response): void => {
-    checkoutController.getVehiclesReadyForCheckout(req, res);
-  }
-);
+router.get('/ready', validateCheckoutListQuery, (req: Request, res: Response): void => {
+  checkoutController.getVehiclesReadyForCheckout(req, res);
+});
 
 /**
  * @route   GET /api/v1/checkout/estimate/:licensePlate
@@ -90,7 +87,8 @@ router.get('/ready',
  * @param   {string} licensePlate - Vehicle license plate
  * @returns { success: boolean, licensePlate: string, estimate: object }
  */
-router.get('/estimate/:licensePlate',
+router.get(
+  '/estimate/:licensePlate',
   validateLicensePlateParam,
   (req: Request<{ licensePlate: string }>, res: Response): void => {
     checkoutController.getCurrentEstimate(req, res);
@@ -104,7 +102,8 @@ router.get('/estimate/:licensePlate',
  * @body    { licensePlate: string, reason: string, adminKey: string }
  * @returns { success: boolean, forced: boolean, reason: string }
  */
-router.post('/force',
+router.post(
+  '/force',
   validateContentType,
   validateRequestBody,
   sanitizeCheckoutRequest,
@@ -120,11 +119,9 @@ router.post('/force',
  * @access  Public
  * @returns { success: boolean, service: string, status: string }
  */
-router.get('/health',
-  (req: Request, res: Response): void => {
-    checkoutController.healthCheck(req, res);
-  }
-);
+router.get('/health', (req: Request, res: Response): void => {
+  checkoutController.healthCheck(req, res);
+});
 
 /**
  * Handle 404 for unknown checkout routes
@@ -140,15 +137,15 @@ router.use('*', (req: Request, res: Response): void => {
       'GET /checkout/ready': 'Get vehicles ready for checkout',
       'GET /checkout/estimate/:licensePlate': 'Get current cost estimate',
       'POST /checkout/force': 'Force checkout (admin)',
-      'GET /checkout/health': 'Service health check'
+      'GET /checkout/health': 'Service health check',
     },
     examples: {
       basicCheckout: {
         method: 'POST',
         url: '/checkout',
         body: {
-          licensePlate: 'ABC123'
-        }
+          licensePlate: 'ABC123',
+        },
       },
       withOptions: {
         method: 'POST',
@@ -156,22 +153,22 @@ router.use('*', (req: Request, res: Response): void => {
         body: {
           licensePlate: 'ABC123',
           applyGracePeriod: false,
-          removeRecord: true
-        }
+          removeRecord: true,
+        },
       },
       simulation: {
         method: 'POST',
         url: '/checkout/simulate',
         body: {
-          licensePlate: 'ABC123'
-        }
+          licensePlate: 'ABC123',
+        },
       },
       estimate: {
         method: 'GET',
-        url: '/checkout/estimate/ABC123'
-      }
+        url: '/checkout/estimate/ABC123',
+      },
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 

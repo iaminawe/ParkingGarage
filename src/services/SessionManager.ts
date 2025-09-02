@@ -46,9 +46,10 @@ export class SessionManager {
     try {
       // Only attempt Redis connection if URL is provided
       if (process.env.REDIS_URL || process.env.REDIS_HOST) {
-        const redisUrl = process.env.REDIS_URL || 
+        const redisUrl =
+          process.env.REDIS_URL ||
           `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`;
-        
+
         this.redisClient = createClient({
           url: redisUrl,
           socket: {
@@ -62,7 +63,7 @@ export class SessionManager {
           },
         });
 
-        this.redisClient.on('error', (error) => {
+        this.redisClient.on('error', error => {
           console.warn('Redis connection error, falling back to in-memory cache:', error.message);
           this.isRedisAvailable = false;
         });
@@ -122,13 +123,21 @@ export class SessionManager {
         ]);
       } else {
         // Fallback to in-memory cache
-        await this.fallbackCache.set(sessionKey, JSON.stringify(sessionData), Math.ceil(maxAge / 1000));
-        
+        await this.fallbackCache.set(
+          sessionKey,
+          JSON.stringify(sessionData),
+          Math.ceil(maxAge / 1000)
+        );
+
         // Track user sessions (simplified for in-memory)
-        const userSessions = await this.fallbackCache.get(userSessionsKey) || '[]';
+        const userSessions = (await this.fallbackCache.get(userSessionsKey)) || '[]';
         const sessions = JSON.parse(userSessions);
         sessions.push(sessionId);
-        await this.fallbackCache.set(userSessionsKey, JSON.stringify(sessions), Math.ceil(maxAge / 1000));
+        await this.fallbackCache.set(
+          userSessionsKey,
+          JSON.stringify(sessions),
+          Math.ceil(maxAge / 1000)
+        );
       }
 
       return true;
@@ -201,7 +210,7 @@ export class SessionManager {
         const maxAge = TIME_CONSTANTS.SESSION_DURATION_MS / 1000;
         const elapsed = (Date.now() - updatedSession.createdAt) / 1000;
         const remainingTtl = Math.max(0, maxAge - elapsed);
-        
+
         if (remainingTtl > 0) {
           await this.fallbackCache.set(sessionKey, JSON.stringify(updatedSession), remainingTtl);
         } else {
@@ -222,13 +231,13 @@ export class SessionManager {
   async deleteSession(sessionId: string): Promise<boolean> {
     try {
       const sessionKey = this.sessionPrefix + sessionId;
-      
+
       // Get session data to find user ID
       const sessionData = await this.getSessionOnly(sessionId);
-      
+
       if (this.isRedisAvailable && this.redisClient) {
         await this.redisClient.del(sessionKey);
-        
+
         // Remove from user sessions set
         if (sessionData) {
           const userSessionsKey = this.userSessionsPrefix + sessionData.userId;
@@ -236,11 +245,11 @@ export class SessionManager {
         }
       } else {
         await this.fallbackCache.delete(sessionKey);
-        
+
         // Remove from user sessions (simplified)
         if (sessionData) {
           const userSessionsKey = this.userSessionsPrefix + sessionData.userId;
-          const userSessions = await this.fallbackCache.get(userSessionsKey) || '[]';
+          const userSessions = (await this.fallbackCache.get(userSessionsKey)) || '[]';
           const sessions = JSON.parse(userSessions).filter((id: string) => id !== sessionId);
           await this.fallbackCache.set(userSessionsKey, JSON.stringify(sessions));
         }
@@ -284,16 +293,12 @@ export class SessionManager {
 
       if (this.isRedisAvailable && this.redisClient) {
         const sessionIds = await this.redisClient.sMembers(userSessionsKey);
-        const sessions = await Promise.all(
-          sessionIds.map(id => this.getSessionOnly(id))
-        );
+        const sessions = await Promise.all(sessionIds.map(id => this.getSessionOnly(id)));
         return sessions.filter(s => s !== null) as SessionData[];
       } else {
-        const userSessions = await this.fallbackCache.get(userSessionsKey) || '[]';
+        const userSessions = (await this.fallbackCache.get(userSessionsKey)) || '[]';
         const sessionIds = JSON.parse(userSessions);
-        const sessions = await Promise.all(
-          sessionIds.map((id: string) => this.getSessionOnly(id))
-        );
+        const sessions = await Promise.all(sessionIds.map((id: string) => this.getSessionOnly(id)));
         return sessions.filter(s => s !== null) as SessionData[];
       }
     } catch (error) {
@@ -338,12 +343,12 @@ export class SessionManager {
   private async enforceConcurrentSessionLimit(userId: string, maxSessions: number): Promise<void> {
     try {
       const sessions = await this.getUserSessions(userId);
-      
+
       if (sessions.length >= maxSessions) {
         // Sort by last accessed time and remove oldest
         const sortedSessions = sessions.sort((a, b) => a.lastAccessedAt - b.lastAccessedAt);
         const sessionsToRemove = sortedSessions.slice(0, sessions.length - maxSessions + 1);
-        
+
         for (const session of sessionsToRemove) {
           // Would need session ID to delete properly - this is simplified
           console.log('Would remove session for user:', userId);
@@ -364,7 +369,7 @@ export class SessionManager {
   ): Promise<{ valid: boolean; reason?: string; session?: SessionData }> {
     try {
       const session = await this.getSession(sessionId);
-      
+
       if (!session) {
         return { valid: false, reason: 'Session not found' };
       }
@@ -377,14 +382,18 @@ export class SessionManager {
       if (currentDeviceInfo && session.deviceInfo) {
         if (currentDeviceInfo !== session.deviceInfo) {
           // Log potential session hijacking attempt
-          console.warn(`Device mismatch for session ${sessionId}: expected ${session.deviceInfo}, got ${currentDeviceInfo}`);
+          console.warn(
+            `Device mismatch for session ${sessionId}: expected ${session.deviceInfo}, got ${currentDeviceInfo}`
+          );
           return { valid: false, reason: 'Device mismatch' };
         }
       }
 
       // Check for suspicious IP changes (optional - can be made configurable)
       if (currentIpAddress && session.ipAddress && currentIpAddress !== session.ipAddress) {
-        console.warn(`IP change detected for session ${sessionId}: ${session.ipAddress} -> ${currentIpAddress}`);
+        console.warn(
+          `IP change detected for session ${sessionId}: ${session.ipAddress} -> ${currentIpAddress}`
+        );
         // Don't invalidate session for IP changes as they can be legitimate
         // but log for monitoring
       }

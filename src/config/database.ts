@@ -12,10 +12,13 @@ class PrismaClientSingleton {
   static getInstance(): PrismaClient {
     if (!PrismaClientSingleton.instance) {
       PrismaClientSingleton.instance = new PrismaClient({
-        log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+        log:
+          process.env['NODE_ENV'] === 'development'
+            ? ['query', 'info', 'warn', 'error']
+            : ['error'],
         datasources: {
           db: {
-            url: process.env.DATABASE_URL,
+            url: process.env['DATABASE_URL'] || 'file:./dev.db',
           },
         },
       });
@@ -34,7 +37,9 @@ class PrismaClientSingleton {
    * Setup event handlers for proper connection management
    */
   private static setupEventHandlers(): void {
-    if (!PrismaClientSingleton.instance) return;
+    if (!PrismaClientSingleton.instance) {
+      return;
+    }
 
     // Handle graceful shutdown
     const gracefulShutdown = async (signal: string) => {
@@ -58,7 +63,7 @@ ${signal} received. Closing Prisma client...`);
     });
 
     // Handle uncaught exceptions and unhandled rejections
-    process.on('uncaughtException', async (error) => {
+    process.on('uncaughtException', async error => {
       console.error('Uncaught Exception:', error);
       if (PrismaClientSingleton.instance) {
         await PrismaClientSingleton.instance.$disconnect();

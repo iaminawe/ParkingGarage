@@ -1,10 +1,10 @@
 /**
  * Check-in Service with Sessions Integration
- * 
+ *
  * This module handles the business logic for vehicle check-in operations,
  * including duplicate prevention, atomic spot assignment, vehicle record
  * creation, session management, and integration with spot assignment algorithms.
- * 
+ *
  * @module CheckinService
  */
 
@@ -69,7 +69,12 @@ export class CheckinService {
       const assignedSpot = await this.findAndReserveSpot(vehicleType);
 
       // Step 3: Create vehicle record
-      const vehicle = await this.createVehicleRecord(licensePlate, assignedSpot.id, vehicleType as any, rateType);
+      const vehicle = await this.createVehicleRecord(
+        licensePlate,
+        assignedSpot.id,
+        vehicleType as any,
+        rateType
+      );
 
       // Step 4: Create parking session
       const session = await this.createParkingSession(vehicle, assignedSpot, options);
@@ -85,10 +90,9 @@ export class CheckinService {
         message: `Vehicle ${licensePlate} successfully checked in to spot ${assignedSpot.id}`,
         duration: {
           checkedIn: new Date().toISOString(),
-          expectedDuration: expectedDurationHours
-        }
+          expectedDuration: expectedDurationHours,
+        },
       };
-
     } catch (error) {
       console.error('CheckinService.checkInVehicle error:', error);
       throw error;
@@ -108,7 +112,7 @@ export class CheckinService {
 
       // Find available spot without reserving
       const availableSpot = await this.spotAssignmentService.findBestSpot(vehicleType);
-      
+
       if (!availableSpot) {
         throw new Error(`No available spots for vehicle type: ${vehicleType}`);
       }
@@ -119,7 +123,7 @@ export class CheckinService {
         licensePlate,
         vehicleType,
         recommendedSpot: availableSpot,
-        message: `Simulation: Vehicle ${licensePlate} would be assigned to spot ${availableSpot.id}`
+        message: `Simulation: Vehicle ${licensePlate} would be assigned to spot ${availableSpot.id}`,
       };
     } catch (error) {
       console.error('CheckinService.simulateCheckin error:', error);
@@ -136,7 +140,7 @@ export class CheckinService {
       return {
         success: true,
         availability: stats,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       console.error('CheckinService.getAvailability error:', error);
@@ -157,7 +161,7 @@ export class CheckinService {
         vehicles: vehicleStats,
         spots: spotStats,
         sessions: sessionStats,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       console.error('CheckinService.getCheckinStats error:', error);
@@ -176,7 +180,14 @@ export class CheckinService {
       throw new Error('Vehicle type is required and must be a string');
     }
 
-    const validVehicleTypes = ['compact', 'standard', 'oversized', 'electric', 'motorcycle', 'truck'];
+    const validVehicleTypes = [
+      'compact',
+      'standard',
+      'oversized',
+      'electric',
+      'motorcycle',
+      'truck',
+    ];
     if (!validVehicleTypes.includes(vehicleType.toLowerCase())) {
       throw new Error(`Invalid vehicle type. Must be one of: ${validVehicleTypes.join(', ')}`);
     }
@@ -190,9 +201,11 @@ export class CheckinService {
   private async checkForDuplicateVehicle(licensePlate: any): Promise<void> {
     try {
       const existingVehicle = await this.vehicleRepository.findByLicensePlate(licensePlate);
-      
+
       if (existingVehicle && (existingVehicle as any).status === 'parked') {
-        throw new Error(`Vehicle with license plate '${licensePlate}' is already checked in to spot ${existingVehicle.spotId}`);
+        throw new Error(
+          `Vehicle with license plate '${licensePlate}' is already checked in to spot ${existingVehicle.spotId}`
+        );
       }
     } catch (error) {
       if (error.message.includes('already checked in')) {
@@ -205,10 +218,12 @@ export class CheckinService {
   private async findAndReserveSpot(vehicleType: any): Promise<any> {
     try {
       const assignedSpot = await this.spotAssignmentService.findBestSpot(vehicleType);
-      
+
       if (!assignedSpot) {
         const stats = await this.spotRepository.getAvailabilityStats();
-        throw new Error(`No available spots for vehicle type '${vehicleType}'. Available spots: ${stats.available}, Occupied: ${stats.occupied}`);
+        throw new Error(
+          `No available spots for vehicle type '${vehicleType}'. Available spots: ${stats.available}, Occupied: ${stats.occupied}`
+        );
       }
 
       return assignedSpot;
@@ -230,7 +245,7 @@ export class CheckinService {
         spotId,
         vehicleType,
         rateType,
-        checkInTime: new Date().toISOString()
+        checkInTime: new Date().toISOString(),
       };
 
       return await this.vehicleRepository.create(vehicleData);
@@ -248,7 +263,7 @@ export class CheckinService {
     try {
       const now = new Date();
       const expectedEndTime = options.expectedDurationHours
-        ? new Date(now.getTime() + (options.expectedDurationHours * 60 * 60 * 1000))
+        ? new Date(now.getTime() + options.expectedDurationHours * 60 * 60 * 1000)
         : undefined;
 
       const sessionData = {
@@ -271,8 +286,8 @@ export class CheckinService {
         tags: ['checkin', vehicle.vehicleType],
         metadata: {
           checkinMethod: 'api',
-          assignedBy: 'system'
-        }
+          assignedBy: 'system',
+        },
       };
 
       return await this.sessionsRepository.create(sessionData);
@@ -286,7 +301,7 @@ export class CheckinService {
     try {
       await this.spotRepository.updateSpotStatus(spotId, 'occupied', {
         licensePlate,
-        occupiedAt: new Date().toISOString()
+        occupiedAt: new Date().toISOString(),
       });
     } catch (error) {
       console.error('CheckinService.occupySpot error:', error);
@@ -297,35 +312,32 @@ export class CheckinService {
   /**
    * Rollback checkin in case of partial failure
    */
-  private async rollbackCheckin(
-    vehicleId?: any,
-    spotId?: any,
-    sessionId?: any
-  ): Promise<void> {
+  private async rollbackCheckin(vehicleId?: any, spotId?: any, sessionId?: any): Promise<void> {
     try {
       const rollbackPromises = [];
 
       if (sessionId) {
         rollbackPromises.push(
-          this.sessionsRepository.delete(sessionId).then(() => {}).catch(err => 
-            console.error('Failed to rollback session:', err)
-          )
+          this.sessionsRepository
+            .delete(sessionId)
+            .then(() => {})
+            .catch(err => console.error('Failed to rollback session:', err))
         );
       }
 
       if (vehicleId) {
         rollbackPromises.push(
-          Promise.resolve(this.vehicleRepository.delete(vehicleId)).then(() => {}).catch(err => 
-            console.error('Failed to rollback vehicle:', err)
-          )
+          Promise.resolve(this.vehicleRepository.delete(vehicleId))
+            .then(() => {})
+            .catch(err => console.error('Failed to rollback vehicle:', err))
         );
       }
 
       if (spotId) {
         rollbackPromises.push(
-          Promise.resolve(this.spotRepository.updateSpotStatus(spotId, 'available', {})).then(() => {}).catch(err => 
-            console.error('Failed to rollback spot status:', err)
-          )
+          Promise.resolve(this.spotRepository.updateSpotStatus(spotId, 'available', {}))
+            .then(() => {})
+            .catch(err => console.error('Failed to rollback spot status:', err))
         );
       }
 

@@ -40,14 +40,14 @@ export interface ReservationResult {
   }>;
 }
 
-export type ReservationStatus = 
-  | 'CONFIRMED' 
-  | 'WAITLISTED' 
-  | 'PENDING_PAYMENT' 
-  | 'CANCELLED' 
-  | 'EXPIRED' 
-  | 'NO_SHOW' 
-  | 'ACTIVE' 
+export type ReservationStatus =
+  | 'CONFIRMED'
+  | 'WAITLISTED'
+  | 'PENDING_PAYMENT'
+  | 'CANCELLED'
+  | 'EXPIRED'
+  | 'NO_SHOW'
+  | 'ACTIVE'
   | 'COMPLETED';
 
 export interface Reservation {
@@ -134,7 +134,7 @@ class ReservationService {
         return {
           success: false,
           status: 'CANCELLED',
-          message: validation.errors.join(', ')
+          message: validation.errors.join(', '),
         };
       }
 
@@ -148,7 +148,7 @@ class ReservationService {
             success: true,
             status: 'WAITLISTED',
             message: 'Added to waitlist - you will be notified when a spot becomes available',
-            waitlistPosition: waitlistResult.position
+            waitlistPosition: waitlistResult.position,
           };
         }
 
@@ -156,17 +156,21 @@ class ReservationService {
           success: false,
           status: 'CANCELLED',
           message: 'No available spots for the requested time',
-          alternativeSpots: spotResult.alternatives
+          alternativeSpots: spotResult.alternatives,
         };
       }
 
       // Check for conflicts
-      const conflictCheck = await this.checkForConflicts(spotResult.spotId!, request.startTime, request.endTime);
+      const conflictCheck = await this.checkForConflicts(
+        spotResult.spotId!,
+        request.startTime,
+        request.endTime
+      );
       if (conflictCheck.hasConflict && conflictCheck.resolution === 'REJECT') {
         return {
           success: false,
           status: 'CANCELLED',
-          message: 'Time conflict detected with existing reservations'
+          message: 'Time conflict detected with existing reservations',
         };
       }
 
@@ -174,7 +178,7 @@ class ReservationService {
       const estimatedCost = await this.calculateReservationCost(request);
 
       // Create reservation
-      const reservation = await prisma.$transaction(async (tx) => {
+      const reservation = await prisma.$transaction(async tx => {
         // Create reservation record
         const newReservation = await tx.parkingSession.create({
           data: {
@@ -185,27 +189,27 @@ class ReservationService {
                 make: request.vehicleInfo.make,
                 model: request.vehicleInfo.model,
                 color: request.vehicleInfo.color,
-                ownerId: request.userId
-              }
+                ownerId: request.userId,
+              },
             },
             spot: {
-              connect: { id: spotResult.spotId! }
+              connect: { id: spotResult.spotId! },
             },
             startTime: request.startTime,
             totalAmount: estimatedCost,
             status: 'ACTIVE',
-            notes: request.notes
+            notes: request.notes,
           },
           include: {
             vehicle: true,
-            spot: true
-          }
+            spot: true,
+          },
         });
 
         // Update spot status to reserved
         await tx.parkingSpot.update({
           where: { id: spotResult.spotId! },
-          data: { status: 'RESERVED' }
+          data: { status: 'RESERVED' },
         });
 
         return newReservation;
@@ -222,8 +226,8 @@ class ReservationService {
           reservationId: reservation.id,
           spotId: spotResult.spotId,
           startTime: request.startTime,
-          endTime: request.endTime
-        }
+          endTime: request.endTime,
+        },
       });
 
       return {
@@ -231,14 +235,14 @@ class ReservationService {
         reservationId: reservation.id,
         spotId: spotResult.spotId!,
         status: 'CONFIRMED',
-        message: `Reservation confirmed for spot ${spotResult.spotNumber}`
+        message: `Reservation confirmed for spot ${spotResult.spotNumber}`,
       };
     } catch (error) {
       console.error('Reservation creation error:', error);
       return {
         success: false,
         status: 'CANCELLED',
-        message: 'Failed to create reservation'
+        message: 'Failed to create reservation',
       };
     }
   }
@@ -246,7 +250,11 @@ class ReservationService {
   /**
    * Cancel a reservation
    */
-  async cancelReservation(reservationId: string, userId: string, reason?: string): Promise<{
+  async cancelReservation(
+    reservationId: string,
+    userId: string,
+    reason?: string
+  ): Promise<{
     success: boolean;
     message: string;
     refundAmount?: number;
@@ -254,34 +262,34 @@ class ReservationService {
     try {
       const reservation = await prisma.parkingSession.findUnique({
         where: { id: reservationId },
-        include: { vehicle: true, spot: true }
+        include: { vehicle: true, spot: true },
       });
 
       if (!reservation) {
         return {
           success: false,
-          message: 'Reservation not found'
+          message: 'Reservation not found',
         };
       }
 
       if (reservation.vehicle?.ownerId !== userId) {
         return {
           success: false,
-          message: 'Unauthorized to cancel this reservation'
+          message: 'Unauthorized to cancel this reservation',
         };
       }
 
       if (reservation.status === 'CANCELLED' || reservation.status === 'COMPLETED') {
         return {
           success: false,
-          message: 'Reservation cannot be cancelled'
+          message: 'Reservation cannot be cancelled',
         };
       }
 
       // Check cancellation deadline
       const now = new Date();
       const cancellationDeadline = new Date(
-        reservation.startTime.getTime() - (this.CANCELLATION_DEADLINE_HOURS * 60 * 60 * 1000)
+        reservation.startTime.getTime() - this.CANCELLATION_DEADLINE_HOURS * 60 * 60 * 1000
       );
 
       let refundAmount = 0;
@@ -293,20 +301,20 @@ class ReservationService {
       // No refund after start time
 
       // Cancel reservation
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async tx => {
         await tx.parkingSession.update({
           where: { id: reservationId },
           data: {
             status: 'CANCELLED',
-            notes: reason ? `Cancelled: ${reason}` : 'Cancelled by user'
-          }
+            notes: reason ? `Cancelled: ${reason}` : 'Cancelled by user',
+          },
         });
 
         // Release spot
         if (reservation.spotId) {
           await tx.parkingSpot.update({
             where: { id: reservation.spotId },
-            data: { status: 'AVAILABLE' }
+            data: { status: 'AVAILABLE' },
           });
         }
       });
@@ -324,20 +332,20 @@ class ReservationService {
         metadata: {
           reservationId,
           refundAmount,
-          reason
-        }
+          reason,
+        },
       });
 
       return {
         success: true,
         message: `Reservation cancelled successfully${refundAmount > 0 ? ` - Refund: $${refundAmount.toFixed(2)}` : ''}`,
-        refundAmount
+        refundAmount,
       };
     } catch (error) {
       console.error('Reservation cancellation error:', error);
       return {
         success: false,
-        message: 'Failed to cancel reservation'
+        message: 'Failed to cancel reservation',
       };
     }
   }
@@ -359,21 +367,29 @@ class ReservationService {
         OR: [
           {
             startTime: { lte: endTime },
-            endTime: { gte: startTime }
-          }
-        ]
+            endTime: { gte: startTime },
+          },
+        ],
       },
-      include: { spot: true }
+      include: { spot: true },
     });
 
     const conflictDetails = conflicts.map(conflict => {
       const overlapStart = new Date(Math.max(startTime.getTime(), conflict.startTime.getTime()));
-      const overlapEnd = new Date(Math.min(endTime.getTime(), conflict.endTime?.getTime() || Date.now()));
-      const durationMinutes = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60));
+      const overlapEnd = new Date(
+        Math.min(endTime.getTime(), conflict.endTime?.getTime() || Date.now())
+      );
+      const durationMinutes = Math.max(
+        0,
+        (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60)
+      );
 
       let severity: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
-      if (durationMinutes > 120) severity = 'HIGH';
-      else if (durationMinutes > 60) severity = 'MEDIUM';
+      if (durationMinutes > 120) {
+        severity = 'HIGH';
+      } else if (durationMinutes > 60) {
+        severity = 'MEDIUM';
+      }
 
       return {
         reservationId: conflict.id,
@@ -381,9 +397,9 @@ class ReservationService {
         timeOverlap: {
           start: overlapStart,
           end: overlapEnd,
-          durationMinutes
+          durationMinutes,
         },
-        severity
+        severity,
       };
     });
 
@@ -400,7 +416,7 @@ class ReservationService {
     return {
       hasConflict,
       conflicts: conflictDetails,
-      resolution
+      resolution,
     };
   }
 
@@ -423,19 +439,23 @@ class ReservationService {
     if (request.spotId) {
       const spot = await prisma.parkingSpot.findUnique({
         where: { id: request.spotId },
-        include: { floor: true }
+        include: { floor: true },
       });
 
       if (!spot || !spot.isActive) {
         return { available: false };
       }
 
-      const conflicts = await this.checkForConflicts(request.spotId, request.startTime, request.endTime);
+      const conflicts = await this.checkForConflicts(
+        request.spotId,
+        request.startTime,
+        request.endTime
+      );
       if (!conflicts.hasConflict) {
         return {
           available: true,
           spotId: spot.id,
-          spotNumber: spot.spotNumber
+          spotNumber: spot.spotNumber,
         };
       }
     }
@@ -445,7 +465,7 @@ class ReservationService {
       where: {
         spotType: request.spotType.toUpperCase() as any,
         status: 'AVAILABLE',
-        isActive: true
+        isActive: true,
       },
       include: {
         floor: true,
@@ -453,11 +473,11 @@ class ReservationService {
           where: {
             status: { in: ['ACTIVE', 'CONFIRMED'] },
             startTime: { lte: request.endTime },
-            endTime: { gte: request.startTime }
-          }
-        }
+            endTime: { gte: request.startTime },
+          },
+        },
       },
-      orderBy: [{ level: 'asc' }, { spotNumber: 'asc' }]
+      orderBy: [{ level: 'asc' }, { spotNumber: 'asc' }],
     });
 
     // Filter out spots with conflicts
@@ -466,12 +486,12 @@ class ReservationService {
 
     for (const spot of availableSpots) {
       const conflicts = await this.checkForConflicts(spot.id, request.startTime, request.endTime);
-      
+
       const spotInfo = {
         spotId: spot.id,
         spotNumber: spot.spotNumber,
         floor: spot.level,
-        features: [] as SpotFeature[] // Would be populated from database
+        features: [] as SpotFeature[], // Would be populated from database
       };
 
       if (!conflicts.hasConflict) {
@@ -486,13 +506,13 @@ class ReservationService {
       return {
         available: true,
         spotId: bestSpot.spotId,
-        spotNumber: bestSpot.spotNumber
+        spotNumber: bestSpot.spotNumber,
       };
     }
 
     return {
       available: false,
-      alternatives: alternatives.slice(0, 5) // Return top 5 alternatives
+      alternatives: alternatives.slice(0, 5), // Return top 5 alternatives
     };
   }
 
@@ -503,7 +523,7 @@ class ReservationService {
     // This would be implemented with a proper waitlist table in production
     // For now, simulate waitlist position
     const position = Math.floor(Math.random() * 10) + 1;
-    
+
     // Log waitlist addition
     await this.auditService.logSecurityEvent({
       userId: request.userId,
@@ -514,8 +534,8 @@ class ReservationService {
       metadata: {
         spotType: request.spotType,
         requestedTime: request.startTime,
-        position
-      }
+        position,
+      },
     });
 
     return { position };
@@ -526,7 +546,9 @@ class ReservationService {
    */
   private async processWaitlistForCancellation(cancelledReservation: any): Promise<void> {
     // In production, this would query waitlist entries and notify users
-    console.log(`Processing waitlist for cancelled reservation in spot ${cancelledReservation.spotId}`);
+    console.log(
+      `Processing waitlist for cancelled reservation in spot ${cancelledReservation.spotId}`
+    );
   }
 
   /**
@@ -549,7 +571,8 @@ class ReservationService {
     }
 
     // Duration validation
-    const durationHours = (request.endTime.getTime() - request.startTime.getTime()) / (1000 * 60 * 60);
+    const durationHours =
+      (request.endTime.getTime() - request.startTime.getTime()) / (1000 * 60 * 60);
     if (durationHours > this.MAX_RESERVATION_DURATION_HOURS) {
       errors.push(`Maximum reservation duration is ${this.MAX_RESERVATION_DURATION_HOURS} hours`);
     }
@@ -571,7 +594,7 @@ class ReservationService {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -579,7 +602,8 @@ class ReservationService {
    * Calculate reservation cost
    */
   private async calculateReservationCost(request: ReservationRequest): Promise<number> {
-    const durationHours = (request.endTime.getTime() - request.startTime.getTime()) / (1000 * 60 * 60);
+    const durationHours =
+      (request.endTime.getTime() - request.startTime.getTime()) / (1000 * 60 * 60);
     const baseRatePerHour = this.getBaseRate(request.spotType);
     return Math.round(durationHours * baseRatePerHour * 100) / 100;
   }
@@ -591,7 +615,7 @@ class ReservationService {
     const rates = {
       compact: 4.0,
       standard: 5.0,
-      oversized: 7.0
+      oversized: 7.0,
     };
     return rates[spotType] || 5.0;
   }
@@ -603,13 +627,13 @@ class ReservationService {
     const sessions = await prisma.parkingSession.findMany({
       where: {
         vehicle: { ownerId: userId },
-        status: status ? status : undefined
+        status: status ? status : undefined,
       },
       include: {
         vehicle: true,
-        spot: true
+        spot: true,
       },
-      orderBy: { startTime: 'desc' }
+      orderBy: { startTime: 'desc' },
     });
 
     return sessions.map(session => ({
@@ -628,9 +652,9 @@ class ReservationService {
       estimatedCost: session.totalAmount,
       actualCost: session.amountPaid,
       cancellationDeadline: new Date(
-        session.startTime.getTime() - (this.CANCELLATION_DEADLINE_HOURS * 60 * 60 * 1000)
+        session.startTime.getTime() - this.CANCELLATION_DEADLINE_HOURS * 60 * 60 * 1000
       ),
-      notes: session.notes
+      notes: session.notes,
     }));
   }
 
@@ -639,14 +663,17 @@ class ReservationService {
    */
   private startAutoCleanupProcess(): void {
     // Run cleanup every 10 minutes
-    setInterval(async () => {
-      try {
-        await this.cleanupExpiredReservations();
-        await this.markNoShowReservations();
-      } catch (error) {
-        console.error('Auto-cleanup error:', error);
-      }
-    }, 10 * 60 * 1000);
+    setInterval(
+      async () => {
+        try {
+          await this.cleanupExpiredReservations();
+          await this.markNoShowReservations();
+        } catch (error) {
+          console.error('Auto-cleanup error:', error);
+        }
+      },
+      10 * 60 * 1000
+    );
   }
 
   /**
@@ -657,24 +684,24 @@ class ReservationService {
     const expiredReservations = await prisma.parkingSession.findMany({
       where: {
         status: 'ACTIVE',
-        endTime: { lt: now }
+        endTime: { lt: now },
       },
-      include: { spot: true }
+      include: { spot: true },
     });
 
     for (const reservation of expiredReservations) {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async tx => {
         // Mark reservation as completed
         await tx.parkingSession.update({
           where: { id: reservation.id },
-          data: { status: 'COMPLETED' }
+          data: { status: 'COMPLETED' },
         });
 
         // Release spot
         if (reservation.spotId) {
           await tx.parkingSpot.update({
             where: { id: reservation.spotId },
-            data: { status: 'AVAILABLE' }
+            data: { status: 'AVAILABLE' },
           });
         }
       });
@@ -690,29 +717,29 @@ class ReservationService {
    */
   private async markNoShowReservations(): Promise<void> {
     const now = new Date();
-    const noShowCutoff = new Date(now.getTime() - (this.NO_SHOW_GRACE_PERIOD_MINUTES * 60 * 1000));
-    
+    const noShowCutoff = new Date(now.getTime() - this.NO_SHOW_GRACE_PERIOD_MINUTES * 60 * 1000);
+
     const noShowReservations = await prisma.parkingSession.findMany({
       where: {
         status: 'ACTIVE',
-        startTime: { lt: noShowCutoff }
+        startTime: { lt: noShowCutoff },
       },
-      include: { spot: true, vehicle: true }
+      include: { spot: true, vehicle: true },
     });
 
     for (const reservation of noShowReservations) {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async tx => {
         // Mark as no-show
         await tx.parkingSession.update({
           where: { id: reservation.id },
-          data: { status: 'NO_SHOW' as any }
+          data: { status: 'NO_SHOW' as any },
         });
 
         // Release spot
         if (reservation.spotId) {
           await tx.parkingSpot.update({
             where: { id: reservation.spotId },
-            data: { status: 'AVAILABLE' }
+            data: { status: 'AVAILABLE' },
           });
         }
       });
@@ -726,8 +753,8 @@ class ReservationService {
         description: `No-show for reservation ${reservation.id}`,
         metadata: {
           reservationId: reservation.id,
-          spotId: reservation.spotId
-        }
+          spotId: reservation.spotId,
+        },
       });
     }
 
@@ -739,7 +766,9 @@ class ReservationService {
   /**
    * Get reservation statistics
    */
-  async getReservationStats(timeframe: 'day' | 'week' | 'month' = 'day'): Promise<ReservationStats> {
+  async getReservationStats(
+    timeframe: 'day' | 'week' | 'month' = 'day'
+  ): Promise<ReservationStats> {
     const now = new Date();
     let startDate: Date;
 
@@ -755,26 +784,31 @@ class ReservationService {
         break;
     }
 
-    const [total, active, completed, cancelled, revenue, totalSpots, occupiedSpots] = await Promise.all([
-      prisma.parkingSession.count({ where: { createdAt: { gte: startDate } } }),
-      prisma.parkingSession.count({ where: { status: 'ACTIVE', createdAt: { gte: startDate } } }),
-      prisma.parkingSession.count({ where: { status: 'COMPLETED', createdAt: { gte: startDate } } }),
-      prisma.parkingSession.count({ where: { status: 'CANCELLED', createdAt: { gte: startDate } } }),
-      prisma.parkingSession.aggregate({
-        where: { status: 'COMPLETED', createdAt: { gte: startDate } },
-        _sum: { amountPaid: true }
-      }),
-      prisma.parkingSpot.count({ where: { isActive: true } }),
-      prisma.parkingSpot.count({ where: { status: 'OCCUPIED', isActive: true } })
-    ]);
+    const [total, active, completed, cancelled, revenue, totalSpots, occupiedSpots] =
+      await Promise.all([
+        prisma.parkingSession.count({ where: { createdAt: { gte: startDate } } }),
+        prisma.parkingSession.count({ where: { status: 'ACTIVE', createdAt: { gte: startDate } } }),
+        prisma.parkingSession.count({
+          where: { status: 'COMPLETED', createdAt: { gte: startDate } },
+        }),
+        prisma.parkingSession.count({
+          where: { status: 'CANCELLED', createdAt: { gte: startDate } },
+        }),
+        prisma.parkingSession.aggregate({
+          where: { status: 'COMPLETED', createdAt: { gte: startDate } },
+          _sum: { amountPaid: true },
+        }),
+        prisma.parkingSpot.count({ where: { isActive: true } }),
+        prisma.parkingSpot.count({ where: { status: 'OCCUPIED', isActive: true } }),
+      ]);
 
     const avgDuration = await prisma.parkingSession.aggregate({
       where: {
         status: 'COMPLETED',
         createdAt: { gte: startDate },
-        duration: { not: null }
+        duration: { not: null },
       },
-      _avg: { duration: true }
+      _avg: { duration: true },
     });
 
     return {
@@ -786,7 +820,7 @@ class ReservationService {
       waitlistSize: 0, // Would be calculated from waitlist table
       averageReservationDuration: avgDuration._avg.duration || 0,
       occupancyRate: totalSpots > 0 ? (occupiedSpots / totalSpots) * 100 : 0,
-      revenue: revenue._sum.amountPaid || 0
+      revenue: revenue._sum.amountPaid || 0,
     };
   }
 }

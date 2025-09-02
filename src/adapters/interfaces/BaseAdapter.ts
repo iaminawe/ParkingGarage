@@ -1,9 +1,9 @@
 /**
  * Base adapter interface definitions
- * 
+ *
  * These interfaces define the contract for database adapters,
  * providing standardized CRUD operations with proper typing.
- * 
+ *
  * @module BaseAdapter
  */
 
@@ -158,10 +158,7 @@ export interface ITransactionManager {
   /**
    * Execute operations within a transaction
    */
-  executeTransaction<T>(
-    callback: TransactionCallback<T>,
-    options?: TransactionOptions
-  ): Promise<T>;
+  executeTransaction<T>(callback: TransactionCallback<T>, options?: TransactionOptions): Promise<T>;
 }
 
 /**

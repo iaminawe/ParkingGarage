@@ -1,14 +1,15 @@
 /**
  * In-memory storage singleton using JavaScript Maps for O(1) lookups
- * 
+ *
  * This module provides a centralized in-memory data store for the parking garage
  * application. It uses the singleton pattern to ensure a single instance across
  * the entire application and provides high-performance O(1) lookups using Map objects.
- * 
+ *
  * @module MemoryStore
  */
 
-import type { SpotRecord, VehicleRecord, GarageRecord } from '../types/models';
+import type { SpotRecord, VehicleRecord } from '../types/models';
+import type { Garage } from '../models/garage';
 
 /**
  * Statistics interface for the memory store
@@ -40,7 +41,7 @@ export class MemoryStore {
   /**
    * Map storing garage configuration data
    */
-  public readonly garageConfig: Map<string, GarageRecord>;
+  public readonly garageConfig: Map<string, Garage>;
 
   /**
    * Map for quick lookup of spots by floor and bay
@@ -92,7 +93,7 @@ export class MemoryStore {
       totalVehicles: this.vehicles.size,
       occupiedSpots: this.occupiedSpots.size,
       availableSpots: this.spots.size - this.occupiedSpots.size,
-      floorsAndBays: this.spotsByFloorBay.size
+      floorsAndBays: this.spotsByFloorBay.size,
     };
   }
 }
