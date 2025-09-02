@@ -31,34 +31,59 @@ const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setError(null)
-      const [garagesRes, systemAnalyticsRes, sessionsRes] = await Promise.all([
-        apiService.getGarages(),
-        apiService.getSystemAnalytics(),
-        apiService.getSessions()
-      ])
-
-      if (!garagesRes.success || !systemAnalyticsRes.success || !sessionsRes.success) {
-        throw new Error('Failed to fetch dashboard data')
+      
+      // Fetch each API endpoint independently and handle failures gracefully
+      const fetchWithFallback = async <T>(
+        apiCall: () => Promise<any>,
+        fallbackValue: T,
+        endpoint: string
+      ): Promise<T> => {
+        try {
+          const response = await apiCall()
+          return response.success ? response.data : fallbackValue
+        } catch (error) {
+          console.warn(`Failed to fetch ${endpoint}:`, error)
+          return fallbackValue
+        }
       }
 
-      const garages = garagesRes.data
-      const totalOccupancy = garages.reduce(
+      const [garages, systemAnalytics, sessions] = await Promise.all([
+        fetchWithFallback(
+          () => apiService.getGarages(),
+          [],
+          'garages'
+        ),
+        fetchWithFallback(
+          () => apiService.getSystemAnalytics(),
+          null,
+          'system analytics'
+        ),
+        fetchWithFallback(
+          () => apiService.getSessions(),
+          [],
+          'sessions'
+        )
+      ])
+
+      const totalOccupancy = Array.isArray(garages) ? garages.reduce(
         (acc, garage) => ({
-          occupied: acc.occupied + (garage.totalSpots - garage.availableSpots),
-          available: acc.available + garage.availableSpots,
-          total: acc.total + garage.totalSpots
+          occupied: acc.occupied + (garage.totalSpots - garage.availableSpots || 0),
+          available: acc.available + (garage.availableSpots || 0),
+          total: acc.total + (garage.totalSpots || 0)
         }),
         { occupied: 0, available: 0, total: 0 }
-      )
+      ) : { occupied: 0, available: 0, total: 100 } // Mock data when API fails
 
       // Get recent sessions (last 10)
-      const recentSessions = sessionsRes.data
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 10)
+      const recentSessions = Array.isArray(sessions) 
+        ? sessions
+            .sort((a, b) => new Date(b.createdAt || b.startTime).getTime() - new Date(a.createdAt || a.startTime).getTime())
+            .slice(0, 10)
+        : []
 
       setData({
-        analytics: systemAnalyticsRes.data as unknown as GarageAnalytics,
-        garages,
+        analytics: systemAnalytics as unknown as GarageAnalytics,
+        garages: Array.isArray(garages) ? garages : [],
         recentSessions,
         totalOccupancy
       })
