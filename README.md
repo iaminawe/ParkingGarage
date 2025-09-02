@@ -25,10 +25,35 @@ A comprehensive parking garage management system with a **complete backend API**
 
 ## 📚 Documentation
 
-### **Available Documentation**
+### **API Documentation** 
+- **[Complete API Reference](./docs/API.md)** - Comprehensive endpoint documentation with curl examples
 - **[Enhanced API Interface](http://127.0.0.1:9000/api-test.html)** - Modern interactive documentation with dark mode
 - **[Interactive API Documentation](http://localhost:3000/api-docs)** - Standard Swagger UI (when running)
 - **[OpenAPI Specification](http://localhost:3000/api-docs/swagger.json)** - Machine-readable API spec
+- **[YAML OpenAPI Spec](./docs/openapi.yaml)** - Complete OpenAPI 3.0.3 specification
+
+### **Quick API Reference**
+```bash
+# Core Operations
+POST /api/checkin              # Check in a vehicle
+POST /api/checkout             # Check out a vehicle
+GET  /api/spots                # List parking spots
+GET  /api/vehicles             # List vehicles
+GET  /api/stats                # Get statistics
+
+# Management
+GET  /api/garage               # Get garage configuration
+POST /api/garage/initialize    # Initialize garage
+PUT  /api/garage/rates         # Update parking rates
+GET  /api/health               # Health check
+
+# Examples
+curl -X POST http://localhost:3000/api/checkin \
+  -H "Content-Type: application/json" \
+  -d '{"licensePlate": "ABC123", "vehicleType": "standard"}'
+
+curl -X GET "http://localhost:3000/api/spots?status=available&limit=10"
+```
 
 ### **Additional Resources**
 - **[Production Deployment Guide](./docs/PRODUCTION_DEPLOYMENT.md)** - Complete deployment instructions
@@ -48,6 +73,24 @@ A comprehensive parking garage management system with a **complete backend API**
 - ✅ **Automatic spot assignment** - Smart algorithm finds optimal spots
 - ✅ **Check-out processing** - POST /api/checkout with billing calculation
 - ✅ **Duration tracking** - Accurate parking duration calculation
+- ✅ **Vehicle management** - Full CRUD operations via /api/vehicles
+- ✅ **Search functionality** - Advanced vehicle search capabilities
+- ✅ **Cost estimation** - Real-time parking cost calculations
+
+### 📊 Analytics & Statistics (Backend Complete)
+- ✅ **Comprehensive statistics** - GET /api/stats with occupancy, revenue, usage patterns
+- ✅ **Real-time occupancy** - Live garage capacity tracking
+- ✅ **Revenue analytics** - Daily, weekly, monthly revenue reports
+- ✅ **Usage patterns** - Peak hours, turnover rates, comparative analysis
+- ✅ **Floor-specific stats** - Individual floor performance metrics
+- ✅ **Export capabilities** - Data export in multiple formats
+
+### 🔧 Management Operations (Backend Complete)
+- ✅ **Garage configuration** - Multi-floor, multi-bay setup via /api/garage
+- ✅ **Spot management** - Individual spot control via /api/spots
+- ✅ **Rate management** - Dynamic pricing configuration
+- ✅ **Admin operations** - Force checkout, bulk operations
+- ✅ **Health monitoring** - System health checks and diagnostics
 - ✅ **Vehicle lookup** - Find any vehicle currently in the garage
 - ✅ **Availability checking** - Real-time capacity monitoring
 

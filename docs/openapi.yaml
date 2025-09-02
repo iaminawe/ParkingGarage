@@ -25,6 +25,14 @@ tags:
     description: Parking spot operations
   - name: Check-in
     description: Vehicle check-in operations
+  - name: Checkout
+    description: Vehicle checkout operations
+  - name: Vehicles
+    description: Vehicle management operations
+  - name: Statistics
+    description: Analytics and statistics
+  - name: Health
+    description: Health check endpoints
 
 paths:
   /garage:
@@ -552,6 +560,496 @@ paths:
               schema:
                 $ref: '#/components/schemas/CheckinStatsResponse'
 
+  /checkout:
+    post:
+      tags:
+        - Checkout
+      summary: Check out vehicle
+      description: Check out a vehicle from the garage
+      operationId: checkoutVehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Vehicle checked out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+        '400':
+          description: Invalid checkout data
+        '404':
+          description: Vehicle not found
+
+  /checkout/simulate:
+    post:
+      tags:
+        - Checkout
+      summary: Simulate checkout
+      description: Simulate checkout without actually performing it
+      operationId: simulateCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Simulation completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutSimulationResponse'
+
+  /checkout/estimate/{licensePlate}:
+    get:
+      tags:
+        - Checkout
+      summary: Get current cost estimate
+      description: Get current parking cost estimate for a vehicle
+      operationId: getCurrentEstimate
+      parameters:
+        - name: licensePlate
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Vehicle license plate
+      responses:
+        '200':
+          description: Estimate retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutEstimateResponse'
+
+  /checkout/ready:
+    get:
+      tags:
+        - Checkout
+      summary: Get vehicles ready for checkout
+      description: Get vehicles that are ready for checkout
+      operationId: getVehiclesReadyForCheckout
+      parameters:
+        - name: minMinutes
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+          description: Minimum parking time in minutes
+        - name: vehicleType
+          in: query
+          schema:
+            type: string
+            enum: [compact, standard, oversized]
+          description: Filter by vehicle type
+      responses:
+        '200':
+          description: Ready vehicles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutReadyResponse'
+
+  /checkout/stats:
+    get:
+      tags:
+        - Checkout
+      summary: Get checkout statistics
+      description: Get checkout statistics and revenue metrics
+      operationId: getCheckoutStats
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutStatsResponse'
+
+  /checkout/force:
+    post:
+      tags:
+        - Checkout
+      summary: Force checkout (Admin)
+      description: Force checkout for administrative purposes
+      operationId: forceCheckout
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForceCheckoutRequest'
+      responses:
+        '200':
+          description: Force checkout completed
+        '401':
+          description: Admin authentication required
+
+  /vehicles:
+    get:
+      tags:
+        - Vehicles
+      summary: Get all vehicles
+      description: Get all vehicles with pagination and filtering
+      operationId: getAllVehicles
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Items per page
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search term for license plate
+      responses:
+        '200':
+          description: Vehicles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehiclesListResponse'
+
+    post:
+      tags:
+        - Vehicles
+      summary: Create vehicle
+      description: Create a new vehicle record
+      operationId: createVehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleCreateRequest'
+      responses:
+        '201':
+          description: Vehicle created successfully
+        '400':
+          description: Invalid vehicle data
+
+  /vehicles/{id}:
+    get:
+      tags:
+        - Vehicles
+      summary: Get vehicle by ID
+      description: Get a specific vehicle by ID (license plate)
+      operationId: getVehicleById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Vehicle ID (license plate)
+      responses:
+        '200':
+          description: Vehicle retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleDetailsResponse'
+        '404':
+          description: Vehicle not found
+
+    put:
+      tags:
+        - Vehicles
+      summary: Update vehicle
+      description: Update a vehicle
+      operationId: updateVehicle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Vehicle ID (license plate)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleUpdateRequest'
+      responses:
+        '200':
+          description: Vehicle updated successfully
+
+    delete:
+      tags:
+        - Vehicles
+      summary: Delete vehicle
+      description: Delete a vehicle
+      operationId: deleteVehicle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Vehicle ID (license plate)
+      responses:
+        '200':
+          description: Vehicle deleted successfully
+
+  /vehicles/metrics:
+    get:
+      tags:
+        - Vehicles
+      summary: Get vehicle metrics
+      description: Get vehicle metrics and statistics
+      operationId: getVehicleMetrics
+      responses:
+        '200':
+          description: Metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleMetricsResponse'
+
+  /vehicles/bulk-delete:
+    post:
+      tags:
+        - Vehicles
+      summary: Bulk delete vehicles
+      description: Bulk delete vehicles
+      operationId: bulkDeleteVehicles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: Vehicles deleted successfully
+
+  /vehicles/search:
+    get:
+      tags:
+        - Vehicles
+      summary: Search vehicles
+      description: Search vehicles by license plate (legacy search functionality)
+      operationId: searchVehicles
+      parameters:
+        - name: search
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search term for license plate
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [exact, partial, fuzzy, all]
+            default: partial
+          description: Search mode
+      responses:
+        '200':
+          description: Search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleSearchResponse'
+
+  /stats:
+    get:
+      tags:
+        - Statistics
+      summary: Get comprehensive garage statistics
+      description: Get comprehensive garage statistics
+      operationId: getGarageStats
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GarageStatsResponse'
+
+  /stats/occupancy:
+    get:
+      tags:
+        - Statistics
+      summary: Get occupancy summary
+      description: Get real-time occupancy summary
+      operationId: getOccupancySummary
+      responses:
+        '200':
+          description: Occupancy summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OccupancySummaryResponse'
+
+  /stats/dashboard:
+    get:
+      tags:
+        - Statistics
+      summary: Get dashboard statistics
+      description: Get dashboard summary with key metrics
+      operationId: getDashboardStats
+      responses:
+        '200':
+          description: Dashboard statistics retrieved successfully
+
+  /stats/trends:
+    get:
+      tags:
+        - Statistics
+      summary: Get occupancy trends
+      description: Get occupancy trends over time
+      operationId: getOccupancyTrends
+      parameters:
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 168
+            default: 24
+          description: Hours to analyze (1-168, max 1 week)
+      responses:
+        '200':
+          description: Trends retrieved successfully
+
+  /stats/revenue:
+    get:
+      tags:
+        - Statistics
+      summary: Get revenue analytics
+      description: Get revenue analytics
+      operationId: getRevenueAnalytics
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 7
+          description: Days to analyze (1-365, max 1 year)
+      responses:
+        '200':
+          description: Revenue analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevenueAnalyticsResponse'
+
+  /stats/usage:
+    get:
+      tags:
+        - Statistics
+      summary: Get usage patterns
+      description: Get usage patterns and peak times
+      operationId: getUsagePatterns
+      responses:
+        '200':
+          description: Usage patterns retrieved successfully
+
+  /stats/compare:
+    get:
+      tags:
+        - Statistics
+      summary: Get comparative statistics
+      description: Get comparative statistics (current vs previous period)
+      operationId: getComparativeStats
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+          description: Period to compare
+      responses:
+        '200':
+          description: Comparative statistics retrieved successfully
+
+  /stats/export:
+    get:
+      tags:
+        - Statistics
+      summary: Export statistics data
+      description: Export statistics data
+      operationId: exportStats
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [garage, revenue, usage]
+            default: garage
+          description: Data type to export
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json]
+            default: json
+          description: Export format
+      responses:
+        '200':
+          description: Statistics data exported successfully
+
+  /stats/floor/{id}:
+    get:
+      tags:
+        - Statistics
+      summary: Get floor-specific statistics
+      description: Get floor-specific statistics
+      operationId: getFloorStats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Floor number
+      responses:
+        '200':
+          description: Floor statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FloorStatsResponse'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: API health check
+      description: Check if the API server is running
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
 components:
   schemas:
     ErrorResponse:
@@ -1021,6 +1519,509 @@ components:
               type: string
             revenueToday:
               type: number
+
+    CheckoutRequest:
+      type: object
+      required:
+        - licensePlate
+      properties:
+        licensePlate:
+          type: string
+          minLength: 2
+          maxLength: 10
+          description: Vehicle license plate
+        applyGracePeriod:
+          type: boolean
+          default: true
+          description: Apply grace period to reduce charges
+        removeRecord:
+          type: boolean
+          default: false
+          description: Remove vehicle record after checkout
+        checkOutTime:
+          type: string
+          format: date-time
+          description: Custom checkout time (optional, defaults to current time)
+
+    CheckoutResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            licensePlate:
+              type: string
+            spotId:
+              type: string
+            timing:
+              type: object
+              properties:
+                checkinTime:
+                  type: string
+                  format: date-time
+                checkoutTime:
+                  type: string
+                  format: date-time
+                duration:
+                  type: string
+                durationMinutes:
+                  type: integer
+            billing:
+              type: object
+              properties:
+                rate:
+                  type: number
+                totalCost:
+                  type: number
+                gracePeriodApplied:
+                  type: boolean
+                breakdown:
+                  type: object
+                  properties:
+                    baseTime:
+                      type: integer
+                    gracePeriod:
+                      type: integer
+                    billableTime:
+                      type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    CheckoutSimulationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            simulation:
+              type: object
+              properties:
+                estimatedCost:
+                  type: number
+                duration:
+                  type: string
+                rate:
+                  type: number
+                gracePeriodSavings:
+                  type: number
+
+    CheckoutEstimateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            licensePlate:
+              type: string
+            estimate:
+              type: object
+              properties:
+                currentDuration:
+                  type: string
+                estimatedCost:
+                  type: number
+                rate:
+                  type: number
+                projectedCost:
+                  type: object
+                  properties:
+                    nextHour:
+                      type: number
+                    endOfDay:
+                      type: number
+
+    CheckoutReadyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            count:
+              type: integer
+            vehicles:
+              type: array
+              items:
+                type: object
+                properties:
+                  licensePlate:
+                    type: string
+                  spotId:
+                    type: string
+                  checkinTime:
+                    type: string
+                    format: date-time
+                  duration:
+                    type: string
+                  estimatedCost:
+                    type: number
+
+    CheckoutStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            statistics:
+              type: object
+              properties:
+                todayCheckouts:
+                  type: integer
+                totalRevenue:
+                  type: number
+                averageSession:
+                  type: string
+                peakCheckoutHour:
+                  type: string
+
+    ForceCheckoutRequest:
+      type: object
+      required:
+        - licensePlate
+        - reason
+        - adminKey
+      properties:
+        licensePlate:
+          type: string
+          description: Vehicle license plate
+        reason:
+          type: string
+          description: Reason for forced checkout
+        adminKey:
+          type: string
+          description: Admin authentication key
+
+    VehiclesListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            vehicles:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  licensePlate:
+                    type: string
+                  vehicleType:
+                    type: string
+                    enum: [compact, standard, oversized]
+                  checkinTime:
+                    type: string
+                    format: date-time
+                  spotId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [checked_in, checked_out]
+            pagination:
+              type: object
+              properties:
+                page:
+                  type: integer
+                limit:
+                  type: integer
+                total:
+                  type: integer
+                pages:
+                  type: integer
+
+    VehicleCreateRequest:
+      type: object
+      required:
+        - licensePlate
+        - vehicleType
+      properties:
+        licensePlate:
+          type: string
+          minLength: 2
+          maxLength: 10
+        vehicleType:
+          type: string
+          enum: [compact, standard, oversized]
+        rateType:
+          type: string
+          enum: [hourly, daily, monthly]
+          default: hourly
+
+    VehicleDetailsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            licensePlate:
+              type: string
+            vehicleType:
+              type: string
+            checkinTime:
+              type: string
+              format: date-time
+            spotId:
+              type: string
+            status:
+              type: string
+            rateType:
+              type: string
+            currentCost:
+              type: number
+
+    VehicleUpdateRequest:
+      type: object
+      properties:
+        vehicleType:
+          type: string
+          enum: [compact, standard, oversized]
+        rateType:
+          type: string
+          enum: [hourly, daily, monthly]
+
+    VehicleMetricsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            totalVehicles:
+              type: integer
+            byType:
+              type: object
+              properties:
+                compact:
+                  type: integer
+                standard:
+                  type: integer
+                oversized:
+                  type: integer
+            averageSessionTime:
+              type: string
+            totalRevenue:
+              type: number
+
+    BulkDeleteRequest:
+      type: object
+      required:
+        - vehicleIds
+      properties:
+        vehicleIds:
+          type: array
+          items:
+            type: string
+          minItems: 1
+
+    VehicleSearchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            results:
+              type: array
+              items:
+                type: object
+                properties:
+                  licensePlate:
+                    type: string
+                  vehicleType:
+                    type: string
+                  spotId:
+                    type: string
+                  matchScore:
+                    type: number
+            totalMatches:
+              type: integer
+
+    GarageStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            garage:
+              type: object
+              properties:
+                totalSpots:
+                  type: integer
+                occupiedSpots:
+                  type: integer
+                availableSpots:
+                  type: integer
+                occupancyRate:
+                  type: number
+            revenue:
+              type: object
+              properties:
+                today:
+                  type: number
+                thisWeek:
+                  type: number
+                thisMonth:
+                  type: number
+            vehicles:
+              type: object
+              properties:
+                checkedIn:
+                  type: integer
+                checkedOut:
+                  type: integer
+
+    OccupancySummaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            currentOccupancy:
+              type: integer
+            capacity:
+              type: integer
+            occupancyRate:
+              type: number
+            byFloor:
+              type: array
+              items:
+                type: object
+                properties:
+                  floor:
+                    type: integer
+                  occupied:
+                    type: integer
+                  capacity:
+                    type: integer
+                  rate:
+                    type: number
+            byType:
+              type: object
+              properties:
+                compact:
+                  type: object
+                  properties:
+                    occupied:
+                      type: integer
+                    capacity:
+                      type: integer
+                    rate:
+                      type: number
+                standard:
+                  type: object
+                  properties:
+                    occupied:
+                      type: integer
+                    capacity:
+                      type: integer
+                    rate:
+                      type: number
+                oversized:
+                  type: object
+                  properties:
+                    occupied:
+                      type: integer
+                    capacity:
+                      type: integer
+                    rate:
+                      type: number
+
+    RevenueAnalyticsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            totalRevenue:
+              type: number
+            dailyAverage:
+              type: number
+            byVehicleType:
+              type: object
+              properties:
+                compact:
+                  type: number
+                standard:
+                  type: number
+                oversized:
+                  type: number
+            trends:
+              type: object
+              properties:
+                direction:
+                  type: string
+                  enum: [increasing, decreasing, stable]
+                changePercent:
+                  type: number
+
+    FloorStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            floor:
+              type: integer
+            totalSpots:
+              type: integer
+            occupiedSpots:
+              type: integer
+            availableSpots:
+              type: integer
+            occupancyRate:
+              type: number
+            revenue:
+              type: object
+              properties:
+                today:
+                  type: number
+                average:
+                  type: number
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          description: Server uptime in seconds
+        environment:
+          type: string
+          description: Runtime environment
+        version:
+          type: string
+          description: API version
 
   securitySchemes:
     ApiKeyAuth:

@@ -46,3 +46,27 @@ export {
   requireGarageExists,
   sanitizeGarageName
 } from './garageValidation';
+
+// Vehicle validation exports
+export {
+  validateVehicleCreation,
+  validateVehicleUpdate,
+  validateVehicleId,
+  validateVehicleQuery,
+  validateBulkRequest,
+  sanitizeVehicleRequest,
+  validateRequestBody as validateVehicleRequestBody,
+  validateContentType as validateVehicleContentType
+} from './vehicleValidation';
+
+// Session validation exports
+export {
+  validateSessionId,
+  validateSessionQuery,
+  validateEndSessionRequest,
+  validateCancelSessionRequest,
+  validateExtendSessionRequest,
+  validateContentType as validateSessionContentType,
+  validateRequestBody as validateSessionRequestBody,
+  sanitizeSessionRequest
+} from './sessionValidation';
