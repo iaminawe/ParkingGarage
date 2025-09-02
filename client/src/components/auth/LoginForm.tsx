@@ -80,7 +80,7 @@ export const LoginForm: React.FC = () => {
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Enter any password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -104,10 +104,10 @@ export const LoginForm: React.FC = () => {
           </div>
           
           <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-            <p className="font-medium mb-1">Demo Credentials:</p>
-            <p>• Any email + any password works</p>
-            <p>• Try: admin@demo.com / demo</p>
-            <p>• Or: operator@demo.com / demo</p>
+            <p className="font-medium mb-1">Account Required:</p>
+            <p>• Create an account via Sign Up</p>
+            <p>• Or use existing registered credentials</p>
+            <p>• Secure JWT authentication with database persistence</p>
           </div>
         </CardContent>
         
