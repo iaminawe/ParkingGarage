@@ -69,11 +69,13 @@ export class CircuitBreaker {
    * Handle successful execution
    */
   private onSuccess(): void {
+    const wasHalfOpen = this.state === CircuitBreakerState.HALF_OPEN;
+    
     this.failureCount = 0;
     this.state = CircuitBreakerState.CLOSED;
     
     // Log recovery if we were in half-open state
-    if (this.state === CircuitBreakerState.HALF_OPEN) {
+    if (wasHalfOpen) {
       SecurityAuditUtils.logSecurityEvent({
         event: 'CIRCUIT_BREAKER_CLOSED',
         severity: 'LOW',
@@ -224,9 +226,9 @@ export class CircuitBreakerManager {
   getAllStatuses() {
     const statuses: Record<string, any> = {};
     
-    for (const [name, breaker] of this.circuitBreakers) {
+    Array.from(this.circuitBreakers.entries()).forEach(([name, breaker]) => {
       statuses[name] = breaker.getMetrics();
-    }
+    });
     
     return statuses;
   }
@@ -253,9 +255,9 @@ export class CircuitBreakerManager {
    * Reset all circuit breakers (for testing)
    */
   resetAll(): void {
-    for (const breaker of this.circuitBreakers.values()) {
+    Array.from(this.circuitBreakers.values()).forEach(breaker => {
       breaker.forceClose();
-    }
+    });
     
     SecurityAuditUtils.logSecurityEvent({
       event: 'ALL_CIRCUIT_BREAKERS_RESET',

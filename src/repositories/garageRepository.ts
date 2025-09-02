@@ -8,7 +8,7 @@
  * @module GarageRepository
  */
 
-import MemoryStore = require('../storage/memoryStore');
+import { MemoryStore } from '../storage/memoryStore';
 import { 
   GarageConfig, 
   GarageRecord, 
@@ -243,7 +243,7 @@ export class GarageRepository {
    * @param configName - Configuration name to find
    * @returns Found garage configuration or null if not found
    */
-  findByName(configName: string = this.defaultConfigKey): Garage | null {
+  findByName(configName: string = this.defaultConfigKey): GarageRecord | null {
     return this.store.garageConfig.get(configName) || null;
   }
 
@@ -251,7 +251,7 @@ export class GarageRepository {
    * Get the default garage configuration
    * @returns Default garage configuration or null if not set
    */
-  getDefault(): Garage | null {
+  getDefault(): GarageRecord | null {
     return this.findByName(this.defaultConfigKey);
   }
 
@@ -259,7 +259,7 @@ export class GarageRepository {
    * Find all garage configurations
    * @returns Array of all garage configurations
    */
-  findAll(): Garage[] {
+  findAll(): GarageRecord[] {
     return Array.from(this.store.garageConfig.values());
   }
 

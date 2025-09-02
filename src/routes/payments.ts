@@ -116,7 +116,7 @@ router.get('/',
       const options = {
         skip: offset,
         take: parseInt(limit as string),
-        orderBy: { [sortBy as string]: sortOrder }
+        orderBy: { [sortBy as string]: (sortOrder as string) === 'desc' ? 'desc' : 'asc' }
       };
 
       let payments;
@@ -158,7 +158,7 @@ router.get('/',
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR
       });
     }
-  }
+  } as any
 );
 
 /**
@@ -208,7 +208,7 @@ router.get('/:id',
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR
       });
     }
-  }
+  } as any
 );
 
 /**
@@ -274,7 +274,7 @@ router.post('/',
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR
       });
     }
-  }
+  } as any
 );
 
 /**
@@ -335,7 +335,7 @@ router.put('/:id/process',
         });
       }
     }
-  }
+  } as any
 );
 
 /**
@@ -411,7 +411,7 @@ router.post('/:id/refund',
         });
       }
     }
-  }
+  } as any
 );
 
 /**
@@ -471,7 +471,7 @@ router.get('/summary',
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR
       });
     }
-  }
+  } as any
 );
 
 /**
@@ -529,7 +529,7 @@ router.get('/license/:licensePlate',
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR
       });
     }
-  }
+  } as any
 );
 
 /**
@@ -599,7 +599,7 @@ router.get('/session/:sessionId',
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR
       });
     }
-  }
+  } as any
 );
 
 /**
@@ -656,7 +656,7 @@ router.put('/:id/fail',
         });
       }
     }
-  }
+  } as any
 );
 
 export default router;
