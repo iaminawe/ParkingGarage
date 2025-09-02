@@ -1,5 +1,5 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
+import * as jwt from 'jsonwebtoken';
 import { User, UserSession } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/environment';
@@ -85,16 +85,14 @@ class AuthService {
     };
 
     const token = jwt.sign(payload, this.JWT_SECRET, { 
-      expiresIn: this.JWT_EXPIRES_IN,
-      algorithm: SECURITY.JWT_ALGORITHM
+      expiresIn: this.JWT_EXPIRES_IN as string
     });
     
     const refreshToken = jwt.sign(
       { userId: user.id, type: SECURITY.TOKEN_TYPE_REFRESH }, 
       this.JWT_REFRESH_SECRET, 
       { 
-        expiresIn: this.JWT_REFRESH_EXPIRES_IN,
-        algorithm: SECURITY.JWT_ALGORITHM
+        expiresIn: this.JWT_REFRESH_EXPIRES_IN as string
       }
     );
 

@@ -113,12 +113,15 @@ export class PrismaPerformanceMonitor {
     
     if (error) {
       this.queryMetrics.errorCount++;
-      logger.error('Database query error', {
-        model: params.model,
-        action: params.action,
-        duration,
-        error: error.message
-      });
+      logger.error(
+        'Database query error',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          model: params.model,
+          action: params.action,
+          duration
+        }
+      );
     }
     
     // Update running average duration
@@ -237,11 +240,21 @@ export function createOptimizedPrismaClient(config: DatabaseConfig = defaultData
     });
 
     prisma.$on('error', (e) => {
-      logger.error('Database error', e);
+      logger.error(
+        'Database error',
+        undefined,
+        {
+          target: e.target,
+          timestamp: e.timestamp.toISOString()
+        }
+      );
     });
 
     prisma.$on('warn', (e) => {
-      logger.warn('Database warning', e);
+      logger.warn('Database warning', {
+        target: e.target,
+        timestamp: e.timestamp
+      });
     });
   }
 

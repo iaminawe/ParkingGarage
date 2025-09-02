@@ -77,7 +77,7 @@ export class EnvironmentValidator {
       const parsed = environmentSchema.safeParse(process.env);
 
       if (!parsed.success) {
-        const errors = parsed.error.errors.map(err => {
+        const errors = parsed.error.issues.map(err => {
           const path = err.path.join('.');
           return `${path}: ${err.message}`;
         });

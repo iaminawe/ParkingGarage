@@ -43,6 +43,7 @@ export interface SystemMetrics {
 }
 
 export interface ApplicationMetrics {
+  timestamp: number;
   requests: {
     total: number;
     active: number;
@@ -395,7 +396,7 @@ export class PerformanceMetricsCollector extends EventEmitter {
       const endTime = performance.now();
       logger.error(`Benchmark failed: ${name}`, {
         duration: `${Math.round((endTime - startTime) * 100) / 100}ms`,
-        error
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }

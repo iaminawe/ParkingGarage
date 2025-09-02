@@ -7,7 +7,7 @@
  * @module PrismaErrors
  */
 
-import { Prisma } from '../generated/prisma';
+import { Prisma } from '@prisma/client';
 
 /**
  * Domain error types

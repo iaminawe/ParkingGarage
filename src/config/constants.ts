@@ -272,7 +272,7 @@ export const UTILS = {
    * Check if user has permission
    */
   hasPermission: (userRole: UserRole, permission: string): boolean => {
-    const rolePermissions = ROLE_PERMISSIONS[userRole];
+    const rolePermissions = ROLE_PERMISSIONS[userRole] as readonly string[];
     return rolePermissions.includes('*') || rolePermissions.includes(permission);
   },
   
