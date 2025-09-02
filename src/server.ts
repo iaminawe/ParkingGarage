@@ -162,54 +162,6 @@ class ResourceManager {
     }
   }
 
-  /**
-   * Close Socket.IO server and all active connections
-   * 
-   * Gracefully disconnects all clients by:
-   * 1. Notifying clients of impending shutdown
-   * 2. Disconnecting each socket individually  
-   * 3. Closing the Socket.IO server
-   * 4. Handling timeout scenarios
-   * 
-   * @param socketServer - The Socket.IO server instance to close
-   * @returns Promise that resolves when all connections are closed
-   */
-  private static async closeSocketIOServer(socketServer: SocketIOServer): Promise<void> {
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        console.warn('⚠️ Socket.IO server close timeout, proceeding anyway');
-        resolve();
-      }, 5000);
-
-      try {
-        // Get all connected sockets
-        const sockets = socketServer.sockets.sockets;
-        console.log(`📊 Closing ${sockets.size} active socket connections...`);
-
-        // Notify clients of impending shutdown
-        socketServer.emit('server:shutdown', {
-          message: 'Server is shutting down',
-          timestamp: new Date().toISOString()
-        });
-
-        // Disconnect all sockets gracefully
-        sockets.forEach((socket) => {
-          socket.disconnect(true);
-        });
-
-        // Close the Socket.IO server
-        socketServer.close(() => {
-          clearTimeout(timeout);
-          console.log('✅ Socket.IO server closed successfully');
-          resolve();
-        });
-      } catch (error) {
-        clearTimeout(timeout);
-        console.error('❌ Error closing Socket.IO server:', error);
-        resolve(); // Resolve anyway to continue shutdown
-      }
-    });
-  }
 
   /**
    * Close database connections using DatabaseService
@@ -243,7 +195,7 @@ class ResourceManager {
    * @returns Promise that resolves when server is closed
    * @throws Error if server fails to close within timeout
    */
-  private static async closeHTTPServer(httpServer: Server): Promise<void> {
+  private static async closeHTTPServer(httpServer: HTTPServer): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('HTTP server close timeout'));
@@ -348,11 +300,4 @@ process.on('SIGHUP', () => {
 });
 
 export default server;
-
-/**
- * Get the SocketService instance for use in other modules
- * Replaces the old global variable pattern (global as any).io
- */
-export function getSocketService(): SocketService {
-  return socketService;
-}
+export { ResourceManager }; // Export for testing

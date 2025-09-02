@@ -10,6 +10,8 @@
 export { GarageService } from './garageService';
 export { SpotService } from './spotService';
 export { SearchService } from './searchService';
+export { SocketService } from './SocketService';
+export { socketIORegistry } from './SocketIORegistry';
 
 // Re-export types that services commonly use for convenience
 export type {

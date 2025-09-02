@@ -58,7 +58,8 @@ export class DatabaseService implements IConnectionManager {
       logLevel: config.logLevel || 'error',
     };
 
-    this.setupGracefulShutdown();
+    // Note: Graceful shutdown is handled by the main server ResourceManager
+    // this.setupGracefulShutdown();
   }
 
   /**
