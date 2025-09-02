@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { SecurityAuditService } from '../../services/SecurityAuditService';
+import { SecurityAuditUtils } from '../../services/SecurityAuditService';
 import { circuitBreakerManager } from './circuitBreaker';
 
 // Request tracking for suspicious activity detection
@@ -43,14 +43,14 @@ const cleanOldData = (): void => {
   const cutoff = now - MONITORING_CONFIG.TRACKING_WINDOW;
   
   // Clean request tracking
-  for (const [ip, requests] of requestTracker) {
+  Array.from(requestTracker.entries()).forEach(([ip, requests]) => {
     const recentRequests = requests.filter(req => req.timestamp > cutoff);
     if (recentRequests.length === 0) {
       requestTracker.delete(ip);
     } else {
       requestTracker.set(ip, recentRequests);
     }
-  }
+  });
   
   // Clean suspicious IPs (they expire after timeout)
   // This is handled by the timeout mechanism in the detection logic
@@ -119,7 +119,7 @@ const detectSuspiciousActivity = (req: Request): boolean => {
 const logSuspiciousActivity = async (req: Request, reason: string): Promise<void> => {
   const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
   
-  await SecurityAuditService.createSecurityAlert({
+  await SecurityAuditUtils.createSecurityAlert({
     title: 'Suspicious Activity Detected',
     description: `Potential security threat from IP ${clientIP}: ${reason}`,
     severity: 'HIGH',
@@ -167,7 +167,7 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
     
     // Check if IP is already flagged as suspicious
     if (suspiciousIPs.has(clientIP)) {
-      await SecurityAuditService.logSecurityEvent({
+      await SecurityAuditUtils.logSecurityEvent({
         event: 'REQUEST_FROM_SUSPICIOUS_IP',
         severity: 'MEDIUM',
         ipAddress: clientIP,
@@ -194,7 +194,7 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
       
       // Log slow responses (potential DoS)
       if (responseTime > 5000) { // 5 seconds
-        SecurityAuditService.logSecurityEvent({
+        SecurityAuditUtils.logSecurityEvent({
           event: 'SLOW_RESPONSE_DETECTED',
           severity: 'MEDIUM',
           ipAddress: clientIP,
@@ -211,7 +211,7 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
       if (res.statusCode >= 400) {
         const severity = res.statusCode >= 500 ? 'MEDIUM' : 'LOW';
         
-        SecurityAuditService.logSecurityEvent({
+        SecurityAuditUtils.logSecurityEvent({
           event: `HTTP_${res.statusCode}_RESPONSE`,
           severity,
           userId: (req as any).user?.id,
@@ -285,13 +285,13 @@ export const getMonitoringStats = () => {
   let totalRequests = 0;
   let activeIPs = 0;
   
-  for (const [ip, requests] of requestTracker) {
+  Array.from(requestTracker.entries()).forEach(([ip, requests]) => {
     const recentRequests = requests.filter(req => req.timestamp > cutoff);
     if (recentRequests.length > 0) {
       totalRequests += recentRequests.length;
       activeIPs++;
     }
-  }
+  });
   
   return {
     activeIPs,

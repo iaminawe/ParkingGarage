@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { getSecurityHealthCheck, getMonitoringStats } from '../middleware/security/securityMonitoring';
 import { circuitBreakerManager } from '../middleware/security/circuitBreaker';
-import { SecurityAuditService } from '../services/SecurityAuditService';
+import SecurityAuditService from '../services/SecurityAuditService';
 import { prisma } from '../config/database';
 
 const router: Router = Router();

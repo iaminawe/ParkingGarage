@@ -88,21 +88,21 @@ router.post('/logout', authenticate, logout);
  * @desc    Get current user profile
  * @access  Private
  */
-router.get('/profile', authenticate, getProfile);
+router.get('/profile', authenticate, getProfile as any);
 
 /**
  * @route   PUT /api/auth/profile
  * @desc    Update user profile
  * @access  Private
  */
-router.put('/profile', authenticate, profileLimiter, profileUpdateValidation, updateProfile);
+router.put('/profile', authenticate, profileLimiter, profileUpdateValidation, updateProfile as any);
 
 /**
  * @route   PUT /api/auth/change-password
  * @desc    Change user password
  * @access  Private
  */
-router.put('/change-password', authenticate, enforceSessionLimit(5), authRateLimit, changePasswordValidation, changePassword);
+router.put('/change-password', authenticate, enforceSessionLimit(5), authRateLimit, changePasswordValidation, changePassword as any);
 
 /**
  * @route   POST /api/auth/validate-password
@@ -130,14 +130,14 @@ router.post('/password-reset/confirm', authRateLimit, confirmPasswordReset);
  * @desc    Logout from all devices
  * @access  Private
  */
-router.post('/logout-all', authenticate, enforceSessionLimit(5), logoutAllDevices);
+router.post('/logout-all', authenticate, enforceSessionLimit(5), logoutAllDevices as any);
 
 /**
  * @route   GET /api/auth/sessions
  * @desc    Get user's active sessions
  * @access  Private
  */
-router.get('/sessions', authenticate, getUserSessions);
+router.get('/sessions', authenticate, getUserSessions as any);
 
 /**
  * @route   GET /api/auth/verify

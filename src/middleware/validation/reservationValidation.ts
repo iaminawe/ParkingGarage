@@ -309,7 +309,7 @@ export const validateAvailabilityCheck = [
     .isISO8601()
     .withMessage('End time must be a valid ISO 8601 date')
     .custom((value, { req }) => {
-      if (value && req.query.startTime) {
+      if (value && req.query && req.query.startTime) {
         const endTime = new Date(value);
         const startTime = new Date(req.query.startTime as string);
         if (endTime <= startTime) {
@@ -388,7 +388,7 @@ export const validateDateRange = [
     .isISO8601()
     .withMessage('End date must be a valid ISO 8601 date')
     .custom((value, { req }) => {
-      if (value && req.query.startDate) {
+      if (value && req.query && req.query.startDate) {
         const endDate = new Date(value);
         const startDate = new Date(req.query.startDate as string);
         if (endDate <= startDate) {

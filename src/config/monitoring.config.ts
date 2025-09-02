@@ -292,8 +292,8 @@ export class MonitoringConfig {
           environment: env.SENTRY_ENVIRONMENT || env.NODE_ENV,
           tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE || 0.1,
           integrations: [
-            Sentry.httpIntegration({ tracing: true }),
-            Sentry.expressIntegration({ app: undefined }),
+            Sentry.httpIntegration(),
+            Sentry.expressIntegration(),
           ],
         });
         systemLogger.info('Sentry initialized', { environment: env.SENTRY_ENVIRONMENT });

@@ -3,7 +3,7 @@
  * Prevents cascade failures by monitoring external service calls
  */
 
-import { SecurityAuditService } from '../../services/SecurityAuditService';
+import { SecurityAuditUtils } from '../../services/SecurityAuditService';
 
 export interface CircuitBreakerOptions {
   failureThreshold: number;
@@ -69,12 +69,14 @@ export class CircuitBreaker {
    * Handle successful execution
    */
   private onSuccess(): void {
+    const wasHalfOpen = this.state === CircuitBreakerState.HALF_OPEN;
+    
     this.failureCount = 0;
     this.state = CircuitBreakerState.CLOSED;
     
     // Log recovery if we were in half-open state
-    if (this.state === CircuitBreakerState.HALF_OPEN) {
-      SecurityAuditService.logSecurityEvent({
+    if (wasHalfOpen) {
+      SecurityAuditUtils.logSecurityEvent({
         event: 'CIRCUIT_BREAKER_CLOSED',
         severity: 'LOW',
         details: {
@@ -98,7 +100,7 @@ export class CircuitBreaker {
       this.nextAttemptTime = Date.now() + this.options.recoveryTimeout;
       
       // Log circuit breaker opening
-      SecurityAuditService.logSecurityEvent({
+      SecurityAuditUtils.logSecurityEvent({
         event: 'CIRCUIT_BREAKER_OPENED',
         severity: 'MEDIUM',
         details: {
@@ -132,7 +134,7 @@ export class CircuitBreaker {
     this.state = CircuitBreakerState.OPEN;
     this.nextAttemptTime = Date.now() + this.options.recoveryTimeout;
     
-    SecurityAuditService.logSecurityEvent({
+    SecurityAuditUtils.logSecurityEvent({
       event: 'CIRCUIT_BREAKER_FORCE_OPEN',
       severity: 'MEDIUM',
       details: {
@@ -151,7 +153,7 @@ export class CircuitBreaker {
     this.failureCount = 0;
     this.nextAttemptTime = 0;
     
-    SecurityAuditService.logSecurityEvent({
+    SecurityAuditUtils.logSecurityEvent({
       event: 'CIRCUIT_BREAKER_FORCE_CLOSE',
       severity: 'LOW',
       details: {
@@ -224,9 +226,9 @@ export class CircuitBreakerManager {
   getAllStatuses() {
     const statuses: Record<string, any> = {};
     
-    for (const [name, breaker] of this.circuitBreakers) {
+    Array.from(this.circuitBreakers.entries()).forEach(([name, breaker]) => {
       statuses[name] = breaker.getMetrics();
-    }
+    });
     
     return statuses;
   }
@@ -253,11 +255,11 @@ export class CircuitBreakerManager {
    * Reset all circuit breakers (for testing)
    */
   resetAll(): void {
-    for (const breaker of this.circuitBreakers.values()) {
+    Array.from(this.circuitBreakers.values()).forEach(breaker => {
       breaker.forceClose();
-    }
+    });
     
-    SecurityAuditService.logSecurityEvent({
+    SecurityAuditUtils.logSecurityEvent({
       event: 'ALL_CIRCUIT_BREAKERS_RESET',
       severity: 'MEDIUM',
       details: {

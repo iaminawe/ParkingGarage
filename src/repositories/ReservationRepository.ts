@@ -9,7 +9,34 @@
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
+import { PrismaClient } from '@prisma/client';
 import { ParkingSpot, ParkingSession, Vehicle, Prisma } from '@prisma/client';
+
+// Define transaction client type
+type TransactionClient = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
+
+// Define session with includes type using Prisma's generated types
+type SessionWithIncludes = Prisma.ParkingSessionGetPayload<{
+  include: {
+    vehicle: true;
+    spot: {
+      include: {
+        floor: {
+          include: {
+            garage: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+// Define session with just spot for simpler queries
+type SessionWithSpot = Prisma.ParkingSessionGetPayload<{
+  include: {
+    spot: true;
+  };
+}>;
 import type { 
   QueryOptions,
   PaginatedResult,
@@ -98,7 +125,7 @@ export class ReservationRepository {
    */
   async createReservation(reservationData: CreateReservationData): Promise<ReservationData> {
     return this.executeWithRetry(async () => {
-      return this.prisma.$transaction(async (tx) => {
+      return this.prisma.$transaction(async (tx: TransactionClient) => {
         // Check if spot is available
         const spot = await tx.parkingSpot.findFirst({
           where: {
@@ -279,7 +306,7 @@ export class ReservationRepository {
         ...this.buildQueryOptions(options)
       });
 
-      return sessions.map(session => this.sessionToReservation(session));
+      return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
     }, `find reservations for vehicle: ${vehicleId}`);
   }
 
@@ -316,7 +343,7 @@ export class ReservationRepository {
         ...this.buildQueryOptions(options)
       });
 
-      return sessions.map(session => this.sessionToReservation(session));
+      return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
     }, `find reservations for spot: ${spotId}`);
   }
 
@@ -353,7 +380,7 @@ export class ReservationRepository {
         ...this.buildQueryOptions(options)
       });
 
-      return sessions.map(session => this.sessionToReservation(session));
+      return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
     }, 'find active reservations');
   }
 
@@ -390,7 +417,7 @@ export class ReservationRepository {
         ...this.buildQueryOptions(options)
       });
 
-      return sessions.map(session => this.sessionToReservation(session));
+      return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
     }, 'find expired reservations');
   }
 
@@ -405,7 +432,7 @@ export class ReservationRepository {
     actualStartTime?: Date
   ): Promise<ParkingSession> {
     return this.executeWithRetry(async () => {
-      return this.prisma.$transaction(async (tx) => {
+      return this.prisma.$transaction(async (tx: TransactionClient) => {
         const session = await tx.parkingSession.findFirst({
           where: {
             id: reservationId,
@@ -479,7 +506,7 @@ export class ReservationRepository {
     reason?: string
   ): Promise<ReservationData> {
     return this.executeWithRetry(async () => {
-      return this.prisma.$transaction(async (tx) => {
+      return this.prisma.$transaction(async (tx: TransactionClient) => {
         const session = await tx.parkingSession.findFirst({
           where: {
             id: reservationId,
@@ -545,7 +572,7 @@ export class ReservationRepository {
    */
   async cleanupExpiredReservations(): Promise<number> {
     return this.executeWithRetry(async () => {
-      return this.prisma.$transaction(async (tx) => {
+      return this.prisma.$transaction(async (tx: TransactionClient) => {
         const now = new Date();
         
         // Find expired reservations
@@ -572,7 +599,7 @@ export class ReservationRepository {
         await tx.parkingSession.updateMany({
           where: {
             id: {
-              in: expiredSessions.map(s => s.id)
+              in: expiredSessions.map((s: SessionWithSpot) => s.id)
             }
           },
           data: {
@@ -584,7 +611,7 @@ export class ReservationRepository {
         });
 
         // Make spots available again
-        const spotIds = expiredSessions.map(s => s.spotId);
+        const spotIds = expiredSessions.map((s: SessionWithSpot) => s.spotId);
         await tx.parkingSpot.updateMany({
           where: {
             id: {
@@ -658,7 +685,7 @@ export class ReservationRepository {
       let totalDuration = 0;
       let usedCount = 0;
 
-      sessions.forEach(session => {
+      sessions.forEach((session: SessionWithIncludes) => {
         const reservation = this.sessionToReservation(session);
         const garageName = session.spot?.floor?.garage?.name || 'Unknown';
 
@@ -703,7 +730,7 @@ export class ReservationRepository {
   /**
    * Convert parking session to reservation data
    */
-  private sessionToReservation(session: any): ReservationData {
+  private sessionToReservation(session: SessionWithIncludes): ReservationData {
     let status: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED' = 'ACTIVE';
 
     if (session.status === 'CANCELLED') {
