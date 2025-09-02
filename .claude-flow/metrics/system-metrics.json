@@ -10,5 +10,77 @@
     "cpuLoad": 0.19875,
     "platform": "linux",
     "uptime": 14354.19
+  },
+  {
+    "timestamp": 1756845659094,
+    "memoryTotal": 33657851904,
+    "memoryUsed": 10884329472,
+    "memoryFree": 22773522432,
+    "memoryUsagePercent": 32.338158427473715,
+    "memoryEfficiency": 67.66184157252628,
+    "cpuCount": 8,
+    "cpuLoad": 0.19875,
+    "platform": "linux",
+    "uptime": 14384.22
+  },
+  {
+    "timestamp": 1756845689124,
+    "memoryTotal": 33657851904,
+    "memoryUsed": 10892070912,
+    "memoryFree": 22765780992,
+    "memoryUsagePercent": 32.361158825782205,
+    "memoryEfficiency": 67.63884117421779,
+    "cpuCount": 8,
+    "cpuLoad": 0.145,
+    "platform": "linux",
+    "uptime": 14414.25
+  },
+  {
+    "timestamp": 1756845719127,
+    "memoryTotal": 33657851904,
+    "memoryUsed": 10955296768,
+    "memoryFree": 22702555136,
+    "memoryUsagePercent": 32.54900758149108,
+    "memoryEfficiency": 67.45099241850892,
+    "cpuCount": 8,
+    "cpuLoad": 0.095,
+    "platform": "linux",
+    "uptime": 14444.26
+  },
+  {
+    "timestamp": 1756845749143,
+    "memoryTotal": 33657851904,
+    "memoryUsed": 11084992512,
+    "memoryFree": 22572859392,
+    "memoryUsagePercent": 32.93434335505715,
+    "memoryEfficiency": 67.06565664494285,
+    "cpuCount": 8,
+    "cpuLoad": 0.09625,
+    "platform": "linux",
+    "uptime": 14474.27
+  },
+  {
+    "timestamp": 1756845779162,
+    "memoryTotal": 33657851904,
+    "memoryUsed": 11005239296,
+    "memoryFree": 22652612608,
+    "memoryUsagePercent": 32.697390574388095,
+    "memoryEfficiency": 67.3026094256119,
+    "cpuCount": 8,
+    "cpuLoad": 0.11125,
+    "platform": "linux",
+    "uptime": 14504.29
+  },
+  {
+    "timestamp": 1756845809185,
+    "memoryTotal": 33657851904,
+    "memoryUsed": 11009806336,
+    "memoryFree": 22648045568,
+    "memoryUsagePercent": 32.71095959243781,
+    "memoryEfficiency": 67.2890404075622,
+    "cpuCount": 8,
+    "cpuLoad": 0.10875,
+    "platform": "linux",
+    "uptime": 14534.31
   }
 ]

@@ -7,7 +7,11 @@
  * @module BaseAdapter
  */
 
+<<<<<<< HEAD
 import { Prisma } from '@prisma/client';
+=======
+import { Prisma } from '../../generated/prisma';
+>>>>>>> origin/main
 
 /**
  * Pagination options for queries
