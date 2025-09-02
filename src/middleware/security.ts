@@ -18,7 +18,15 @@ export class SecurityMiddleware {
   private cacheService: CacheService;
 
   constructor() {
-    this.cacheService = new CacheService();
+    this.cacheService = new CacheService({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD,
+      keyPrefix: 'security:',
+      defaultTTL: 3600,
+      maxRetries: 3,
+      retryDelayMs: 1000
+    });
   }
 
   /**
@@ -155,7 +163,7 @@ export class SecurityMiddleware {
    */
   static createPasswordValidationLimit() {
     return rateLimit({
-      windowMs: RATE_LIMITS.PASSWORD_VALIDATION_WINDOW_MS,
+      windowMs: RATE_LIMITS.DEFAULT_WINDOW_MS,
       max: RATE_LIMITS.PASSWORD_VALIDATION_MAX_ATTEMPTS,
       message: {
         success: false,
@@ -178,7 +186,7 @@ export class SecurityMiddleware {
         
         // Get current suspicious activity score
         const currentScore = await this.cacheService.get(key) || '0';
-        let score = parseInt(currentScore, 10);
+        let score = parseInt(String(currentScore), 10);
 
         // Increase score for suspicious patterns
         if (this.isSuspiciousRequest(req)) {

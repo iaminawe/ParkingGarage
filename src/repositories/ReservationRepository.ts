@@ -1,14 +1,15 @@
 /**
- * Reservation repository for data access operations using Prisma
+ * Reservation repository for parking spot reservations using Prisma
  * 
- * This module provides data access methods for parking reservations using the PrismaAdapter pattern.
- * It handles reservation CRUD operations, availability checks, and reservation management.
+ * This module provides data access methods for parking spot reservations.
+ * Since there's no explicit Reservation model in the schema, this repository
+ * manages reservations through the ParkingSpot status and sessions.
  * 
  * @module ReservationRepository
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
-import { ParkingSession, Prisma, SessionStatus } from '@prisma/client';
+import { ParkingSpot, ParkingSession, Vehicle, Prisma } from '@prisma/client';
 import type { 
   QueryOptions,
   PaginatedResult,
@@ -18,37 +19,29 @@ import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
 
 /**
- * Reservation creation data interface
+ * Reservation data interface (virtual reservation through session)
  */
-export interface CreateReservationData {
-  vehicleId: string;
+export interface ReservationData {
+  id: string;
   spotId: string;
-  startTime: Date;
-  endTime?: Date;
-  expectedEndTime?: Date;
-  hourlyRate?: number;
-  totalAmount?: number;
-  status?: SessionStatus;
-  notes?: string;
+  vehicleId: string;
+  userId?: string;
+  reservedAt: Date;
+  expiresAt: Date;
+  status: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED';
+  spot?: ParkingSpot;
+  vehicle?: Vehicle;
+  session?: ParkingSession;
 }
 
 /**
- * Reservation update data interface
+ * Reservation creation data interface
  */
-export interface UpdateReservationData {
-  vehicleId?: string;
-  spotId?: string;
-  startTime?: Date;
-  endTime?: Date;
-  expectedEndTime?: Date;
-  duration?: number;
-  hourlyRate?: number;
-  totalAmount?: number;
-  amountPaid?: number;
-  isPaid?: boolean;
-  paymentMethod?: string;
-  paymentTime?: Date;
-  status?: SessionStatus;
+export interface CreateReservationData {
+  spotId: string;
+  vehicleId: string;
+  userId?: string;
+  reservationDurationMinutes?: number;
   notes?: string;
 }
 
@@ -56,47 +49,201 @@ export interface UpdateReservationData {
  * Reservation search criteria interface
  */
 export interface ReservationSearchCriteria {
-  vehicleId?: string;
   spotId?: string;
+  vehicleId?: string;
+  userId?: string;
+  status?: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED';
+  garageId?: string;
+  floorId?: string;
+  startDate?: Date;
+  endDate?: Date;
   licensePlate?: string;
-  status?: SessionStatus;
-  startAfter?: Date;
-  startBefore?: Date;
-  endAfter?: Date;
-  endBefore?: Date;
-  isPaid?: boolean;
-  floor?: number;
-  spotType?: string;
-  createdAfter?: Date;
-  createdBefore?: Date;
 }
 
 /**
- * Spot availability check result
+ * Reservation statistics interface
  */
-export interface SpotAvailability {
-  spotId: string;
-  isAvailable: boolean;
-  conflictingReservations?: ParkingSession[];
-  nextAvailableTime?: Date;
+export interface ReservationStats {
+  total: number;
+  active: number;
+  expired: number;
+  used: number;
+  cancelled: number;
+  byGarage: Record<string, number>;
+  averageDuration: number;
+  utilizationRate: number; // percentage of reservations that were used
 }
 
 /**
- * Repository for managing reservations (parking sessions) using Prisma
+ * Repository for managing parking spot reservations
+ * Note: This manages virtual reservations through spot status and sessions
  */
-export class ReservationRepository extends PrismaAdapter<ParkingSession, CreateReservationData, UpdateReservationData> {
-  protected readonly modelName = 'parkingSession';
-  protected readonly delegate: Prisma.ParkingSessionDelegate;
+export class ReservationRepository {
+  private prisma: any;
+  private logger: IAdapterLogger;
 
   constructor(
     databaseService?: DatabaseService,
     logger?: IAdapterLogger
   ) {
     const dbService = databaseService || DatabaseService.getInstance();
-    const prismaClient = dbService.getClient();
-    
-    super(prismaClient, logger || createLogger('ReservationRepository'));
-    this.delegate = prismaClient.parkingSession;
+    this.prisma = dbService.getClient();
+    this.logger = logger || createLogger('ReservationRepository');
+  }
+
+  /**
+   * Create a new reservation by reserving a spot
+   * @param reservationData - Reservation creation data
+   * @returns Created reservation data
+   */
+  async createReservation(reservationData: CreateReservationData): Promise<ReservationData> {
+    return this.executeWithRetry(async () => {
+      return this.prisma.$transaction(async (tx) => {
+        // Check if spot is available
+        const spot = await tx.parkingSpot.findFirst({
+          where: {
+            id: reservationData.spotId,
+            status: 'AVAILABLE',
+            isActive: true
+          },
+          include: {
+            floor: {
+              include: {
+                garage: true
+              }
+            }
+          }
+        });
+
+        if (!spot) {
+          throw new Error(`Parking spot ${reservationData.spotId} is not available for reservation`);
+        }
+
+        // Check if vehicle exists
+        const vehicle = await tx.vehicle.findFirst({
+          where: {
+            id: reservationData.vehicleId,
+            deletedAt: null
+          }
+        });
+
+        if (!vehicle) {
+          throw new Error(`Vehicle ${reservationData.vehicleId} not found`);
+        }
+
+        // Check if vehicle already has an active reservation or session
+        const activeSession = await tx.parkingSession.findFirst({
+          where: {
+            vehicleId: reservationData.vehicleId,
+            status: 'ACTIVE'
+          }
+        });
+
+        if (activeSession) {
+          throw new Error(`Vehicle ${vehicle.licensePlate} already has an active parking session`);
+        }
+
+        // Reserve the spot by updating its status
+        await tx.parkingSpot.update({
+          where: { id: reservationData.spotId },
+          data: { status: 'RESERVED' }
+        });
+
+        // Create a placeholder session to track the reservation
+        const reservationDuration = reservationData.reservationDurationMinutes || 30; // 30 minutes default
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + reservationDuration * 60 * 1000);
+
+        const session = await tx.parkingSession.create({
+          data: {
+            vehicleId: reservationData.vehicleId,
+            spotId: reservationData.spotId,
+            startTime: now,
+            endTime: expiresAt,
+            status: 'ACTIVE', // Will be used to track reservation status
+            hourlyRate: 0, // No charge for reservation itself
+            totalAmount: 0,
+            amountPaid: 0,
+            isPaid: true, // Mark as paid to avoid charging for reservation
+            notes: `RESERVATION: ${reservationData.notes || 'Auto-generated reservation'}`
+          },
+          include: {
+            vehicle: true,
+            spot: {
+              include: {
+                floor: {
+                  include: {
+                    garage: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        const reservation: ReservationData = {
+          id: session.id,
+          spotId: reservationData.spotId,
+          vehicleId: reservationData.vehicleId,
+          userId: reservationData.userId,
+          reservedAt: now,
+          expiresAt,
+          status: 'ACTIVE',
+          spot: session.spot,
+          vehicle: session.vehicle,
+          session
+        };
+
+        this.logger.info('Reservation created', {
+          reservationId: session.id,
+          spotNumber: spot.spotNumber,
+          licensePlate: vehicle.licensePlate,
+          expiresAt
+        });
+
+        return reservation;
+      });
+    }, 'create reservation');
+  }
+
+  /**
+   * Find reservation by ID
+   * @param reservationId - Reservation ID (session ID)
+   * @param options - Query options
+   * @returns Found reservation or null
+   */
+  async findById(
+    reservationId: string,
+    options?: QueryOptions
+  ): Promise<ReservationData | null> {
+    return this.executeWithRetry(async () => {
+      const session = await this.prisma.parkingSession.findFirst({
+        where: {
+          id: reservationId,
+          notes: {
+            contains: 'RESERVATION:'
+          }
+        },
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!session) {
+        return null;
+      }
+
+      return this.sessionToReservation(session);
+    }, `find reservation: ${reservationId}`);
   }
 
   /**
@@ -108,8 +255,32 @@ export class ReservationRepository extends PrismaAdapter<ParkingSession, CreateR
   async findByVehicleId(
     vehicleId: string,
     options?: QueryOptions
-  ): Promise<ParkingSession[]> {
-    return this.findMany({ vehicleId }, options);
+  ): Promise<ReservationData[]> {
+    return this.executeWithRetry(async () => {
+      const sessions = await this.prisma.parkingSession.findMany({
+        where: {
+          vehicleId,
+          notes: {
+            contains: 'RESERVATION:'
+          }
+        },
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true
+                }
+              }
+            }
+          }
+        },
+        ...this.buildQueryOptions(options)
+      });
+
+      return sessions.map(session => this.sessionToReservation(session));
+    }, `find reservations for vehicle: ${vehicleId}`);
   }
 
   /**
@@ -121,21 +292,32 @@ export class ReservationRepository extends PrismaAdapter<ParkingSession, CreateR
   async findBySpotId(
     spotId: string,
     options?: QueryOptions
-  ): Promise<ParkingSession[]> {
-    return this.findMany({ spotId }, options);
-  }
+  ): Promise<ReservationData[]> {
+    return this.executeWithRetry(async () => {
+      const sessions = await this.prisma.parkingSession.findMany({
+        where: {
+          spotId,
+          notes: {
+            contains: 'RESERVATION:'
+          }
+        },
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true
+                }
+              }
+            }
+          }
+        },
+        ...this.buildQueryOptions(options)
+      });
 
-  /**
-   * Find reservations by status
-   * @param status - Reservation status
-   * @param options - Query options
-   * @returns Array of reservations with the specified status
-   */
-  async findByStatus(
-    status: SessionStatus,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
-    return this.findMany({ status }, options);
+      return sessions.map(session => this.sessionToReservation(session));
+    }, `find reservations for spot: ${spotId}`);
   }
 
   /**
@@ -143,26 +325,36 @@ export class ReservationRepository extends PrismaAdapter<ParkingSession, CreateR
    * @param options - Query options
    * @returns Array of active reservations
    */
-  async findActive(options?: QueryOptions): Promise<ParkingSession[]> {
-    return this.findByStatus('ACTIVE', options);
-  }
+  async findActiveReservations(options?: QueryOptions): Promise<ReservationData[]> {
+    return this.executeWithRetry(async () => {
+      const now = new Date();
+      const sessions = await this.prisma.parkingSession.findMany({
+        where: {
+          notes: {
+            contains: 'RESERVATION:'
+          },
+          status: 'ACTIVE',
+          endTime: {
+            gt: now // Not expired
+          }
+        },
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true
+                }
+              }
+            }
+          }
+        },
+        ...this.buildQueryOptions(options)
+      });
 
-  /**
-   * Find completed reservations
-   * @param options - Query options
-   * @returns Array of completed reservations
-   */
-  async findCompleted(options?: QueryOptions): Promise<ParkingSession[]> {
-    return this.findByStatus('COMPLETED', options);
-  }
-
-  /**
-   * Find cancelled reservations
-   * @param options - Query options
-   * @returns Array of cancelled reservations
-   */
-  async findCancelled(options?: QueryOptions): Promise<ParkingSession[]> {
-    return this.findByStatus('CANCELLED', options);
+      return sessions.map(session => this.sessionToReservation(session));
+    }, 'find active reservations');
   }
 
   /**
@@ -170,25 +362,17 @@ export class ReservationRepository extends PrismaAdapter<ParkingSession, CreateR
    * @param options - Query options
    * @returns Array of expired reservations
    */
-  async findExpired(options?: QueryOptions): Promise<ParkingSession[]> {
-    return this.findByStatus('EXPIRED', options);
-  }
-
-  /**
-   * Find reservations by license plate
-   * @param licensePlate - Vehicle license plate
-   * @param options - Query options
-   * @returns Array of reservations for the vehicle
-   */
-  async findByLicensePlate(
-    licensePlate: string,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
+  async findExpiredReservations(options?: QueryOptions): Promise<ReservationData[]> {
     return this.executeWithRetry(async () => {
-      const result = await this.delegate.findMany({
+      const now = new Date();
+      const sessions = await this.prisma.parkingSession.findMany({
         where: {
-          vehicle: {
-            licensePlate: licensePlate.toUpperCase()
+          notes: {
+            contains: 'RESERVATION:'
+          },
+          status: 'ACTIVE',
+          endTime: {
+            lt: now // Expired
           }
         },
         include: {
@@ -201,508 +385,388 @@ export class ReservationRepository extends PrismaAdapter<ParkingSession, CreateR
                 }
               }
             }
-          },
-          payments: true
+          }
         },
         ...this.buildQueryOptions(options)
       });
-      
-      this.logger.debug('Found reservations by license plate', {
-        licensePlate,
-        count: result.length
-      });
-      
-      return result;
-    }, `find reservations by license plate: ${licensePlate}`);
+
+      return sessions.map(session => this.sessionToReservation(session));
+    }, 'find expired reservations');
   }
 
   /**
-   * Search reservations with multiple criteria
-   * @param criteria - Search criteria
-   * @param options - Query options
-   * @returns Array of reservations matching the criteria
+   * Use a reservation (convert to actual parking session)
+   * @param reservationId - Reservation ID
+   * @param actualStartTime - Actual parking start time
+   * @returns Updated session
    */
-  async search(
-    criteria: ReservationSearchCriteria,
-    options?: QueryOptions
-  ): Promise<ParkingSession[]> {
+  async useReservation(
+    reservationId: string,
+    actualStartTime?: Date
+  ): Promise<ParkingSession> {
     return this.executeWithRetry(async () => {
-      const whereClause: Prisma.ParkingSessionWhereInput = {};
-
-      if (criteria.vehicleId) {
-        whereClause.vehicleId = criteria.vehicleId;
-      }
-
-      if (criteria.spotId) {
-        whereClause.spotId = criteria.spotId;
-      }
-
-      if (criteria.status) {
-        whereClause.status = criteria.status;
-      }
-
-      if (criteria.isPaid !== undefined) {
-        whereClause.isPaid = criteria.isPaid;
-      }
-
-      if (criteria.licensePlate) {
-        whereClause.vehicle = {
-          licensePlate: {
-            contains: criteria.licensePlate.toUpperCase()
-          }
-        };
-      }
-
-      // Date range filters
-      if (criteria.startAfter || criteria.startBefore) {
-        whereClause.startTime = {};
-        if (criteria.startAfter) {
-          whereClause.startTime.gte = criteria.startAfter;
-        }
-        if (criteria.startBefore) {
-          whereClause.startTime.lte = criteria.startBefore;
-        }
-      }
-
-      if (criteria.endAfter || criteria.endBefore) {
-        whereClause.endTime = {};
-        if (criteria.endAfter) {
-          whereClause.endTime.gte = criteria.endAfter;
-        }
-        if (criteria.endBefore) {
-          whereClause.endTime.lte = criteria.endBefore;
-        }
-      }
-
-      if (criteria.createdAfter || criteria.createdBefore) {
-        whereClause.createdAt = {};
-        if (criteria.createdAfter) {
-          whereClause.createdAt.gte = criteria.createdAfter;
-        }
-        if (criteria.createdBefore) {
-          whereClause.createdAt.lte = criteria.createdBefore;
-        }
-      }
-
-      // Floor and spot type filters
-      if (criteria.floor || criteria.spotType) {
-        whereClause.spot = {};
-        if (criteria.floor) {
-          whereClause.spot.floor = {
-            floorNumber: criteria.floor
-          };
-        }
-        if (criteria.spotType) {
-          whereClause.spot.spotType = criteria.spotType as any;
-        }
-      }
-
-      const result = await this.delegate.findMany({
-        where: whereClause,
-        include: {
-          vehicle: true,
-          spot: {
-            include: {
-              floor: {
-                include: {
-                  garage: true
-                }
-              }
-            }
-          },
-          payments: true
-        },
-        ...this.buildQueryOptions(options)
-      });
-      
-      this.logger.debug('Reservation search completed', {
-        criteria,
-        count: result.length
-      });
-      
-      return result;
-    }, 'search reservations');
-  }
-
-  /**
-   * Check spot availability for a time range
-   * @param spotId - Spot ID
-   * @param startTime - Start time
-   * @param endTime - End time
-   * @param excludeSessionId - Optional session ID to exclude from check
-   * @returns Spot availability information
-   */
-  async checkSpotAvailability(
-    spotId: string,
-    startTime: Date,
-    endTime: Date,
-    excludeSessionId?: string
-  ): Promise<SpotAvailability> {
-    return this.executeWithRetry(async () => {
-      const whereClause: Prisma.ParkingSessionWhereInput = {
-        spotId,
-        status: {
-          in: ['ACTIVE'] // Only consider active reservations
-        },
-        OR: [
-          // Overlapping reservations
-          {
-            AND: [
-              { startTime: { lte: endTime } },
-              {
-                OR: [
-                  { endTime: { gte: startTime } },
-                  { endTime: null } // Active sessions without end time
-                ]
-              }
-            ]
-          }
-        ]
-      };
-
-      // Exclude specific session if provided (for updates)
-      if (excludeSessionId) {
-        whereClause.id = {
-          not: excludeSessionId
-        };
-      }
-
-      const conflictingReservations = await this.delegate.findMany({
-        where: whereClause,
-        include: {
-          vehicle: true
-        }
-      });
-
-      const isAvailable = conflictingReservations.length === 0;
-
-      // Find next available time if not available
-      let nextAvailableTime: Date | undefined;
-      if (!isAvailable) {
-        const nextSession = await this.delegate.findFirst({
+      return this.prisma.$transaction(async (tx) => {
+        const session = await tx.parkingSession.findFirst({
           where: {
-            spotId,
-            status: 'ACTIVE',
-            endTime: {
-              gte: startTime
-            }
+            id: reservationId,
+            notes: {
+              contains: 'RESERVATION:'
+            },
+            status: 'ACTIVE'
           },
-          orderBy: {
-            endTime: 'asc'
+          include: {
+            spot: true,
+            vehicle: true
           }
         });
-        
-        nextAvailableTime = nextSession?.endTime || undefined;
-      }
 
-      this.logger.debug('Checked spot availability', {
-        spotId,
-        startTime,
-        endTime,
-        isAvailable,
-        conflictCount: conflictingReservations.length
-      });
-
-      return {
-        spotId,
-        isAvailable,
-        conflictingReservations: isAvailable ? undefined : conflictingReservations,
-        nextAvailableTime
-      };
-    }, `check spot availability: ${spotId}`);
-  }
-
-  /**
-   * Find available spots for a time range
-   * @param startTime - Start time
-   * @param endTime - End time
-   * @param spotType - Optional spot type filter
-   * @param floor - Optional floor filter
-   * @returns Array of available spot IDs
-   */
-  async findAvailableSpots(
-    startTime: Date,
-    endTime: Date,
-    spotType?: string,
-    floor?: number
-  ): Promise<string[]> {
-    return this.executeWithRetry(async () => {
-      // First get all spots with optional filters
-      const spotWhereClause: any = {
-        status: 'AVAILABLE',
-        isActive: true
-      };
-
-      if (spotType) {
-        spotWhereClause.spotType = spotType;
-      }
-
-      if (floor !== undefined) {
-        spotWhereClause.floor = {
-          floorNumber: floor
-        };
-      }
-
-      const allSpots = await this.prisma.parkingSpot.findMany({
-        where: spotWhereClause,
-        select: { id: true }
-      });
-
-      // Check availability for each spot
-      const availableSpots: string[] = [];
-      for (const spot of allSpots) {
-        const availability = await this.checkSpotAvailability(spot.id, startTime, endTime);
-        if (availability.isAvailable) {
-          availableSpots.push(spot.id);
+        if (!session) {
+          throw new Error(`Active reservation ${reservationId} not found`);
         }
-      }
 
-      this.logger.debug('Found available spots', {
-        startTime,
-        endTime,
-        spotType,
-        floor,
-        totalSpots: allSpots.length,
-        availableCount: availableSpots.length
-      });
-
-      return availableSpots;
-    }, 'find available spots');
-  }
-
-  /**
-   * Create a new reservation
-   * @param reservationData - Reservation creation data
-   * @param tx - Optional transaction client
-   * @returns Created reservation
-   */
-  async createReservation(
-    reservationData: CreateReservationData,
-    tx?: Prisma.TransactionClient
-  ): Promise<ParkingSession> {
-    return this.executeWithRetry(async () => {
-      // Check spot availability first
-      if (reservationData.endTime) {
-        const availability = await this.checkSpotAvailability(
-          reservationData.spotId,
-          reservationData.startTime,
-          reservationData.endTime
-        );
-
-        if (!availability.isAvailable) {
-          throw new Error(
-            `Spot ${reservationData.spotId} is not available for the requested time range`
-          );
+        // Check if reservation is expired
+        if (session.endTime && session.endTime < new Date()) {
+          throw new Error(`Reservation ${reservationId} has expired`);
         }
-      }
 
-      // Set defaults
-      const createData = {
-        ...reservationData,
-        status: reservationData.status || 'ACTIVE',
-        hourlyRate: reservationData.hourlyRate || 5.0,
-        totalAmount: reservationData.totalAmount || 0.0,
-        amountPaid: 0.0,
-        isPaid: false
-      };
+        // Convert to actual parking session
+        const startTime = actualStartTime || new Date();
+        const updatedSession = await tx.parkingSession.update({
+          where: { id: reservationId },
+          data: {
+            startTime,
+            endTime: null, // Remove expiration, now it's an active session
+            duration: null,
+            status: 'ACTIVE',
+            hourlyRate: 5.0, // Set actual hourly rate
+            totalAmount: 0,
+            amountPaid: 0,
+            isPaid: false, // Now requires payment
+            notes: session.notes?.replace('RESERVATION:', 'USED_RESERVATION:') || 'Used reservation'
+          },
+          include: {
+            vehicle: true,
+            spot: true
+          }
+        });
 
-      const reservation = await this.create(createData, tx);
+        // Update spot status to occupied
+        await tx.parkingSpot.update({
+          where: { id: session.spotId },
+          data: { status: 'OCCUPIED' }
+        });
 
-      this.logger.info('Reservation created', {
-        reservationId: reservation.id,
-        vehicleId: reservation.vehicleId,
-        spotId: reservation.spotId,
-        startTime: reservation.startTime,
-        endTime: reservation.endTime
+        this.logger.info('Reservation used and converted to parking session', {
+          reservationId,
+          sessionId: updatedSession.id,
+          spotNumber: session.spot?.spotNumber,
+          licensePlate: session.vehicle?.licensePlate
+        });
+
+        return updatedSession;
       });
-
-      return reservation;
-    }, 'create reservation');
-  }
-
-  /**
-   * Complete a reservation (check out)
-   * @param reservationId - Reservation ID
-   * @param endTime - End time (defaults to now)
-   * @param tx - Optional transaction client
-   * @returns Updated reservation
-   */
-  async completeReservation(
-    reservationId: string,
-    endTime: Date = new Date(),
-    tx?: Prisma.TransactionClient
-  ): Promise<ParkingSession> {
-    return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      
-      const reservation = await client.parkingSession.findFirst({
-        where: {
-          id: reservationId,
-          status: 'ACTIVE'
-        }
-      });
-
-      if (!reservation) {
-        throw new Error(`Active reservation with ID ${reservationId} not found`);
-      }
-
-      // Calculate duration in minutes
-      const duration = Math.floor((endTime.getTime() - reservation.startTime.getTime()) / (1000 * 60));
-      
-      // Calculate total amount based on duration and hourly rate
-      const hours = Math.ceil(duration / 60); // Round up to nearest hour
-      const totalAmount = hours * reservation.hourlyRate;
-
-      const updatedReservation = await this.update(
-        reservationId,
-        {
-          endTime,
-          duration,
-          totalAmount,
-          status: 'COMPLETED'
-        },
-        undefined,
-        tx
-      );
-
-      this.logger.info('Reservation completed', {
-        reservationId,
-        duration,
-        totalAmount,
-        endTime
-      });
-
-      return updatedReservation;
-    }, `complete reservation: ${reservationId}`);
+    }, `use reservation: ${reservationId}`);
   }
 
   /**
    * Cancel a reservation
    * @param reservationId - Reservation ID
    * @param reason - Cancellation reason
-   * @param tx - Optional transaction client
-   * @returns Updated reservation
+   * @returns Updated reservation data
    */
   async cancelReservation(
     reservationId: string,
-    reason?: string,
-    tx?: Prisma.TransactionClient
-  ): Promise<ParkingSession> {
+    reason?: string
+  ): Promise<ReservationData> {
     return this.executeWithRetry(async () => {
-      const reservation = await this.findById(reservationId);
-      if (!reservation) {
-        throw new Error(`Reservation with ID ${reservationId} not found`);
-      }
+      return this.prisma.$transaction(async (tx) => {
+        const session = await tx.parkingSession.findFirst({
+          where: {
+            id: reservationId,
+            notes: {
+              contains: 'RESERVATION:'
+            },
+            status: 'ACTIVE'
+          },
+          include: {
+            spot: true,
+            vehicle: true
+          }
+        });
 
-      if (reservation.status === 'COMPLETED') {
-        throw new Error('Cannot cancel a completed reservation');
-      }
+        if (!session) {
+          throw new Error(`Active reservation ${reservationId} not found`);
+        }
 
-      const updatedReservation = await this.update(
-        reservationId,
-        {
-          status: 'CANCELLED',
-          notes: reason ? `${reservation.notes || ''} [CANCELLED: ${reason}]` : reservation.notes
-        },
-        undefined,
-        tx
-      );
+        // Cancel the session
+        const cancelledSession = await tx.parkingSession.update({
+          where: { id: reservationId },
+          data: {
+            status: 'CANCELLED',
+            notes: `${session.notes} - CANCELLED: ${reason || 'User cancelled'}`
+          },
+          include: {
+            vehicle: true,
+            spot: {
+              include: {
+                floor: {
+                  include: {
+                    garage: true
+                  }
+                }
+              }
+            }
+          }
+        });
 
-      this.logger.info('Reservation cancelled', {
-        reservationId,
-        reason
+        // Make spot available again
+        await tx.parkingSpot.update({
+          where: { id: session.spotId },
+          data: { status: 'AVAILABLE' }
+        });
+
+        const reservation = this.sessionToReservation(cancelledSession);
+
+        this.logger.info('Reservation cancelled', {
+          reservationId,
+          spotNumber: session.spot?.spotNumber,
+          licensePlate: session.vehicle?.licensePlate,
+          reason
+        });
+
+        return reservation;
       });
-
-      return updatedReservation;
     }, `cancel reservation: ${reservationId}`);
   }
 
   /**
+   * Clean up expired reservations
+   * @returns Number of cleaned up reservations
+   */
+  async cleanupExpiredReservations(): Promise<number> {
+    return this.executeWithRetry(async () => {
+      return this.prisma.$transaction(async (tx) => {
+        const now = new Date();
+        
+        // Find expired reservations
+        const expiredSessions = await tx.parkingSession.findMany({
+          where: {
+            notes: {
+              contains: 'RESERVATION:'
+            },
+            status: 'ACTIVE',
+            endTime: {
+              lt: now
+            }
+          },
+          include: {
+            spot: true
+          }
+        });
+
+        if (expiredSessions.length === 0) {
+          return 0;
+        }
+
+        // Mark sessions as expired
+        await tx.parkingSession.updateMany({
+          where: {
+            id: {
+              in: expiredSessions.map(s => s.id)
+            }
+          },
+          data: {
+            status: 'EXPIRED',
+            notes: {
+              set: 'EXPIRED_RESERVATION: Automatically expired'
+            }
+          }
+        });
+
+        // Make spots available again
+        const spotIds = expiredSessions.map(s => s.spotId);
+        await tx.parkingSpot.updateMany({
+          where: {
+            id: {
+              in: spotIds
+            },
+            status: 'RESERVED' // Only update if still reserved
+          },
+          data: {
+            status: 'AVAILABLE'
+          }
+        });
+
+        this.logger.info('Cleaned up expired reservations', {
+          count: expiredSessions.length,
+          spotIds
+        });
+
+        return expiredSessions.length;
+      });
+    }, 'cleanup expired reservations');
+  }
+
+  /**
    * Get reservation statistics
-   * @param startDate - Start date for statistics
-   * @param endDate - End date for statistics
+   * @param garageId - Optional garage ID filter
    * @returns Reservation statistics
    */
-  async getStats(
-    startDate?: Date,
-    endDate?: Date
-  ): Promise<{
-    total: number;
-    byStatus: Record<SessionStatus, number>;
-    totalRevenue: number;
-    averageDuration: number;
-    occupancyRate: number;
-  }> {
+  async getStats(garageId?: string): Promise<ReservationStats> {
     return this.executeWithRetry(async () => {
-      const whereClause: Prisma.ParkingSessionWhereInput = {};
-      
-      if (startDate || endDate) {
-        whereClause.createdAt = {};
-        if (startDate) whereClause.createdAt.gte = startDate;
-        if (endDate) whereClause.createdAt.lte = endDate;
+      const whereClause: any = {
+        notes: {
+          contains: 'RESERVATION:'
+        }
+      };
+
+      if (garageId) {
+        whereClause.spot = {
+          floor: {
+            garageId
+          }
+        };
       }
 
-      const total = await this.count(whereClause);
-      
-      // Get counts by status
-      const statusCounts = await this.prisma.$queryRaw<
-        Array<{ status: SessionStatus; count: bigint }>
-      >`
-        SELECT status, COUNT(*) as count
-        FROM parking_sessions
-        WHERE ${startDate ? Prisma.sql`createdAt >= ${startDate}` : Prisma.sql`1=1`}
-          ${endDate ? Prisma.sql`AND createdAt <= ${endDate}` : Prisma.empty}
-        GROUP BY status
-      `;
+      // Count by status
+      const sessions = await this.prisma.parkingSession.findMany({
+        where: whereClause,
+        include: {
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true
+                }
+              }
+            }
+          }
+        }
+      });
 
-      const byStatus: Record<SessionStatus, number> = {
-        ACTIVE: 0,
-        COMPLETED: 0,
-        CANCELLED: 0,
-        EXPIRED: 0
+      const stats: ReservationStats = {
+        total: sessions.length,
+        active: 0,
+        expired: 0,
+        used: 0,
+        cancelled: 0,
+        byGarage: {},
+        averageDuration: 0,
+        utilizationRate: 0
       };
 
-      statusCounts.forEach(({ status, count }) => {
-        byStatus[status] = Number(count);
+      let totalDuration = 0;
+      let usedCount = 0;
+
+      sessions.forEach(session => {
+        const reservation = this.sessionToReservation(session);
+        const garageName = session.spot?.floor?.garage?.name || 'Unknown';
+
+        // Count by status
+        switch (reservation.status) {
+          case 'ACTIVE':
+            stats.active++;
+            break;
+          case 'EXPIRED':
+            stats.expired++;
+            break;
+          case 'USED':
+            stats.used++;
+            usedCount++;
+            break;
+          case 'CANCELLED':
+            stats.cancelled++;
+            break;
+        }
+
+        // Count by garage
+        stats.byGarage[garageName] = (stats.byGarage[garageName] || 0) + 1;
+
+        // Calculate duration
+        if (session.startTime && session.endTime) {
+          totalDuration += session.endTime.getTime() - session.startTime.getTime();
+        }
       });
 
-      // Get revenue and duration stats
-      const revenueResult = await this.prisma.$queryRaw<
-        Array<{ totalRevenue: number | null; avgDuration: number | null }>
-      >`
-        SELECT 
-          SUM(totalAmount) as totalRevenue,
-          AVG(duration) as avgDuration
-        FROM parking_sessions
-        WHERE status = 'COMPLETED'
-          ${startDate ? Prisma.sql`AND createdAt >= ${startDate}` : Prisma.empty}
-          ${endDate ? Prisma.sql`AND createdAt <= ${endDate}` : Prisma.empty}
-      `;
-
-      const totalRevenue = revenueResult[0]?.totalRevenue || 0;
-      const averageDuration = revenueResult[0]?.avgDuration || 0;
-
-      // Calculate occupancy rate (completed sessions vs total spots)
-      const totalSpots = await this.prisma.parkingSpot.count({
-        where: { isActive: true }
-      });
-      const occupancyRate = totalSpots > 0 ? (byStatus.COMPLETED / totalSpots) * 100 : 0;
+      stats.averageDuration = sessions.length > 0 ? totalDuration / sessions.length / (1000 * 60) : 0; // minutes
+      stats.utilizationRate = sessions.length > 0 ? (usedCount / sessions.length) * 100 : 0;
 
       this.logger.debug('Reservation statistics calculated', {
-        total,
-        totalRevenue,
-        averageDuration,
-        occupancyRate
+        garageId,
+        stats
       });
 
-      return {
-        total,
-        byStatus,
-        totalRevenue,
-        averageDuration,
-        occupancyRate
-      };
+      return stats;
     }, 'get reservation statistics');
+  }
+
+  /**
+   * Convert parking session to reservation data
+   */
+  private sessionToReservation(session: any): ReservationData {
+    let status: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED' = 'ACTIVE';
+
+    if (session.status === 'CANCELLED') {
+      status = 'CANCELLED';
+    } else if (session.status === 'EXPIRED') {
+      status = 'EXPIRED';
+    } else if (session.notes?.includes('USED_RESERVATION:')) {
+      status = 'USED';
+    } else if (session.endTime && session.endTime < new Date()) {
+      status = 'EXPIRED';
+    }
+
+    return {
+      id: session.id,
+      spotId: session.spotId,
+      vehicleId: session.vehicleId,
+      reservedAt: session.startTime,
+      expiresAt: session.endTime || new Date(),
+      status,
+      spot: session.spot,
+      vehicle: session.vehicle,
+      session
+    };
+  }
+
+  /**
+   * Build query options for Prisma
+   */
+  private buildQueryOptions(options?: QueryOptions): any {
+    if (!options) return {};
+
+    const queryOptions: any = {};
+
+    if (options.skip !== undefined) queryOptions.skip = options.skip;
+    if (options.take !== undefined) queryOptions.take = options.take;
+    if (options.cursor) queryOptions.cursor = options.cursor;
+    if (options.orderBy) queryOptions.orderBy = options.orderBy;
+
+    return queryOptions;
+  }
+
+  /**
+   * Execute operation with retry logic (simplified version)
+   */
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    operationName: string = 'operation'
+  ): Promise<T> {
+    try {
+      const startTime = Date.now();
+      const result = await operation();
+      const duration = Date.now() - startTime;
+
+      this.logger.debug(`${operationName} completed`, {
+        duration,
+        timestamp: new Date().toISOString()
+      });
+
+      return result;
+    } catch (error) {
+      this.logger.error(`${operationName} failed`, error as Error);
+      throw error;
+    }
   }
 }
 

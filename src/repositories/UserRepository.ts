@@ -140,7 +140,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
       const result = await client.user.findFirst({
         where: {
           email: email.toLowerCase(),
-          deletedAt: null
+          // Removed deletedAt filter - model doesn't support soft delete
         },
         ...this.buildQueryOptions(options)
       });
@@ -168,7 +168,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
       const result = await this.delegate.findFirst({
         where: {
           googleId,
-          deletedAt: null
+          // Removed deletedAt filter - model doesn't support soft delete
         },
         ...this.buildQueryOptions(options)
       });
@@ -196,7 +196,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
       const result = await this.delegate.findFirst({
         where: {
           githubId,
-          deletedAt: null
+          // Removed deletedAt filter - model doesn't support soft delete
         },
         ...this.buildQueryOptions(options)
       });
@@ -249,7 +249,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
               }
             }
           },
-          deletedAt: null
+          // Removed deletedAt filter - model doesn't support soft delete
         },
         include: {
           sessions: {
@@ -288,7 +288,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
   ): Promise<User[]> {
     return this.executeWithRetry(async () => {
       const whereClause: Prisma.UserWhereInput = {
-        deletedAt: null
+        // Removed deletedAt filter - model doesn't support soft delete
       };
 
       // Email search
@@ -383,7 +383,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
       const existing = await this.delegate.findFirst({
         where: {
           email: normalizedEmail,
-          deletedAt: null
+          // Removed deletedAt filter - model doesn't support soft delete
         }
       });
 
@@ -442,7 +442,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
    */
   async unlockAccount(userId: string): Promise<User> {
     return this.update(userId, {
-      lockoutUntil: null,
+      lockoutUntil: undefined,
       loginAttempts: 0
     });
   }
@@ -478,7 +478,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
           emailVerificationExpires: {
             gt: new Date()
           },
-          deletedAt: null
+          // Removed deletedAt filter - model doesn't support soft delete
         }
       });
 
@@ -488,8 +488,8 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
 
       return this.update(user.id, {
         isEmailVerified: true,
-        emailVerificationToken: null,
-        emailVerificationExpires: null
+        emailVerificationToken: undefined,
+        emailVerificationExpires: undefined
       });
     }, 'verify email');
   }
@@ -526,7 +526,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
           passwordResetExpires: {
             gt: new Date()
           },
-          deletedAt: null
+          // Removed deletedAt filter - model doesn't support soft delete
         }
       });
 
@@ -536,11 +536,11 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
 
       return this.update(user.id, {
         passwordHash: newPasswordHash,
-        passwordResetToken: null,
-        passwordResetExpires: null,
+        passwordResetToken: undefined,
+        passwordResetExpires: undefined,
         lastPasswordChange: new Date(),
         loginAttempts: 0,
-        lockoutUntil: null
+        lockoutUntil: undefined
       });
     }, 'reset password');
   }
@@ -571,9 +571,9 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
    */
   async disableTwoFactor(userId: string): Promise<User> {
     return this.update(userId, {
-      twoFactorSecret: null,
+      twoFactorSecret: undefined,
       isTwoFactorEnabled: false,
-      twoFactorBackupCodes: null
+      twoFactorBackupCodes: undefined
     });
   }
 
@@ -628,7 +628,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
         recentLogins: recentLoginsCount
       };
 
-      this.logger.debug('User statistics calculated', stats);
+      this.logger.debug('User statistics calculated', stats as any);
       
       return stats;
     }, 'get user statistics');
@@ -655,7 +655,7 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
           lockoutUntil: {
             gt: new Date()
           },
-          deletedAt: null
+          // Removed deletedAt filter - model doesn't support soft delete
         },
         ...this.buildQueryOptions(options)
       });

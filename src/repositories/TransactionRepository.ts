@@ -1,9 +1,8 @@
 /**
- * Transaction repository for financial transaction management using Prisma
+ * Transaction repository for data access operations using Prisma
  * 
- * This module provides data access methods for financial transactions
- * using the PrismaAdapter pattern. It handles transaction CRUD operations,
- * financial reporting, and transaction tracking.
+ * This module provides data access methods for transactions using the PrismaAdapter pattern.
+ * It handles transaction CRUD operations, status management, and financial tracking.
  * 
  * @module TransactionRepository
  */
@@ -66,7 +65,7 @@ export interface TransactionSearchCriteria {
   endDate?: Date;
   minAmount?: number;
   maxAmount?: number;
-  currency?: string;
+  description?: string;
 }
 
 /**
@@ -77,8 +76,7 @@ export interface TransactionStats {
   totalAmount: number;
   byStatus: Record<string, { count: number; amount: number }>;
   byType: Record<string, { count: number; amount: number }>;
-  byMethod: Record<string, { count: number; amount: number }>;
-  byCurrency: Record<string, { count: number; amount: number }>;
+  byPaymentMethod: Record<string, { count: number; amount: number }>;
   averageAmount: number;
   pendingAmount: number;
   completedAmount: number;
@@ -86,7 +84,7 @@ export interface TransactionStats {
 }
 
 /**
- * Repository for managing financial transactions using Prisma
+ * Repository for managing transactions using Prisma
  */
 export class TransactionRepository extends PrismaAdapter<Transaction, CreateTransactionData, UpdateTransactionData> {
   protected readonly modelName = 'transaction';
@@ -130,19 +128,6 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
   }
 
   /**
-   * Find transactions by type
-   * @param transactionType - Transaction type
-   * @param options - Query options
-   * @returns Array of transactions of the specified type
-   */
-  async findByType(
-    transactionType: string,
-    options?: QueryOptions
-  ): Promise<Transaction[]> {
-    return this.findMany({ transactionType }, options);
-  }
-
-  /**
    * Find transactions by status
    * @param status - Transaction status
    * @param options - Query options
@@ -156,10 +141,23 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
   }
 
   /**
+   * Find transactions by type
+   * @param transactionType - Transaction type
+   * @param options - Query options
+   * @returns Array of transactions with the specified type
+   */
+  async findByType(
+    transactionType: string,
+    options?: QueryOptions
+  ): Promise<Transaction[]> {
+    return this.findMany({ transactionType }, options);
+  }
+
+  /**
    * Find transactions by payment method
    * @param paymentMethod - Payment method
    * @param options - Query options
-   * @returns Array of transactions using the payment method
+   * @returns Array of transactions with the specified payment method
    */
   async findByPaymentMethod(
     paymentMethod: string,
@@ -172,7 +170,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * Find transactions by payment reference
    * @param paymentReference - Payment reference
    * @param options - Query options
-   * @returns Found transaction or null
+   * @returns Transaction with the specified payment reference
    */
   async findByPaymentReference(
     paymentReference: string,
@@ -180,10 +178,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
   ): Promise<Transaction | null> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findFirst({
-        where: {
-          paymentReference,
-          deletedAt: null
-        },
+        where: { paymentReference },
         include: {
           garage: true,
           ticket: true
@@ -228,21 +223,27 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
   }
 
   /**
+   * Find cancelled transactions
+   * @param options - Query options
+   * @returns Array of cancelled transactions
+   */
+  async findCancelled(options?: QueryOptions): Promise<Transaction[]> {
+    return this.findByStatus('CANCELLED', options);
+  }
+
+  /**
    * Search transactions with multiple criteria
    * @param criteria - Search criteria
    * @param options - Query options
-   * @returns Array of transactions matching all criteria
+   * @returns Array of transactions matching the criteria
    */
   async search(
     criteria: TransactionSearchCriteria,
     options?: QueryOptions
   ): Promise<Transaction[]> {
     return this.executeWithRetry(async () => {
-      const whereClause: Prisma.TransactionWhereInput = {
-        deletedAt: null
-      };
+      const whereClause: Prisma.TransactionWhereInput = {};
 
-      // Direct field matches
       if (criteria.garageId) {
         whereClause.garageId = criteria.garageId;
       }
@@ -252,7 +253,9 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
       }
 
       if (criteria.transactionType) {
-        whereClause.transactionType = criteria.transactionType;
+        whereClause.transactionType = {
+          contains: criteria.transactionType
+        };
       }
 
       if (criteria.status) {
@@ -263,18 +266,19 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         whereClause.paymentMethod = criteria.paymentMethod;
       }
 
-      if (criteria.currency) {
-        whereClause.currency = criteria.currency;
-      }
-
-      // Text searches
       if (criteria.paymentReference) {
         whereClause.paymentReference = {
           contains: criteria.paymentReference
         };
       }
 
-      // Date range search
+      if (criteria.description) {
+        whereClause.description = {
+          contains: criteria.description
+        };
+      }
+
+      // Date range filters
       if (criteria.startDate || criteria.endDate) {
         whereClause.createdAt = {};
         if (criteria.startDate) {
@@ -285,7 +289,7 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         }
       }
 
-      // Amount range search
+      // Amount range filters
       if (criteria.minAmount || criteria.maxAmount) {
         whereClause.amount = {};
         if (criteria.minAmount) {
@@ -315,34 +319,31 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
   }
 
   /**
-   * Create a new transaction with auto-generated reference
+   * Create a new transaction
    * @param transactionData - Transaction creation data
+   * @param tx - Optional transaction client
    * @returns Created transaction
    */
-  async createTransaction(transactionData: CreateTransactionData): Promise<Transaction> {
+  async createTransaction(
+    transactionData: CreateTransactionData,
+    tx?: Prisma.TransactionClient
+  ): Promise<Transaction> {
     return this.executeWithRetry(async () => {
-      // Generate payment reference if not provided
-      let paymentReference = transactionData.paymentReference;
-      if (!paymentReference) {
-        paymentReference = await this.generatePaymentReference();
-      }
-
-      // Set default values
+      // Set defaults
       const createData = {
         ...transactionData,
-        paymentReference,
         status: transactionData.status || 'PENDING',
         currency: transactionData.currency || 'USD'
       };
 
-      const transaction = await this.create(createData);
+      const transaction = await this.create(createData, tx);
 
       this.logger.info('Transaction created', {
         transactionId: transaction.id,
-        paymentReference: transaction.paymentReference,
+        garageId: transaction.garageId,
         type: transaction.transactionType,
         amount: transaction.amount,
-        garageId: transaction.garageId
+        status: transaction.status
       });
 
       return transaction;
@@ -352,31 +353,36 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
   /**
    * Process a transaction (mark as completed)
    * @param transactionId - Transaction ID
-   * @param paymentReference - External payment reference
-   * @param metadata - Additional transaction metadata
+   * @param paymentReference - Payment reference from gateway
+   * @param processedAt - Processing timestamp (defaults to now)
+   * @param metadata - Optional additional metadata
+   * @param tx - Optional transaction client
    * @returns Updated transaction
    */
   async processTransaction(
     transactionId: string,
     paymentReference?: string,
-    metadata?: string
+    processedAt: Date = new Date(),
+    metadata?: string,
+    tx?: Prisma.TransactionClient
   ): Promise<Transaction> {
     return this.executeWithRetry(async () => {
-      const transaction = await this.delegate.findFirst({
-        where: {
-          id: transactionId,
-          status: 'PENDING',
-          deletedAt: null
-        }
-      });
-
+      const transaction = await this.findById(transactionId);
       if (!transaction) {
-        throw new Error(`Pending transaction with ID ${transactionId} not found`);
+        throw new Error(`Transaction with ID ${transactionId} not found`);
+      }
+
+      if (transaction.status === 'COMPLETED') {
+        throw new Error('Transaction is already completed');
+      }
+
+      if (transaction.status === 'CANCELLED') {
+        throw new Error('Cannot process a cancelled transaction');
       }
 
       const updateData: UpdateTransactionData = {
         status: 'COMPLETED',
-        processedAt: new Date()
+        processedAt
       };
 
       if (paymentReference) {
@@ -387,13 +393,13 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
         updateData.metadata = metadata;
       }
 
-      const updatedTransaction = await this.update(transactionId, updateData);
+      const updatedTransaction = await this.update(transactionId, updateData, undefined, tx);
 
       this.logger.info('Transaction processed successfully', {
         transactionId,
-        type: transaction.transactionType,
         amount: transaction.amount,
-        paymentReference
+        paymentReference,
+        processedAt
       });
 
       return updatedTransaction;
@@ -404,31 +410,41 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * Fail a transaction
    * @param transactionId - Transaction ID
    * @param reason - Failure reason
+   * @param tx - Optional transaction client
    * @returns Updated transaction
    */
-  async failTransaction(transactionId: string, reason: string): Promise<Transaction> {
+  async failTransaction(
+    transactionId: string,
+    reason: string,
+    tx?: Prisma.TransactionClient
+  ): Promise<Transaction> {
     return this.executeWithRetry(async () => {
-      const transaction = await this.delegate.findFirst({
-        where: {
-          id: transactionId,
-          status: 'PENDING',
-          deletedAt: null
-        }
-      });
-
+      const transaction = await this.findById(transactionId);
       if (!transaction) {
-        throw new Error(`Pending transaction with ID ${transactionId} not found`);
+        throw new Error(`Transaction with ID ${transactionId} not found`);
       }
 
-      const updatedTransaction = await this.update(transactionId, {
-        status: 'FAILED',
-        description: reason,
-        processedAt: new Date()
-      });
+      if (transaction.status === 'COMPLETED') {
+        throw new Error('Cannot fail a completed transaction');
+      }
+
+      if (transaction.status === 'CANCELLED') {
+        throw new Error('Transaction is already cancelled');
+      }
+
+      const updatedTransaction = await this.update(
+        transactionId,
+        {
+          status: 'FAILED',
+          description: reason,
+          processedAt: new Date()
+        },
+        undefined,
+        tx
+      );
 
       this.logger.info('Transaction failed', {
         transactionId,
-        type: transaction.transactionType,
         amount: transaction.amount,
         reason
       });
@@ -441,31 +457,37 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
    * Cancel a transaction
    * @param transactionId - Transaction ID
    * @param reason - Cancellation reason
+   * @param tx - Optional transaction client
    * @returns Updated transaction
    */
-  async cancelTransaction(transactionId: string, reason: string): Promise<Transaction> {
+  async cancelTransaction(
+    transactionId: string,
+    reason: string,
+    tx?: Prisma.TransactionClient
+  ): Promise<Transaction> {
     return this.executeWithRetry(async () => {
-      const transaction = await this.delegate.findFirst({
-        where: {
-          id: transactionId,
-          status: 'PENDING',
-          deletedAt: null
-        }
-      });
-
+      const transaction = await this.findById(transactionId);
       if (!transaction) {
-        throw new Error(`Pending transaction with ID ${transactionId} not found`);
+        throw new Error(`Transaction with ID ${transactionId} not found`);
       }
 
-      const updatedTransaction = await this.update(transactionId, {
-        status: 'CANCELLED',
-        description: reason,
-        processedAt: new Date()
-      });
+      if (transaction.status === 'COMPLETED') {
+        throw new Error('Cannot cancel a completed transaction');
+      }
+
+      const updatedTransaction = await this.update(
+        transactionId,
+        {
+          status: 'CANCELLED',
+          description: reason,
+          processedAt: new Date()
+        },
+        undefined,
+        tx
+      );
 
       this.logger.info('Transaction cancelled', {
         transactionId,
-        type: transaction.transactionType,
         amount: transaction.amount,
         reason
       });
@@ -477,106 +499,131 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
   /**
    * Get transaction statistics
    * @param garageId - Optional garage ID to filter statistics
+   * @param startDate - Optional start date
+   * @param endDate - Optional end date
    * @returns Transaction statistics
    */
-  async getStats(garageId?: string): Promise<TransactionStats> {
+  async getStats(
+    garageId?: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<TransactionStats> {
     return this.executeWithRetry(async () => {
-      const whereClause = garageId ? { garageId, deletedAt: null } : { deletedAt: null };
+      const whereClause: any = {};
+      if (garageId) whereClause.garageId = garageId;
+      if (startDate || endDate) {
+        whereClause.createdAt = {};
+        if (startDate) whereClause.createdAt.gte = startDate;
+        if (endDate) whereClause.createdAt.lte = endDate;
+      }
       
-      // Get total count and amount
-      const totalCount = await this.count(whereClause);
-      const totalAmountResult = await this.aggregate({
-        _sum: { amount: true }
-      }, whereClause);
+      const total = await this.count(whereClause);
+      
+      // Get total amount
+      const totalAmountResult = await this.prisma.$queryRaw<
+        Array<{ totalAmount: number | null }>
+      >`
+        SELECT SUM(amount) as totalAmount
+        FROM transactions
+        WHERE ${garageId ? Prisma.sql`garageId = ${garageId}` : Prisma.sql`1=1`}
+          ${startDate ? Prisma.sql`AND createdAt >= ${startDate}` : Prisma.empty}
+          ${endDate ? Prisma.sql`AND createdAt <= ${endDate}` : Prisma.empty}
+      `;
 
-      // Count by status with amounts
-      const statusStats = await this.groupBy(['status'], whereClause, {
-        _count: { status: true },
-        _sum: { amount: true }
-      });
+      // Get stats by status
+      const statusStats = await this.prisma.$queryRaw<
+        Array<{ status: string; count: bigint; amount: number }>
+      >`
+        SELECT status, COUNT(*) as count, SUM(amount) as amount
+        FROM transactions
+        WHERE ${garageId ? Prisma.sql`garageId = ${garageId}` : Prisma.sql`1=1`}
+          ${startDate ? Prisma.sql`AND createdAt >= ${startDate}` : Prisma.empty}
+          ${endDate ? Prisma.sql`AND createdAt <= ${endDate}` : Prisma.empty}
+        GROUP BY status
+      `;
 
-      // Count by type with amounts
-      const typeStats = await this.groupBy(['transactionType'], whereClause, {
-        _count: { transactionType: true },
-        _sum: { amount: true }
-      });
+      // Get stats by type
+      const typeStats = await this.prisma.$queryRaw<
+        Array<{ transactionType: string; count: bigint; amount: number }>
+      >`
+        SELECT transactionType, COUNT(*) as count, SUM(amount) as amount
+        FROM transactions
+        WHERE ${garageId ? Prisma.sql`garageId = ${garageId}` : Prisma.sql`1=1`}
+          ${startDate ? Prisma.sql`AND createdAt >= ${startDate}` : Prisma.empty}
+          ${endDate ? Prisma.sql`AND createdAt <= ${endDate}` : Prisma.empty}
+        GROUP BY transactionType
+      `;
 
-      // Count by method with amounts
-      const methodStats = await this.groupBy(['paymentMethod'], whereClause, {
-        _count: { paymentMethod: true },
-        _sum: { amount: true }
-      });
+      // Get stats by payment method
+      const methodStats = await this.prisma.$queryRaw<
+        Array<{ paymentMethod: string; count: bigint; amount: number }>
+      >`
+        SELECT paymentMethod, COUNT(*) as count, SUM(amount) as amount
+        FROM transactions
+        WHERE paymentMethod IS NOT NULL
+          ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
+          ${startDate ? Prisma.sql`AND createdAt >= ${startDate}` : Prisma.empty}
+          ${endDate ? Prisma.sql`AND createdAt <= ${endDate}` : Prisma.empty}
+        GROUP BY paymentMethod
+      `;
 
-      // Count by currency with amounts
-      const currencyStats = await this.groupBy(['currency'], whereClause, {
-        _count: { currency: true },
-        _sum: { amount: true }
-      });
+      const totalAmount = totalAmountResult[0]?.totalAmount || 0;
 
-      const totalAmount = totalAmountResult._sum.amount || 0;
-
-      // Build result
+      // Build statistics object
       const stats: TransactionStats = {
-        total: totalCount,
+        total,
         totalAmount,
         byStatus: {},
         byType: {},
-        byMethod: {},
-        byCurrency: {},
-        averageAmount: totalCount > 0 ? Math.round((totalAmount / totalCount) * 100) / 100 : 0,
+        byPaymentMethod: {},
+        averageAmount: total > 0 ? totalAmount / total : 0,
         pendingAmount: 0,
         completedAmount: 0,
         failedAmount: 0
       };
 
       // Process status stats
-      statusStats.forEach((item: any) => {
-        const count = item._count.status;
-        const amount = item._sum.amount || 0;
-        stats.byStatus[item.status] = { count, amount };
+      statusStats.forEach(({ status, count, amount }) => {
+        const countNum = Number(count);
+        const amountNum = Number(amount) || 0;
+        stats.byStatus[status] = { count: countNum, amount: amountNum };
         
-        // Track specific amounts
-        switch (item.status) {
+        // Set specific amounts
+        switch (status) {
           case 'PENDING':
-            stats.pendingAmount = amount;
+            stats.pendingAmount = amountNum;
             break;
           case 'COMPLETED':
-            stats.completedAmount = amount;
+            stats.completedAmount = amountNum;
             break;
           case 'FAILED':
-            stats.failedAmount = amount;
+            stats.failedAmount = amountNum;
             break;
         }
       });
 
       // Process type stats
-      typeStats.forEach((item: any) => {
-        stats.byType[item.transactionType] = {
-          count: item._count.transactionType,
-          amount: item._sum.amount || 0
+      typeStats.forEach(({ transactionType, count, amount }) => {
+        stats.byType[transactionType] = {
+          count: Number(count),
+          amount: Number(amount) || 0
         };
       });
 
-      // Process method stats
-      methodStats.forEach((item: any) => {
-        if (item.paymentMethod) {
-          stats.byMethod[item.paymentMethod] = {
-            count: item._count.paymentMethod,
-            amount: item._sum.amount || 0
+      // Process payment method stats
+      methodStats.forEach(({ paymentMethod, count, amount }) => {
+        if (paymentMethod) {
+          stats.byPaymentMethod[paymentMethod] = {
+            count: Number(count),
+            amount: Number(amount) || 0
           };
         }
       });
 
-      // Process currency stats
-      currencyStats.forEach((item: any) => {
-        stats.byCurrency[item.currency] = {
-          count: item._count.currency,
-          amount: item._sum.amount || 0
-        };
-      });
-
       this.logger.debug('Transaction statistics calculated', {
         garageId,
+        startDate,
+        endDate,
         stats
       });
       
@@ -585,147 +632,48 @@ export class TransactionRepository extends PrismaAdapter<Transaction, CreateTran
   }
 
   /**
-   * Get daily revenue for a date range
+   * Get daily transaction volume for a date range
    * @param startDate - Start date
    * @param endDate - End date
    * @param garageId - Optional garage ID filter
-   * @returns Daily revenue data
+   * @returns Daily transaction volume data
    */
-  async getDailyRevenue(
+  async getDailyVolume(
     startDate: Date,
     endDate: Date,
     garageId?: string
-  ): Promise<Array<{ date: string; revenue: number; count: number }>> {
+  ): Promise<Array<{ date: string; volume: number; count: number }>> {
     return this.executeWithRetry(async () => {
-      const whereClause: any = {
-        status: 'COMPLETED',
-        processedAt: {
-          gte: startDate,
-          lte: endDate
-        },
-        deletedAt: null
-      };
-
-      if (garageId) {
-        whereClause.garageId = garageId;
-      }
-
-      // Use Prisma aggregation instead of raw SQL for better type safety
       const result = await this.prisma.$queryRaw<
-        Array<{ date: string; revenue: number; count: bigint }>
+        Array<{ date: string; volume: number; count: bigint }>
       >`
         SELECT 
-          DATE(processedAt) as date,
-          SUM(amount) as revenue,
+          DATE(createdAt) as date,
+          SUM(amount) as volume,
           COUNT(*) as count
         FROM transactions
-        WHERE deletedAt IS NULL
-          AND status = 'COMPLETED'
-          AND processedAt >= ${startDate}
-          AND processedAt <= ${endDate}
+        WHERE createdAt >= ${startDate}
+          AND createdAt <= ${endDate}
           ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
-        GROUP BY DATE(processedAt)
+        GROUP BY DATE(createdAt)
         ORDER BY date
       `;
 
-      const dailyRevenue = result.map(({ date, revenue, count }) => ({
+      const dailyVolume = result.map(({ date, volume, count }) => ({
         date,
-        revenue: Number(revenue) || 0,
+        volume: Number(volume) || 0,
         count: Number(count)
       }));
 
-      this.logger.debug('Daily transaction revenue calculated', {
+      this.logger.debug('Daily transaction volume calculated', {
         startDate,
         endDate,
         garageId,
-        daysCount: dailyRevenue.length
+        daysCount: dailyVolume.length
       });
 
-      return dailyRevenue;
-    }, 'get daily transaction revenue');
-  }
-
-  /**
-   * Get transaction volume by hour for a specific date
-   * @param date - Date to analyze
-   * @param garageId - Optional garage ID filter
-   * @returns Hourly transaction volume
-   */
-  async getHourlyVolume(
-    date: Date,
-    garageId?: string
-  ): Promise<Array<{ hour: number; count: number; amount: number }>> {
-    return this.executeWithRetry(async () => {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const whereClause: any = {
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay
-        },
-        deletedAt: null
-      };
-
-      if (garageId) {
-        whereClause.garageId = garageId;
-      }
-
-      const result = await this.prisma.$queryRaw<
-        Array<{ hour: number; count: bigint; amount: number }>
-      >`
-        SELECT 
-          CAST(strftime('%H', createdAt) AS INTEGER) as hour,
-          COUNT(*) as count,
-          SUM(amount) as amount
-        FROM transactions
-        WHERE deletedAt IS NULL
-          AND createdAt >= ${startOfDay}
-          AND createdAt <= ${endOfDay}
-          ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
-        GROUP BY CAST(strftime('%H', createdAt) AS INTEGER)
-        ORDER BY hour
-      `;
-
-      const hourlyVolume = result.map(({ hour, count, amount }) => ({
-        hour,
-        count: Number(count),
-        amount: Number(amount) || 0
-      }));
-
-      this.logger.debug('Hourly transaction volume calculated', {
-        date: date.toDateString(),
-        garageId,
-        hoursCount: hourlyVolume.length
-      });
-
-      return hourlyVolume;
-    }, 'get hourly transaction volume');
-  }
-
-  /**
-   * Generate a unique payment reference
-   * @returns Generated payment reference
-   */
-  private async generatePaymentReference(): Promise<string> {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const paymentReference = `TXN-${timestamp}-${random}`;
-    
-    // Ensure uniqueness
-    const existing = await this.delegate.findFirst({
-      where: { paymentReference }
-    });
-    
-    if (existing) {
-      // If collision (very rare), try again
-      return this.generatePaymentReference();
-    }
-    
-    return paymentReference;
+      return dailyVolume;
+    }, 'get daily transaction volume');
   }
 }
 
