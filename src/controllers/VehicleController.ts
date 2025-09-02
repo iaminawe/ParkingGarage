@@ -90,34 +90,25 @@ export class VehicleController {
         sortOrder = 'desc' 
       } = req.query;
 
-      let vehicles = this.vehicleRepository.findAll();
-
-      // Apply filters
+      // Build search criteria for database query
+      const searchCriteria: any = {};
+      
       if (search) {
-        vehicles = vehicles.filter(vehicle => 
-          vehicle.licensePlate.toLowerCase().includes(search.toLowerCase()) ||
-          (vehicle.make && vehicle.make.toLowerCase().includes(search.toLowerCase())) ||
-          (vehicle.model && vehicle.model.toLowerCase().includes(search.toLowerCase())) ||
-          (vehicle.ownerName && vehicle.ownerName.toLowerCase().includes(search.toLowerCase()))
-        );
+        searchCriteria.licensePlate = search;
       }
-
+      
       if (vehicleType) {
-        vehicles = vehicles.filter(vehicle => vehicle.vehicleType === vehicleType);
+        searchCriteria.vehicleType = vehicleType;
       }
 
-      if (status) {
-        if (status === 'active') {
-          vehicles = vehicles.filter(vehicle => !vehicle.isCheckedOut());
-        } else if (status === 'inactive') {
-          vehicles = vehicles.filter(vehicle => vehicle.isCheckedOut());
-        } else {
-          vehicles = vehicles.filter(vehicle => vehicle.getStatus() === status);
-        }
-      }
+      // Use repository's search method for efficient database queries
+      const vehicles = await this.vehicleRepository.search(searchCriteria);
 
-      // Apply sorting
-      vehicles.sort((a, b) => {
+      // Apply any additional filtering that couldn't be done at database level
+      let filteredVehicles = vehicles;
+      
+      // Apply sorting (if needed beyond database ordering)
+      filteredVehicles.sort((a, b) => {
         let aValue: any = a[sortBy as keyof Vehicle];
         let bValue: any = b[sortBy as keyof Vehicle];
 
