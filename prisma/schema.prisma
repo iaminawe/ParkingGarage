@@ -162,6 +162,7 @@ model User {
   isActive          Boolean     @default(true)
   isEmailVerified   Boolean     @default(false)
   emailVerificationToken String?
+  emailVerificationExpires DateTime?
   passwordResetToken String?
   passwordResetExpires DateTime?
   lastLoginAt       DateTime?
@@ -169,12 +170,29 @@ model User {
   lockoutUntil      DateTime?
   twoFactorSecret   String?
   isTwoFactorEnabled Boolean    @default(false)
+  twoFactorBackupCodes String?  // JSON array of backup codes
+  lastPasswordChange DateTime?  @default(now())
+  passwordChangeRequired Boolean @default(false)
+  securityQuestionHash String?
+  securityAnswerHash String?
+  preferredLanguage String      @default("en")
+  timezone          String      @default("UTC")
+  phoneNumber       String?
+  isPhoneVerified   Boolean     @default(false)
+  phoneVerificationToken String?
+  phoneVerificationExpires DateTime?
+  googleId          String?     @unique
+  githubId          String?     @unique
+  profileImageUrl   String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
   // Relations
   vehicles          Vehicle[]   // User can own multiple vehicles
   sessions          UserSession[]
+  auditLogs         SecurityAuditLog[]
+  devices           UserDevice[]
+  loginHistory      LoginHistory[]
 
   // Performance indexes
   @@index([email])
@@ -182,6 +200,10 @@ model User {
   @@index([isActive])
   @@index([lastLoginAt])
   @@index([loginAttempts, lockoutUntil])
+  @@index([googleId])
+  @@index([githubId])
+  @@index([emailVerificationToken])
+  @@index([passwordResetToken])
   @@map("users")
 }
 
@@ -194,12 +216,21 @@ model UserSession {
   refreshExpiresAt  DateTime?
   isRevoked         Boolean     @default(false)
   deviceInfo        String?     // User agent/device information
+  deviceFingerprint String?
   ipAddress         String?
+  geoLocation       String?     // City, Country from IP
+  lastActivityAt    DateTime    @default(now())
+  sessionType       String      @default("WEB") // WEB, MOBILE, API
+  csrfToken         String?
+  revokedReason     String?     // LOGOUT, SECURITY, EXPIRED, ADMIN
+  revokedAt         DateTime?
+  isSecure          Boolean     @default(false) // HTTPS connection
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
   // Relations
   user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device            UserDevice? @relation(fields: [deviceFingerprint], references: [fingerprint])
 
   // Performance indexes
   @@index([userId])
@@ -207,5 +238,144 @@ model UserSession {
   @@index([refreshToken])
   @@index([expiresAt])
   @@index([isRevoked])
+  @@index([deviceFingerprint])
+  @@index([ipAddress])
+  @@index([lastActivityAt])
+  @@index([userId, isRevoked, expiresAt])
   @@map("user_sessions")
+}
+
+model UserDevice {
+  id              String      @id @default(cuid())
+  userId          String
+  fingerprint     String      @unique // Device fingerprint hash
+  name            String?     // User-assigned device name
+  deviceType      String      // DESKTOP, MOBILE, TABLET
+  browser         String?
+  operatingSystem String?
+  ipAddress       String?
+  geoLocation     String?
+  isTrusted       Boolean     @default(false)
+  lastSeenAt      DateTime    @default(now())
+  firstSeenAt     DateTime    @default(now())
+  isActive        Boolean     @default(true)
+  notificationSettings String? // JSON string for push notification preferences
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions        UserSession[]
+  loginHistory    LoginHistory[]
+
+  // Performance indexes
+  @@index([userId])
+  @@index([fingerprint])
+  @@index([isTrusted])
+  @@index([isActive])
+  @@index([lastSeenAt])
+  @@index([userId, isActive])
+  @@map("user_devices")
+}
+
+model LoginHistory {
+  id              String      @id @default(cuid())
+  userId          String
+  deviceId        String?
+  attemptType     String      // SUCCESS, FAILED_PASSWORD, FAILED_2FA, BLOCKED
+  ipAddress       String
+  geoLocation     String?
+  userAgent       String?
+  failureReason   String?     // INVALID_PASSWORD, ACCOUNT_LOCKED, 2FA_REQUIRED, etc.
+  isSuspicious    Boolean     @default(false)
+  riskScore       Float?      // 0.0 to 1.0 risk assessment
+  metadata        String?     // JSON string for additional context data
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device          UserDevice? @relation(fields: [deviceId], references: [id])
+
+  // Performance indexes
+  @@index([userId])
+  @@index([attemptType])
+  @@index([ipAddress])
+  @@index([isSuspicious])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([attemptType, createdAt])
+  @@map("login_history")
+}
+
+model SecurityAuditLog {
+  id              String      @id @default(cuid())
+  userId          String?
+  sessionId       String?
+  action          String      // LOGIN, LOGOUT, PASSWORD_CHANGE, 2FA_ENABLE, etc.
+  category        String      // AUTH, ACCOUNT, SECURITY, DATA_ACCESS
+  severity        String      // LOW, MEDIUM, HIGH, CRITICAL
+  description     String
+  ipAddress       String?
+  userAgent       String?
+  metadata        String?     // JSON string for additional context data
+  riskLevel       String?     // LOW, MEDIUM, HIGH, CRITICAL
+  isAnomaly       Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  user            User?       @relation(fields: [userId], references: [id])
+
+  // Performance indexes
+  @@index([userId])
+  @@index([action])
+  @@index([category])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([isAnomaly])
+  @@index([riskLevel])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([severity, createdAt])
+  @@map("security_audit_logs")
+}
+
+model EmailTemplate {
+  id              String      @id @default(cuid())
+  name            String      @unique // VERIFICATION, RESET_PASSWORD, 2FA_ENABLED, etc.
+  subject         String
+  htmlContent     String
+  textContent     String
+  variables       String?     // JSON string for template variables schema
+  isActive        Boolean     @default(true)
+  language        String      @default("en")
+  version         Int         @default(1)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Performance indexes
+  @@index([name])
+  @@index([isActive])
+  @@index([language])
+  @@map("email_templates")
+}
+
+model SecuritySettings {
+  id                        String      @id @default(cuid())
+  key                       String      @unique
+  value                     String
+  dataType                  String      // STRING, NUMBER, BOOLEAN, JSON
+  category                  String      // AUTH, SESSION, SECURITY, EMAIL
+  description               String?
+  isEditable                Boolean     @default(true)
+  environmentSpecific       Boolean     @default(false)
+  lastModifiedBy            String?
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
+
+  // Performance indexes
+  @@index([key])
+  @@index([category])
+  @@index([environmentSpecific])
+  @@map("security_settings")
 }

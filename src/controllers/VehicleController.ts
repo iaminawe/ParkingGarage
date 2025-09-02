@@ -11,14 +11,14 @@
 import { Request, Response } from 'express';
 import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SearchService } from '../services/searchService';
-import Vehicle, { ExtendedVehicleData, FullVehicleRecord } from '../models/Vehicle';
+import { Vehicle } from '@prisma/client';
 import { 
   ApiResponse,
   PaginatedApiResponse 
 } from '../types/api';
 import { 
   VehicleRecord, 
-  VehicleType, 
+  VehicleType as LegacyVehicleType, 
   RateType,
   VehicleStatus 
 } from '../types/models';
@@ -44,7 +44,7 @@ interface FrontendVehicle {
 
 interface VehicleSearchQuery {
   search?: string;
-  vehicleType?: VehicleType;
+  vehicleType?: LegacyVehicleType;
   status?: string;
   page?: string;
   limit?: string;
@@ -61,7 +61,7 @@ interface VehicleMetrics {
   parked: number;
   unpaid: number;
   completed: number;
-  byType: Record<VehicleType, number>;
+  byType: Record<LegacyVehicleType, number>;
   byStatus: Record<string, number>;
 }
 
@@ -109,8 +109,8 @@ export class VehicleController {
       
       // Apply sorting (if needed beyond database ordering)
       filteredVehicles.sort((a, b) => {
-        let aValue: any = a[sortBy as keyof Vehicle];
-        let bValue: any = b[sortBy as keyof Vehicle];
+        let aValue: any = (a as any)[sortBy];
+        let bValue: any = (b as any)[sortBy];
 
         if (aValue === undefined) aValue = '';
         if (bValue === undefined) bValue = '';
@@ -129,7 +129,7 @@ export class VehicleController {
       const limitNum = parseInt(limit, 10);
       const startIndex = (pageNum - 1) * limitNum;
       const endIndex = startIndex + limitNum;
-      const paginatedVehicles = vehicles.slice(startIndex, endIndex);
+      const paginatedVehicles = filteredVehicles.slice(startIndex, endIndex);
 
       // Transform to frontend format
       const transformedVehicles = paginatedVehicles.map(vehicle => this.transformToFrontend(vehicle));
@@ -138,11 +138,11 @@ export class VehicleController {
         success: true,
         data: transformedVehicles,
         pagination: {
-          totalItems: vehicles.length,
-          totalPages: Math.ceil(vehicles.length / limitNum),
+          totalItems: filteredVehicles.length,
+          totalPages: Math.ceil(filteredVehicles.length / limitNum),
           currentPage: pageNum,
           itemsPerPage: limitNum,
-          hasNextPage: endIndex < vehicles.length,
+          hasNextPage: endIndex < filteredVehicles.length,
           hasPreviousPage: pageNum > 1
         },
         timestamp: new Date().toISOString()
@@ -165,7 +165,7 @@ export class VehicleController {
   getVehicleById = async (req: Request<{ id: string }>, res: Response<ApiResponse<FrontendVehicle>>): Promise<void> => {
     try {
       const { id } = req.params;
-      const vehicle = this.vehicleRepository.findById(id);
+      const vehicle = await this.vehicleRepository.findByLicensePlate(id);
 
       if (!vehicle) {
         res.status(404).json({
@@ -203,7 +203,7 @@ export class VehicleController {
       const vehicleData = req.body;
 
       // Check for existing vehicle
-      const existingVehicle = this.vehicleRepository.findById(vehicleData.licensePlate!);
+      const existingVehicle = await this.vehicleRepository.findByLicensePlate(vehicleData.licensePlate!);
       if (existingVehicle) {
         res.status(409).json({
           success: false,
@@ -214,12 +214,11 @@ export class VehicleController {
       }
 
       // Map frontend data to backend format
-      const backendVehicleData: ExtendedVehicleData = {
+      const backendVehicleData = {
         licensePlate: vehicleData.licensePlate!,
         spotId: 'temp', // Will be assigned during check-in
-        checkInTime: new Date().toISOString(),
-        vehicleType: this.mapFrontendVehicleType(vehicleData.type || 'car'),
-        rateType: 'hourly' as RateType,
+        vehicleType: this.mapFrontendVehicleTypeToEnum(vehicleData.type || 'car'),
+        rateType: 'HOURLY',
         make: vehicleData.make,
         model: vehicleData.model,
         color: vehicleData.color,
@@ -231,7 +230,7 @@ export class VehicleController {
         notes: vehicleData.notes
       };
 
-      const vehicle = this.vehicleRepository.create(backendVehicleData);
+      const vehicle = await this.vehicleRepository.create(backendVehicleData);
       const transformedVehicle = this.transformToFrontend(vehicle);
 
       res.status(201).json({
@@ -274,7 +273,7 @@ export class VehicleController {
       const { id } = req.params;
       const updates = req.body;
 
-      const vehicle = this.vehicleRepository.findById(id);
+      const vehicle = await this.vehicleRepository.findByLicensePlate(id);
       if (!vehicle) {
         res.status(404).json({
           success: false,
@@ -285,10 +284,10 @@ export class VehicleController {
       }
 
       // Map frontend updates to backend format
-      const backendUpdates: Partial<ExtendedVehicleData> = {};
+      const backendUpdates: any = {};
       
       if (updates.type !== undefined) {
-        backendUpdates.vehicleType = this.mapFrontendVehicleType(updates.type);
+        backendUpdates.vehicleType = this.mapFrontendVehicleTypeToEnum(updates.type);
       }
       if (updates.make !== undefined) backendUpdates.make = updates.make;
       if (updates.model !== undefined) backendUpdates.model = updates.model;
@@ -300,20 +299,10 @@ export class VehicleController {
       if (updates.ownerPhone !== undefined) backendUpdates.ownerPhone = updates.ownerPhone;
       if (updates.notes !== undefined) backendUpdates.notes = updates.notes;
 
-      // Update the vehicle using the model's update method
-      const updateResult = vehicle.update(backendUpdates);
+      // Update the vehicle using the repository's update method
+      const updatedVehicle = await this.vehicleRepository.update(id, backendUpdates);
 
-      if (!updateResult.isValid) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid update data',
-          errors: updateResult.errors,
-          timestamp: new Date().toISOString()
-        });
-        return;
-      }
-
-      const transformedVehicle = this.transformToFrontend(vehicle);
+      const transformedVehicle = this.transformToFrontend(updatedVehicle);
 
       res.status(200).json({
         success: true,
@@ -323,7 +312,14 @@ export class VehicleController {
       });
     } catch (error) {
       console.error('Update vehicle error:', error);
-      if ((error as Error).message.includes('immutable fields')) {
+      if ((error as any)?.code === 'P2025') {
+        // Prisma error for record not found
+        res.status(404).json({
+          success: false,
+          message: 'Vehicle not found',
+          timestamp: new Date().toISOString()
+        });
+      } else if ((error as Error).message.includes('immutable fields')) {
         res.status(400).json({
           success: false,
           message: (error as Error).message,
@@ -347,16 +343,10 @@ export class VehicleController {
   deleteVehicle = async (req: Request<{ id: string }>, res: Response<ApiResponse<void>>): Promise<void> => {
     try {
       const { id } = req.params;
-      const deleted = this.vehicleRepository.delete(id);
+      await this.vehicleRepository.delete(id);
 
-      if (!deleted) {
-        res.status(404).json({
-          success: false,
-          message: 'Vehicle not found',
-          timestamp: new Date().toISOString()
-        });
-        return;
-      }
+      // If we get here, the vehicle was successfully deleted
+      // Prisma throws an error if the record doesn't exist
 
       res.status(200).json({
         success: true,
@@ -365,7 +355,14 @@ export class VehicleController {
       });
     } catch (error) {
       console.error('Delete vehicle error:', error);
-      if ((error as Error).message.includes('still parked')) {
+      if ((error as any)?.code === 'P2025') {
+        // Prisma error for record not found
+        res.status(404).json({
+          success: false,
+          message: 'Vehicle not found',
+          timestamp: new Date().toISOString()
+        });
+      } else if ((error as Error).message.includes('still parked')) {
         res.status(400).json({
           success: false,
           message: 'Cannot delete vehicle that is currently parked. Check out the vehicle first.',
@@ -390,14 +387,14 @@ export class VehicleController {
     try {
       const { vehicleIds } = req.body;
 
-      const results = vehicleIds.map(id => {
+      const results = await Promise.all(vehicleIds.map(async (id) => {
         try {
-          const deleted = this.vehicleRepository.delete(id);
-          return { id, success: deleted, error: deleted ? null : 'Vehicle not found' };
+          await this.vehicleRepository.delete(id);
+          return { id, success: true, error: null };
         } catch (error) {
           return { id, success: false, error: (error as Error).message };
         }
-      });
+      }));
 
       const successCount = results.filter(r => r.success).length;
       const failureCount = results.length - successCount;
@@ -430,10 +427,10 @@ export class VehicleController {
    */
   getVehicleMetrics = async (req: Request, res: Response<ApiResponse<VehicleMetrics>>): Promise<void> => {
     try {
-      const vehicles = this.vehicleRepository.findAll();
-      const parkedVehicles = this.vehicleRepository.findParked();
-      const unpaidVehicles = this.vehicleRepository.findUnpaid();
-      const completedSessions = this.vehicleRepository.findCompleted();
+      const vehicles = await this.vehicleRepository.findMany();
+      const parkedVehicles = vehicles.filter(v => v.spotId && !v.checkOutTime);
+      const unpaidVehicles = vehicles.filter(v => !v.isPaid && v.checkOutTime);
+      const completedSessions = vehicles.filter(v => v.checkOutTime && v.isPaid);
 
       const metrics: VehicleMetrics = {
         total: vehicles.length,
@@ -441,13 +438,13 @@ export class VehicleController {
         unpaid: unpaidVehicles.length,
         completed: completedSessions.length,
         byType: {
-          compact: vehicles.filter(v => v.vehicleType === 'compact').length,
-          standard: vehicles.filter(v => v.vehicleType === 'standard').length,
-          oversized: vehicles.filter(v => v.vehicleType === 'oversized').length
+          compact: vehicles.filter(v => v.vehicleType === 'COMPACT').length,
+          standard: vehicles.filter(v => v.vehicleType === 'STANDARD').length,
+          oversized: vehicles.filter(v => v.vehicleType === 'OVERSIZED').length
         },
         byStatus: {
-          active: vehicles.filter(v => !v.isCheckedOut()).length,
-          inactive: vehicles.filter(v => v.isCheckedOut()).length,
+          active: vehicles.filter(v => !v.checkOutTime).length,
+          inactive: vehicles.filter(v => !!v.checkOutTime).length,
           parked: parkedVehicles.length,
           checked_out_unpaid: unpaidVehicles.length,
           completed: completedSessions.length
@@ -488,7 +485,7 @@ export class VehicleController {
       }
 
       const result = await this.searchService.searchVehicles(search, {
-        mode: mode as string,
+        mode: mode as 'partial' | 'fuzzy' | 'all',
         threshold: parseFloat(threshold as string),
         maxResults: parseInt(maxResults as string, 10)
       });
@@ -496,7 +493,7 @@ export class VehicleController {
       res.json({
         success: true,
         ...result,
-        data: result.vehicles || [],
+        data: result.matches || [],
         timestamp: new Date().toISOString()
       });
     } catch (error) {
@@ -517,30 +514,30 @@ export class VehicleController {
     return {
       id: vehicle.licensePlate,
       licensePlate: vehicle.licensePlate,
-      make: vehicle.make,
-      model: vehicle.model,
-      color: vehicle.color,
-      year: vehicle.year,
+      make: vehicle.make || undefined,
+      model: vehicle.model || undefined,
+      color: vehicle.color || undefined,
+      year: vehicle.year || undefined,
       type: this.mapVehicleType(vehicle.vehicleType),
-      ownerId: vehicle.ownerId,
-      ownerName: vehicle.ownerName,
-      ownerEmail: vehicle.ownerEmail,
-      ownerPhone: vehicle.ownerPhone,
-      notes: vehicle.notes,
-      status: vehicle.isCheckedOut() ? 'inactive' : 'active',
-      createdAt: vehicle.createdAt,
-      updatedAt: vehicle.updatedAt
+      ownerId: vehicle.ownerId || undefined,
+      ownerName: vehicle.ownerName || undefined,
+      ownerEmail: vehicle.ownerEmail || undefined,
+      ownerPhone: vehicle.ownerPhone || undefined,
+      notes: vehicle.notes || undefined,
+      status: vehicle.checkOutTime ? 'inactive' : 'active',
+      createdAt: vehicle.createdAt.toISOString(),
+      updatedAt: vehicle.updatedAt.toISOString()
     };
   }
 
   /**
    * Helper method to map backend VehicleType to frontend vehicle type
    */
-  private mapVehicleType(backendType: VehicleType): 'car' | 'motorcycle' | 'truck' | 'van' | 'bus' {
-    const typeMap: Record<VehicleType, 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'> = {
-      'compact': 'car',
-      'standard': 'car',
-      'oversized': 'truck'
+  private mapVehicleType(backendType: string): 'car' | 'motorcycle' | 'truck' | 'van' | 'bus' {
+    const typeMap: Record<string, 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'> = {
+      'COMPACT': 'car',
+      'STANDARD': 'car',
+      'OVERSIZED': 'truck'
     };
     return typeMap[backendType] || 'car';
   }
@@ -548,15 +545,15 @@ export class VehicleController {
   /**
    * Helper method to map frontend vehicle type to backend VehicleType
    */
-  private mapFrontendVehicleType(frontendType: 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'): VehicleType {
-    const typeMap: Record<string, VehicleType> = {
-      'car': 'standard',
-      'motorcycle': 'compact',
-      'truck': 'oversized',
-      'van': 'oversized',
-      'bus': 'oversized'
+  private mapFrontendVehicleTypeToEnum(frontendType: 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'): string {
+    const typeMap: Record<string, string> = {
+      'car': 'STANDARD',
+      'motorcycle': 'COMPACT',
+      'truck': 'OVERSIZED',
+      'van': 'OVERSIZED',
+      'bus': 'OVERSIZED'
     };
-    return typeMap[frontendType] || 'standard';
+    return typeMap[frontendType] || 'STANDARD';
   }
 }
 

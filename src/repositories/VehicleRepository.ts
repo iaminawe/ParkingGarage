@@ -16,8 +16,8 @@ import { VehicleData, VehicleStatus, VehicleType, RateType } from '../types/mode
 // Type definitions for Vehicle operations
 interface VehicleCreateData {
   licensePlate: string;
-  vehicleType?: VehicleType;
-  rateType?: RateType;
+  vehicleType?: string;
+  rateType?: string;
   spotId?: string;
   ownerId?: string;
   ownerName?: string;
@@ -31,8 +31,8 @@ interface VehicleCreateData {
 }
 
 interface VehicleUpdateData {
-  vehicleType?: VehicleType;
-  rateType?: RateType;
+  vehicleType?: string;
+  rateType?: string;
   spotId?: string;
   ownerId?: string;
   ownerName?: string;
@@ -49,7 +49,7 @@ interface VehicleUpdateData {
 
 interface VehicleSearchCriteria {
   licensePlate?: string;
-  vehicleType?: VehicleType;
+  vehicleType?: string;
   spotId?: string;
   ownerId?: string;
   ownerName?: string;
