@@ -10,7 +10,7 @@
 
 import { Request, Response } from 'express';
 import { SearchService } from "../services/searchService";
-import { VehicleRepository } from "../repositories/vehicleRepository";
+import { VehicleRepository } from "../repositories/VehicleRepository";
 const { validateSearchTerm } = require('../utils/stringMatcher');
 import { 
   SearchVehiclesRequest, 

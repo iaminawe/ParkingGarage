@@ -1,106 +1,149 @@
 /**
- * Logger Utility
+ * Simple logger utility for adapter operations
  * 
- * Provides structured logging with different levels and formatting
- * for the Parking Garage Management System.
+ * This module provides a basic logging interface for database operations
+ * with different log levels and structured logging support.
  * 
  * @module Logger
  */
 
+import { IAdapterLogger } from '../adapters/interfaces/BaseAdapter';
+
+/**
+ * Log level enumeration
+ */
 export enum LogLevel {
-  ERROR = 0,
-  WARN = 1,
-  INFO = 2,
-  DEBUG = 3
+  DEBUG = 0,
+  INFO = 1,
+  WARN = 2,
+  ERROR = 3
 }
 
+/**
+ * Log entry interface
+ */
 export interface LogEntry {
-  timestamp: string;
-  level: string;
+  timestamp: Date;
+  level: LogLevel;
   message: string;
-  data?: any;
-  stack?: string;
+  meta?: Record<string, unknown>;
+  error?: Error;
 }
 
-class Logger {
-  private logLevel: LogLevel;
+/**
+ * Simple console logger implementation
+ */
+export class ConsoleLogger implements IAdapterLogger {
+  private readonly minLevel: LogLevel;
+  private readonly name: string;
 
-  constructor() {
-    const envLevel = process.env.LOG_LEVEL?.toUpperCase() || 'INFO';
-    this.logLevel = LogLevel[envLevel as keyof typeof LogLevel] ?? LogLevel.INFO;
+  constructor(name: string = 'PrismaAdapter', minLevel: LogLevel = LogLevel.INFO) {
+    this.name = name;
+    this.minLevel = minLevel;
   }
 
-  private formatMessage(level: string, message: string, data?: any): LogEntry {
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      message
-    };
+  debug(message: string, meta?: Record<string, unknown>): void {
+    if (this.minLevel <= LogLevel.DEBUG) {
+      this.log(LogLevel.DEBUG, message, meta);
+    }
+  }
 
-    if (data) {
-      if (data instanceof Error) {
-        entry.data = {
-          name: data.name,
-          message: data.message,
-          ...(data as any)
-        };
-        entry.stack = data.stack;
-      } else {
-        entry.data = data;
+  info(message: string, meta?: Record<string, unknown>): void {
+    if (this.minLevel <= LogLevel.INFO) {
+      this.log(LogLevel.INFO, message, meta);
+    }
+  }
+
+  warn(message: string, meta?: Record<string, unknown>): void {
+    if (this.minLevel <= LogLevel.WARN) {
+      this.log(LogLevel.WARN, message, meta);
+    }
+  }
+
+  error(message: string, error?: Error, meta?: Record<string, unknown>): void {
+    if (this.minLevel <= LogLevel.ERROR) {
+      this.log(LogLevel.ERROR, message, meta, error);
+    }
+  }
+
+  private log(level: LogLevel, message: string, meta?: Record<string, unknown>, error?: Error): void {
+    const timestamp = new Date().toISOString();
+    const levelName = LogLevel[level];
+    
+    let logMessage = `[${timestamp}] ${levelName} [${this.name}] ${message}`;
+    
+    if (meta && Object.keys(meta).length > 0) {
+      logMessage += ` | Meta: ${JSON.stringify(meta)}`;
+    }
+    
+    if (error) {
+      logMessage += ` | Error: ${error.message}`;
+      if (error.stack) {
+        logMessage += `\nStack: ${error.stack}`;
       }
     }
-
-    return entry;
-  }
-
-  private shouldLog(level: LogLevel): boolean {
-    return level <= this.logLevel;
-  }
-
-  private output(entry: LogEntry): void {
-    if (process.env.NODE_ENV === 'test') {
-      return; // Skip logging in tests unless explicitly enabled
-    }
-
-    const output = JSON.stringify(entry);
     
-    if (entry.level === 'ERROR') {
-      console.error(output);
-    } else if (entry.level === 'WARN') {
-      console.warn(output);
-    } else {
-      console.log(output);
-    }
-  }
-
-  error(message: string, data?: any): void {
-    if (this.shouldLog(LogLevel.ERROR)) {
-      const entry = this.formatMessage('ERROR', message, data);
-      this.output(entry);
-    }
-  }
-
-  warn(message: string, data?: any): void {
-    if (this.shouldLog(LogLevel.WARN)) {
-      const entry = this.formatMessage('WARN', message, data);
-      this.output(entry);
-    }
-  }
-
-  info(message: string, data?: any): void {
-    if (this.shouldLog(LogLevel.INFO)) {
-      const entry = this.formatMessage('INFO', message, data);
-      this.output(entry);
-    }
-  }
-
-  debug(message: string, data?: any): void {
-    if (this.shouldLog(LogLevel.DEBUG)) {
-      const entry = this.formatMessage('DEBUG', message, data);
-      this.output(entry);
+    switch (level) {
+      case LogLevel.DEBUG:
+      case LogLevel.INFO:
+        console.log(logMessage);
+        break;
+      case LogLevel.WARN:
+        console.warn(logMessage);
+        break;
+      case LogLevel.ERROR:
+        console.error(logMessage);
+        break;
     }
   }
 }
 
-export const logger = new Logger();
-export default logger;
+/**
+ * No-op logger for testing or when logging is disabled
+ */
+export class NoopLogger implements IAdapterLogger {
+  debug(): void {}
+  info(): void {}
+  warn(): void {}
+  error(): void {}
+}
+
+/**
+ * Create logger instance based on environment
+ */
+export function createLogger(name?: string): IAdapterLogger {
+  // In production, you might want to use a more sophisticated logger
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const logLevel = process.env.LOG_LEVEL;
+  
+  if (process.env.NODE_ENV === 'test') {
+    return new NoopLogger();
+  }
+  
+  let minLevel = LogLevel.INFO;
+  if (logLevel) {
+    switch (logLevel.toUpperCase()) {
+      case 'DEBUG':
+        minLevel = LogLevel.DEBUG;
+        break;
+      case 'INFO':
+        minLevel = LogLevel.INFO;
+        break;
+      case 'WARN':
+        minLevel = LogLevel.WARN;
+        break;
+      case 'ERROR':
+        minLevel = LogLevel.ERROR;
+        break;
+    }
+  } else if (isDevelopment) {
+    minLevel = LogLevel.DEBUG;
+  }
+  
+  return new ConsoleLogger(name, minLevel);
+}
+
+/**
+ * Default logger instance
+ */
+export const logger = createLogger();

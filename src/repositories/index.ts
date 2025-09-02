@@ -9,7 +9,7 @@
  */
 
 // Import and export individual repository classes
-import { VehicleRepository } from './vehicleRepository';
+import { VehicleRepository } from './VehicleRepository';
 import { SpotRepository } from './spotRepository';
 import { GarageRepository } from './garageRepository';
 

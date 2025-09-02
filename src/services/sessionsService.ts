@@ -8,7 +8,7 @@
  */
 
 import { SessionsRepository } from '../repositories/sessionsRepository';
-import { VehicleRepository } from '../repositories/vehicleRepository';
+import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SpotRepository } from '../repositories/spotRepository';
 import { ParkingSession, PaginatedResponse, Vehicle, ParkingSpot } from '../types/api';
 

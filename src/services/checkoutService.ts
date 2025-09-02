@@ -8,7 +8,7 @@
  * @module CheckoutService
  */
 
-import { VehicleRepository } from '../repositories/vehicleRepository';
+import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SpotRepository } from '../repositories/spotRepository';
 import { SessionsRepository } from '../repositories/sessionsRepository';
 const BillingService = require('./billingService');

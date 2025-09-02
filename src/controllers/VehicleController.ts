@@ -9,7 +9,7 @@
  */
 
 import { Request, Response } from 'express';
-import { VehicleRepository } from '../repositories/vehicleRepository';
+import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SearchService } from '../services/searchService';
 import Vehicle, { ExtendedVehicleData, FullVehicleRecord } from '../models/Vehicle';
 import { 

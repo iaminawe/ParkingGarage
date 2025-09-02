@@ -53,6 +53,8 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.3",
+    "@babel/preset-typescript": "^7.27.1",
     "@eslint/js": "^8.45.0",
     "@faker-js/faker": "^8.4.1",
     "@prisma/client": "^5.20.0",
