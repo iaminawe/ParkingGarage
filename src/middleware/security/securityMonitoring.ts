@@ -43,14 +43,14 @@ const cleanOldData = (): void => {
   const cutoff = now - MONITORING_CONFIG.TRACKING_WINDOW;
   
   // Clean request tracking
-  for (const [ip, requests] of requestTracker) {
+  Array.from(requestTracker.entries()).forEach(([ip, requests]) => {
     const recentRequests = requests.filter(req => req.timestamp > cutoff);
     if (recentRequests.length === 0) {
       requestTracker.delete(ip);
     } else {
       requestTracker.set(ip, recentRequests);
     }
-  }
+  });
   
   // Clean suspicious IPs (they expire after timeout)
   // This is handled by the timeout mechanism in the detection logic
@@ -119,7 +119,7 @@ const detectSuspiciousActivity = (req: Request): boolean => {
 const logSuspiciousActivity = async (req: Request, reason: string): Promise<void> => {
   const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
   
-  await SecurityAuditService.createSecurityAlert({
+  await SecurityAuditUtils.createSecurityAlert({
     title: 'Suspicious Activity Detected',
     description: `Potential security threat from IP ${clientIP}: ${reason}`,
     severity: 'HIGH',
@@ -285,13 +285,13 @@ export const getMonitoringStats = () => {
   let totalRequests = 0;
   let activeIPs = 0;
   
-  for (const [ip, requests] of requestTracker) {
+  Array.from(requestTracker.entries()).forEach(([ip, requests]) => {
     const recentRequests = requests.filter(req => req.timestamp > cutoff);
     if (recentRequests.length > 0) {
       totalRequests += recentRequests.length;
       activeIPs++;
     }
-  }
+  });
   
   return {
     activeIPs,

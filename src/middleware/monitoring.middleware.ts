@@ -223,8 +223,8 @@ class DatabaseMonitor {
     this.timers.set(queryId, performance.now());
     
     recordMetric('database.query.started', 1, 'count', {
-      correlationId,
-      queryType: query.split(' ')[0]?.toLowerCase(),
+      correlationId: correlationId || '',
+      queryType: query.split(' ')[0]?.toLowerCase() || '',
     });
   }
   
@@ -236,18 +236,18 @@ class DatabaseMonitor {
     this.timers.delete(queryId);
     
     recordMetric('database.query.duration', duration, 'ms', {
-      correlationId,
+      correlationId: correlationId || '',
       success: success.toString(),
     });
     
     incrementCounter('database.queries.total', {
       success: success.toString(),
-      correlationId,
+      correlationId: correlationId || '',
     });
     
     if (!success && error) {
       monitoring.reportError(error, {
-        correlationId,
+        correlationId: correlationId || '',
         queryId,
         duration,
       });
@@ -256,7 +256,7 @@ class DatabaseMonitor {
     // Warn on slow queries
     if (duration > 500) {
       incrementCounter('database.queries.slow', {
-        correlationId,
+        correlationId: correlationId || '',
       });
     }
   }
@@ -269,13 +269,13 @@ class DatabaseMonitor {
 function authenticationMonitor(event: string, success: boolean, userId?: string, correlationId?: string, metadata?: Record<string, any>): void {
   incrementCounter(`auth.${event}.total`, {
     success: success.toString(),
-    correlationId,
+    correlationId: correlationId || '',
   });
   
   if (success) {
-    incrementCounter(`auth.${event}.success`, { correlationId });
+    incrementCounter(`auth.${event}.success`, { correlationId: correlationId || '' });
   } else {
-    incrementCounter(`auth.${event}.failure`, { correlationId });
+    incrementCounter(`auth.${event}.failure`, { correlationId: correlationId || '' });
     
     // Track security events
     monitoring.reportEvent('security.auth_failure', {
