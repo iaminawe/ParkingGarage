@@ -25,7 +25,11 @@
     "db:migrate:reset": "prisma migrate reset",
     "db:seed": "ts-node prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:format": "prisma format"
+    "db:format": "prisma format",
+    "db:migrate-data": "ts-node scripts/migrate-data.ts",
+    "db:rollback": "ts-node scripts/rollback-migration.ts",
+    "db:validate": "ts-node scripts/migrate-data.ts --validate-only",
+    "db:backup": "ts-node -e \"import {DataBackupUtility} from './src/utils/data-backup'; new DataBackupUtility().createBackup('manual-backup', {includeMemoryStore: true, includeSQLiteDB: true})\""
   },
   "keywords": [
     "api",
