@@ -69,14 +69,41 @@ Documentation: 34 markdown files
 Database: Prisma schema and migrations
 ```
 
+## State Management Architecture
+
+### Overview
+Multi-layered state management system with:
+- **Database Layer**: Prisma + SQLite (source of truth)
+- **In-Memory Cache**: MemoryStore for O(1) lookups
+- **Transaction Manager**: ACID compliance with retry logic
+- **Session State**: JWT + database-backed sessions
+- **Cache Service**: Redis-compatible caching layer
+
+### Key Components
+- **5 State Layers**: Database, Memory, Transactions, Sessions, Cache
+- **8 Entity Types**: Vehicle, Session, Payment, Spot, Ticket, User, Token, Device
+- **3 Status Enums**: SessionStatus, PaymentStatus, TicketStatus
+- **Transaction Support**: Nested transactions with savepoints
+- **Performance**: Sub-millisecond memory lookups, pattern-based cache invalidation
+
+### State Flow Patterns
+- **Vehicle Entry**: DB → MemoryStore → Cache Invalidation
+- **Payment Processing**: Transaction → DB → MemoryStore Cleanup
+- **Authentication**: JWT → Cache Check → DB Validation → Session Update
+
+For detailed information, see [STATE_MANAGEMENT.md](./STATE_MANAGEMENT.md)
+
 ## Performance & Optimization
 - Cache Service implemented
 - Query Optimizer service
 - Performance metrics tracking
 - Performance middleware for monitoring
+- In-memory store for real-time operations
+- Transaction retry mechanisms
+- Pattern-based cache invalidation
 
 ## Current Work (Untracked Files)
-- New documentation (PERFORMANCE.md)
+- New documentation (PERFORMANCE.md, STATE_MANAGEMENT.md)
 - Prisma integration
 - Configuration services
 - Middleware implementations

@@ -247,9 +247,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
     options?: QueryOptions
   ): Promise<Ticket[]> {
     return this.executeWithRetry(async () => {
-      const whereClause: Prisma.TicketWhereInput = {
-        deletedAt: null
-      };
+      const whereClause: Prisma.TicketWhereInput = {};
 
       // Direct field matches
       if (criteria.garageId) {
@@ -262,8 +260,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
 
       if (criteria.vehiclePlate) {
         whereClause.vehiclePlate = {
-          contains: criteria.vehiclePlate.toUpperCase(),
-          mode: 'insensitive'
+          contains: criteria.vehiclePlate.toUpperCase()
         };
       }
 

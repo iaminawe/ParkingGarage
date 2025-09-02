@@ -464,10 +464,10 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
         // Create template literal array manually for parameterized queries
         const sqlParts = sql.split('?');
         const templateStrings = sqlParts;
-        result = await client.$executeRaw(Prisma.sql(templateStrings, ...values));
+        result = await (tx || this.prisma).$executeRaw(Prisma.sql(templateStrings, ...values));
       } else {
         // For non-parameterized queries, use executeRawUnsafe
-        result = await client.$executeRawUnsafe(sql);
+        result = await (tx || this.prisma).$executeRawUnsafe(sql);
       }
       
       this.logger.debug('Executed raw SQL', {
@@ -493,10 +493,10 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
         // Create template literal array manually for parameterized queries
         const sqlParts = sql.split('?');
         const templateStrings = sqlParts;
-        result = await client.$queryRaw(Prisma.sql(templateStrings, ...values));
+        result = await (tx || this.prisma).$queryRaw(Prisma.sql(templateStrings, ...values));
       } else {
         // For non-parameterized queries, use queryRawUnsafe
-        result = await client.$queryRawUnsafe(sql);
+        result = await (tx || this.prisma).$queryRawUnsafe(sql);
       }
       
       this.logger.debug('Executed raw SQL query', {

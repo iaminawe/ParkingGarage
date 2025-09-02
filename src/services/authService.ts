@@ -1,8 +1,11 @@
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
+import * as crypto from 'crypto';
 import { User, UserSession } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/environment';
+import { CacheService } from './CacheService';
+import { EmailService } from './EmailService';
 import { 
   SECURITY, 
   TIME_CONSTANTS, 
@@ -32,6 +35,27 @@ export interface AuthResult {
   errors?: string[];
 }
 
+export interface PasswordResetData {
+  email: string;
+}
+
+export interface PasswordResetConfirmData {
+  token: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordData {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface DeviceInfo {
+  userAgent?: string;
+  ipAddress?: string;
+  deviceFingerprint?: string;
+}
+
 export interface TokenPayload {
   userId: string;
   email: string;
@@ -48,6 +72,8 @@ class AuthService {
   private readonly MAX_LOGIN_ATTEMPTS: number;
   private readonly LOCKOUT_TIME: number;
   private readonly PASSWORD_SALT_ROUNDS: number;
+  private readonly cacheService: CacheService;
+  private readonly emailService: EmailService;
 
   constructor() {
     // Use validated environment configuration - no defaults allowed
@@ -58,6 +84,8 @@ class AuthService {
     this.MAX_LOGIN_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
     this.LOCKOUT_TIME = env.LOCKOUT_TIME;
     this.PASSWORD_SALT_ROUNDS = env.BCRYPT_SALT_ROUNDS;
+    this.cacheService = new CacheService();
+    this.emailService = new EmailService();
   }
 
   /**
@@ -165,17 +193,23 @@ class AuthService {
   }
 
   /**
-   * Handle successful login
+   * Handle successful login with enhanced device tracking
    */
-  private async handleSuccessfulLogin(userId: string, deviceInfo?: string, ipAddress?: string): Promise<void> {
+  private async handleSuccessfulLogin(userId: string, deviceInfo?: DeviceInfo): Promise<void> {
     await prisma.user.update({
       where: { id: userId },
       data: {
         lastLoginAt: new Date(),
+        lastLoginIP: deviceInfo?.ipAddress,
         loginAttempts: 0,
         lockoutUntil: null
       }
     });
+
+    // Log security event for monitoring
+    if (env.NODE_ENV === 'production') {
+      console.log(`Successful login: user=${userId}, ip=${deviceInfo?.ipAddress}, userAgent=${deviceInfo?.userAgent}`);
+    }
   }
 
   /**
@@ -244,9 +278,9 @@ class AuthService {
   }
 
   /**
-   * Authenticate user login
+   * Authenticate user login with enhanced device tracking
    */
-  async login(data: LoginData, deviceInfo?: string, ipAddress?: string): Promise<AuthResult> {
+  async login(data: LoginData, deviceInfo?: DeviceInfo): Promise<AuthResult> {
     try {
       // Find user by email
       const user = await prisma.user.findUnique({
@@ -288,7 +322,7 @@ class AuthService {
       }
 
       // Handle successful login
-      await this.handleSuccessfulLogin(user.id, deviceInfo, ipAddress);
+      await this.handleSuccessfulLogin(user.id, deviceInfo);
 
       // Generate new tokens
       const { token, refreshToken, expiresAt, refreshExpiresAt } = this.generateTokens(user);
@@ -301,8 +335,9 @@ class AuthService {
           refreshToken,
           expiresAt,
           refreshExpiresAt,
-          deviceInfo,
-          ipAddress
+          deviceInfo: deviceInfo?.userAgent,
+          ipAddress: deviceInfo?.ipAddress,
+          deviceFingerprint: deviceInfo?.deviceFingerprint
         }
       });
 
@@ -398,15 +433,25 @@ class AuthService {
   }
 
   /**
-   * Logout user (revoke session)
+   * Logout user (revoke session and blacklist token)
    */
   async logout(token: string): Promise<{ success: boolean; message: string }> {
     try {
-      // Find and revoke session
+      // Find session to get expiry time for blacklisting
+      const session = await prisma.userSession.findUnique({
+        where: { token }
+      });
+
+      // Revoke session
       await prisma.userSession.updateMany({
         where: { token },
         data: { isRevoked: true }
       });
+
+      // Blacklist token to prevent reuse
+      if (session) {
+        await this.blacklistToken(token, session.expiresAt);
+      }
 
       return {
         success: true,
@@ -418,6 +463,49 @@ class AuthService {
       return {
         success: false,
         message: 'Logout failed'
+      };
+    }
+  }
+
+  /**
+   * Logout from all devices (revoke all sessions for user)
+   */
+  async logoutAllDevices(userId: string): Promise<{ success: boolean; message: string; count: number }> {
+    try {
+      // Get all active sessions for token blacklisting
+      const sessions = await prisma.userSession.findMany({
+        where: {
+          userId,
+          isRevoked: false
+        }
+      });
+
+      // Revoke all sessions
+      const result = await prisma.userSession.updateMany({
+        where: {
+          userId,
+          isRevoked: false
+        },
+        data: { isRevoked: true }
+      });
+
+      // Blacklist all tokens
+      await Promise.all(
+        sessions.map(session => this.blacklistToken(session.token, session.expiresAt))
+      );
+
+      return {
+        success: true,
+        message: `Logged out from ${result.count} device(s) successfully`,
+        count: result.count
+      };
+
+    } catch (error) {
+      console.error('Logout all devices error:', error);
+      return {
+        success: false,
+        message: 'Logout from all devices failed',
+        count: 0
       };
     }
   }
@@ -545,6 +633,258 @@ class AuthService {
     } catch (error) {
       console.error('Error counting active sessions:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Token blacklisting for logout security
+   */
+  async blacklistToken(token: string, expiresAt?: Date): Promise<void> {
+    try {
+      const expiry = expiresAt || new Date(Date.now() + TIME_CONSTANTS.SESSION_DURATION_MS);
+      const key = `blacklist:${token}`;
+      const ttl = Math.max(0, Math.floor((expiry.getTime() - Date.now()) / 1000));
+      
+      if (ttl > 0) {
+        await this.cacheService.set(key, 'blacklisted', ttl);
+      }
+    } catch (error) {
+      console.error('Error blacklisting token:', error);
+      // Don't throw - token blacklisting is a security enhancement, not critical
+    }
+  }
+
+  /**
+   * Check if token is blacklisted
+   */
+  async isTokenBlacklisted(token: string): Promise<boolean> {
+    try {
+      const key = `blacklist:${token}`;
+      const result = await this.cacheService.get(key);
+      return result === 'blacklisted';
+    } catch (error) {
+      console.error('Error checking token blacklist:', error);
+      return false; // Fail open for availability
+    }
+  }
+
+  /**
+   * Revoke oldest session for a user (when session limit is exceeded)
+   */
+  async revokeOldestSession(userId: string): Promise<void> {
+    try {
+      const oldestSession = await prisma.userSession.findFirst({
+        where: {
+          userId,
+          isRevoked: false
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      });
+
+      if (oldestSession) {
+        await prisma.userSession.update({
+          where: { id: oldestSession.id },
+          data: { isRevoked: true }
+        });
+
+        // Blacklist the token
+        await this.blacklistToken(oldestSession.token, oldestSession.expiresAt);
+      }
+    } catch (error) {
+      console.error('Error revoking oldest session:', error);
+    }
+  }
+
+  /**
+   * Generate secure random token for password reset
+   */
+  private generateSecureToken(length = 32): string {
+    return crypto.randomBytes(length).toString('hex');
+  }
+
+  /**
+   * Initiate password reset process
+   */
+  async requestPasswordReset(data: PasswordResetData): Promise<{ success: boolean; message: string }> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { email: data.email.toLowerCase() }
+      });
+
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return {
+          success: true,
+          message: 'If an account with this email exists, a password reset link has been sent.'
+        };
+      }
+
+      // Generate secure reset token
+      const resetToken = this.generateSecureToken();
+      const tokenHash = await this.hashPassword(resetToken);
+      const expiresAt = new Date(Date.now() + TIME_CONSTANTS.PASSWORD_RESET_EXPIRY_MS);
+
+      // Store reset token in database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetToken: tokenHash,
+          passwordResetExpires: expiresAt
+        }
+      });
+
+      // Send password reset email
+      await this.emailService.sendPasswordResetEmail(user.email, resetToken, user.firstName || 'User');
+
+      return {
+        success: true,
+        message: 'If an account with this email exists, a password reset link has been sent.'
+      };
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      return {
+        success: true, // Always return success for security
+        message: 'If an account with this email exists, a password reset link has been sent.'
+      };
+    }
+  }
+
+  /**
+   * Confirm password reset with token
+   */
+  async confirmPasswordReset(data: PasswordResetConfirmData): Promise<AuthResult> {
+    try {
+      // Validate new password
+      const passwordValidation = this.validatePassword(data.newPassword);
+      if (!passwordValidation.isValid) {
+        return {
+          success: false,
+          message: API_RESPONSES.ERRORS.WEAK_PASSWORD,
+          errors: passwordValidation.errors
+        };
+      }
+
+      // Find user with valid reset token
+      const users = await prisma.user.findMany({
+        where: {
+          passwordResetToken: { not: null },
+          passwordResetExpires: { gt: new Date() }
+        }
+      });
+
+      let validUser = null;
+      for (const user of users) {
+        if (user.passwordResetToken && await bcrypt.compare(data.token, user.passwordResetToken)) {
+          validUser = user;
+          break;
+        }
+      }
+
+      if (!validUser) {
+        return {
+          success: false,
+          message: 'Invalid or expired password reset token'
+        };
+      }
+
+      // Hash new password and update user
+      const newPasswordHash = await this.hashPassword(data.newPassword);
+      
+      await prisma.user.update({
+        where: { id: validUser.id },
+        data: {
+          passwordHash: newPasswordHash,
+          passwordResetToken: null,
+          passwordResetExpires: null,
+          // Reset login attempts on password change
+          loginAttempts: 0,
+          lockoutUntil: null
+        }
+      });
+
+      // Revoke all existing sessions for security
+      await this.revokeAllUserSessions(validUser.id);
+
+      return {
+        success: true,
+        message: 'Password reset successful. Please log in with your new password.'
+      };
+    } catch (error) {
+      console.error('Password reset confirmation error:', error);
+      return {
+        success: false,
+        message: 'Password reset failed. Please try again.'
+      };
+    }
+  }
+
+  /**
+   * Change password (authenticated user)
+   */
+  async changePassword(data: ChangePasswordData): Promise<AuthResult> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: data.userId }
+      });
+
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found'
+        };
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await this.comparePassword(data.currentPassword, user.passwordHash);
+      if (!isCurrentPasswordValid) {
+        return {
+          success: false,
+          message: 'Current password is incorrect'
+        };
+      }
+
+      // Validate new password
+      const passwordValidation = this.validatePassword(data.newPassword);
+      if (!passwordValidation.isValid) {
+        return {
+          success: false,
+          message: API_RESPONSES.ERRORS.WEAK_PASSWORD,
+          errors: passwordValidation.errors
+        };
+      }
+
+      // Check if new password is different from current
+      const isSamePassword = await this.comparePassword(data.newPassword, user.passwordHash);
+      if (isSamePassword) {
+        return {
+          success: false,
+          message: 'New password must be different from current password'
+        };
+      }
+
+      // Hash and update new password
+      const newPasswordHash = await this.hashPassword(data.newPassword);
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash: newPasswordHash,
+          lastPasswordChange: new Date()
+        }
+      });
+
+      return {
+        success: true,
+        message: API_RESPONSES.SUCCESS.PASSWORD_CHANGED
+      };
+    } catch (error) {
+      console.error('Change password error:', error);
+      return {
+        success: false,
+        message: 'Password change failed. Please try again.'
+      };
     }
   }
 
