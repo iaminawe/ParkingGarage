@@ -47,27 +47,51 @@ export function levenshteinDistance(a: string, b: string): number {
     .map(() => Array(a.length + 1).fill(0));
 
   for (let i = 0; i <= a.length; i++) {
-    matrix[0][i] = i;
+    const row = matrix[0];
+    if (row) {
+      row[i] = i;
+    }
   }
   for (let j = 0; j <= b.length; j++) {
-    matrix[j][0] = j;
+    const row = matrix[j];
+    if (row) {
+      row[0] = j;
+    }
   }
 
   for (let j = 1; j <= b.length; j++) {
     for (let i = 1; i <= a.length; i++) {
+      const currentRow = matrix[j];
+      const prevRow = matrix[j - 1];
+      
+      if (!currentRow || !prevRow) {
+        continue;
+      }
+      
       if (a[i - 1] === b[j - 1]) {
-        matrix[j][i] = matrix[j - 1][i - 1];
+        const prevDiagonal = prevRow[i - 1];
+        if (prevDiagonal !== undefined) {
+          currentRow[i] = prevDiagonal;
+        }
       } else {
-        matrix[j][i] = Math.min(
-          matrix[j - 1][i] + 1, // deletion
-          matrix[j][i - 1] + 1, // insertion
-          matrix[j - 1][i - 1] + 1 // substitution
-        );
+        const deletion = prevRow[i];
+        const insertion = currentRow[i - 1];
+        const substitution = prevRow[i - 1];
+        
+        if (deletion !== undefined && insertion !== undefined && substitution !== undefined) {
+          currentRow[i] = Math.min(
+            deletion + 1, // deletion
+            insertion + 1, // insertion
+            substitution + 1 // substitution
+          );
+        }
       }
     }
   }
 
-  return matrix[b.length][a.length];
+  const lastRow = matrix[b.length];
+  const result = lastRow?.[a.length];
+  return result ?? 0;
 }
 
 /**
@@ -85,7 +109,7 @@ export function calculateSimilarity(a: string, b: string): number {
   }
 
   const distance = levenshteinDistance(a, b);
-  const maxLength = Math.max(a?.length ?? 0, b?.length ?? 0);
+  const maxLength = Math.max(a.length, b.length);
 
   return maxLength === 0 ? 1 : 1 - distance / maxLength;
 }

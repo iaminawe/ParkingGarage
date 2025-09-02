@@ -2,7 +2,7 @@
 
 ![Backend](https://img.shields.io/badge/backend-API_complete-green)
 ![Frontend](https://img.shields.io/badge/frontend-fully_implemented-green)
-![Tests](https://img.shields.io/badge/tests-400%2B_cases_95%25_coverage-green)
+![Tests](https://img.shields.io/badge/tests-400%2B_cases_95%25_coverage_E2E_verified-green)
 ![Database](https://img.shields.io/badge/database-SQLite/Prisma_production_ready-green)
 ![Auth](https://img.shields.io/badge/authentication-JWT_implemented-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)

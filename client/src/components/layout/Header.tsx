@@ -79,7 +79,7 @@ export function Header() {
                       {user.name}
                     </span>
                     <span className={`text-xs px-1.5 py-0.5 rounded-md ${getRoleColor(user.role)}`}>
-                      {user.role}
+                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                     </span>
                   </div>
                 </Button>
@@ -94,7 +94,7 @@ export function Header() {
                       {user.email}
                     </p>
                     <span className={`text-xs px-1.5 py-0.5 rounded-md w-fit ${getRoleColor(user.role)}`}>
-                      {user.role}
+                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                     </span>
                   </div>
                 </DropdownMenuLabel>

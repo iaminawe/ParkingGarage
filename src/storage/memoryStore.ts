@@ -9,7 +9,7 @@
  */
 
 import type { SpotRecord, VehicleRecord } from '../types/models';
-import type { Garage } from '../models/garage';
+import { Garage } from '../models/garage';
 
 /**
  * Statistics interface for the memory store

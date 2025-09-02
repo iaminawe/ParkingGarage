@@ -300,20 +300,25 @@ export function parseTimeString(timeString: string): number | null {
   // Pattern: "2h 30m" or "2h30m"
   const hoursMinutesMatch = cleaned.match(/^(\d+(?:\.\d+)?)h\s*(\d+)m?$/);
   if (hoursMinutesMatch) {
-    const hours = parseFloat(hoursMinutesMatch[1]);
-    const minutes = parseInt(hoursMinutesMatch[2]);
-    return Math.round(hours * 60 + minutes);
+    const hoursStr = hoursMinutesMatch[1];
+    const minutesStr = hoursMinutesMatch[2];
+    
+    if (hoursStr && minutesStr) {
+      const hours = parseFloat(hoursStr);
+      const minutes = parseInt(minutesStr);
+      return Math.round(hours * 60 + minutes);
+    }
   }
 
   // Pattern: "150m"
   const minutesMatch = cleaned.match(/^(\d+)m?$/);
-  if (minutesMatch) {
+  if (minutesMatch && minutesMatch[1]) {
     return parseInt(minutesMatch[1]);
   }
 
   // Pattern: "2.5h"
   const hoursMatch = cleaned.match(/^(\d+(?:\.\d+)?)h$/);
-  if (hoursMatch) {
+  if (hoursMatch && hoursMatch[1]) {
     return Math.round(parseFloat(hoursMatch[1]) * 60);
   }
 

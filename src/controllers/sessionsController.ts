@@ -196,7 +196,7 @@ export class SessionsController {
    * GET /api/sessions/:id
    * Get specific session details
    */
-  async getSessionById(req: Request<{ id: any }>, res: Response): Promise<void> {
+  async getSessionById(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
 
@@ -241,7 +241,7 @@ export class SessionsController {
    * POST /api/sessions/:id/end
    * End an active parking session
    */
-  async endSession(req: Request<{ id: any }>, res: Response): Promise<void> {
+  async endSession(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const { reason = 'Manual end' } = req.body;
@@ -300,7 +300,7 @@ export class SessionsController {
    * POST /api/sessions/:id/cancel
    * Cancel an active parking session
    */
-  async cancelSession(req: Request<{ id: any }>, res: Response): Promise<void> {
+  async cancelSession(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const { reason = 'Manual cancellation' } = req.body;
@@ -350,7 +350,7 @@ export class SessionsController {
    * POST /api/sessions/:id/extend
    * Extend an active parking session
    */
-  async extendSession(req: Request<{ id: any }>, res: Response): Promise<void> {
+  async extendSession(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const { additionalHours } = req.body;

@@ -53,6 +53,8 @@ app.use(
     origin: function (origin, callback) {
       const allowedOrigins = env.CORS_ORIGIN?.split(',') || [
         'http://localhost:3000',
+        'http://localhost:4285',
+        'http://127.0.0.1:4285',
         'http://127.0.0.1:9000',
         'http://localhost:9000',
       ];

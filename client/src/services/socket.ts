@@ -1,36 +1,78 @@
 import { io, Socket } from 'socket.io-client'
 import type { SpotUpdate, GarageStatusUpdate } from '@/types/api'
 
+type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'error'
+
 class SocketService {
   private socket: Socket | null = null
   private listeners: Map<string, Array<(...args: any[]) => void>> = new Map()
+  private connectionStatus: ConnectionStatus = 'disconnected'
+  private statusCallbacks: Array<(status: ConnectionStatus) => void> = []
 
   connect(): void {
     if (this.socket?.connected) return
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
+    this.setConnectionStatus('connecting')
+
+    // Fix: Use correct fallback port 8742 instead of 5000
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 
+      import.meta.env.VITE_API_URL?.replace('/api', '') || 
+      'http://localhost:8742'
     
     this.socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       timeout: 5000,
       retries: 3,
+      // Add reconnection settings
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+      reconnectionDelayMax: 5000,
+      // Enable exponential backoff
+      randomizationFactor: 0.5,
     })
 
     this.socket.on('connect', () => {
-      console.log('Connected to WebSocket server')
+      console.log('✅ Connected to WebSocket server at', socketUrl)
+      this.setConnectionStatus('connected')
     })
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server')
+    this.socket.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from WebSocket server:', reason)
+      this.setConnectionStatus('disconnected')
+    })
+
+    this.socket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Reconnected to WebSocket server (attempt', attemptNumber + ')')
+      this.setConnectionStatus('connected')
+    })
+
+    this.socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('⏳ Attempting to reconnect...', attemptNumber)
+      this.setConnectionStatus('connecting')
+    })
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('❌ Failed to reconnect to WebSocket server')
+      this.setConnectionStatus('error')
     })
 
     this.socket.on('error', (error: Error) => {
-      console.error('Socket error:', error)
+      console.error('❌ Socket error:', error)
+      this.setConnectionStatus('error')
     })
 
     this.socket.on('connect_error', (error: Error) => {
-      console.error('Socket connection error:', error)
+      console.error('❌ Socket connection error:', error.message)
+      this.setConnectionStatus('error')
     })
+  }
+
+  private setConnectionStatus(status: ConnectionStatus): void {
+    if (this.connectionStatus !== status) {
+      this.connectionStatus = status
+      this.statusCallbacks.forEach(callback => callback(status))
+    }
   }
 
   disconnect(): void {
@@ -38,11 +80,28 @@ class SocketService {
       this.socket.disconnect()
       this.socket = null
       this.listeners.clear()
+      this.statusCallbacks = []
+      this.setConnectionStatus('disconnected')
     }
   }
 
   isConnected(): boolean {
     return this.socket?.connected ?? false
+  }
+
+  getConnectionStatus(): ConnectionStatus {
+    return this.connectionStatus
+  }
+
+  onConnectionStatusChange(callback: (status: ConnectionStatus) => void): void {
+    this.statusCallbacks.push(callback)
+  }
+
+  offConnectionStatusChange(callback: (status: ConnectionStatus) => void): void {
+    const index = this.statusCallbacks.indexOf(callback)
+    if (index > -1) {
+      this.statusCallbacks.splice(index, 1)
+    }
   }
 
   // Generic event listeners

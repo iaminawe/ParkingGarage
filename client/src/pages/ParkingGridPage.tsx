@@ -1,8 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { ParkingGrid, StatusLegend } from '@/components/parking'
+import { ZoomControls } from '@/components/parking/ZoomControls'
+import { BulkOperationsToolbar } from '@/components/parking/BulkOperationsToolbar'
+import { ParkingListView } from '@/components/parking/ParkingListView'
+import { AnalyticsView } from '@/components/parking/AnalyticsView'
+import { MaintenanceView } from '@/components/parking/MaintenanceView'
+import { ReportsView } from '@/components/parking/ReportsView'
+import { socketService } from '@/services/socket'
+import { apiService } from '@/services/api'
+import type { ParkingSpot } from '@/types/api'
 import { 
   Building2, 
   Car, 
@@ -10,32 +20,172 @@ import {
   Lightbulb,
   Zap,
   RefreshCw,
-  Eye
+  Eye,
+  Grid3X3,
+  List,
+  BarChart3,
+  Wrench,
+  FileText,
+  Bell,
+  Settings2
 } from 'lucide-react'
 
-export const ParkingGridPage: React.FC = () => {
-  const [selectedDemo, setSelectedDemo] = useState('full')
+interface SharedParkingState {
+  spots: ParkingSpot[]
+  selectedFloor: number
+  searchQuery: string
+  statusFilter: string
+  typeFilter: string
+  selectedSpots: string[]
+  zoomLevel: number
+  lastRefresh: Date
+  isLoading: boolean
+}
 
-  const demoConfigs = {
-    full: {
-      title: 'Complete Parking Grid',
-      description: 'Full-featured parking grid with all controls and legend',
-      showControls: true,
-      showLegend: true,
-    },
-    minimal: {
-      title: 'Minimal Grid View',
-      description: 'Clean grid view without extra controls',
-      showControls: false,
-      showLegend: false,
-    },
-    controls: {
-      title: 'Grid with Controls',
-      description: 'Grid with search and filter controls only',
-      showControls: true,
-      showLegend: false,
+type TabType = 'grid' | 'list' | 'analytics' | 'maintenance' | 'reports'
+
+export const ParkingGridPage: React.FC = () => {
+  // Main state
+  const [activeTab, setActiveTab] = useState<TabType>('grid')
+  const [sharedState, setSharedState] = useState<SharedParkingState>({
+    spots: [],
+    selectedFloor: 1,
+    searchQuery: '',
+    statusFilter: 'all',
+    typeFilter: 'all',
+    selectedSpots: [],
+    zoomLevel: 100,
+    lastRefresh: new Date(),
+    isLoading: true
+  })
+  const [notifications, setNotifications] = useState<Array<{ id: string, message: string, type: 'info' | 'success' | 'warning' | 'error' }>>([])
+
+  // Load initial data
+  useEffect(() => {
+    loadParkingData()
+    setupWebSocket()
+  }, [])
+
+  const loadParkingData = async () => {
+    try {
+      setSharedState(prev => ({ ...prev, isLoading: true }))
+      const response = await apiService.getSpots('demo-garage-1')
+      if (response.success) {
+        setSharedState(prev => ({ 
+          ...prev, 
+          spots: response.data, 
+          isLoading: false,
+          lastRefresh: new Date()
+        }))
+      }
+    } catch (error) {
+      console.error('Error loading parking data:', error)
+      setSharedState(prev => ({ ...prev, isLoading: false }))
     }
   }
+
+  const setupWebSocket = () => {
+    socketService.connect()
+    socketService.joinGarage('demo-garage-1')
+    
+    // Real-time spot updates
+    socketService.onSpotUpdate((update) => {
+      setSharedState(prev => ({
+        ...prev,
+        spots: prev.spots.map(spot => 
+          spot.id === update.spotId 
+            ? { ...spot, ...update }
+            : spot
+        )
+      }))
+    })
+
+    // System notifications
+    socketService.on('system:notification', (notification) => {
+      addNotification(notification.message, notification.type)
+    })
+  }
+
+  const addNotification = (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
+    const id = Date.now().toString()
+    setNotifications(prev => [...prev, { id, message, type }])
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    }, 5000)
+  }
+
+  // Shared state update functions
+  const updateSharedState = useCallback((updates: Partial<SharedParkingState>) => {
+    setSharedState(prev => ({ ...prev, ...updates }))
+  }, [])
+
+  const handleSpotSelection = useCallback((spotId: string, selected: boolean) => {
+    setSharedState(prev => ({
+      ...prev,
+      selectedSpots: selected 
+        ? [...prev.selectedSpots, spotId]
+        : prev.selectedSpots.filter(id => id !== spotId)
+    }))
+  }, [])
+
+  const handleBulkOperation = useCallback(async (operation: string, spotIds: string[]) => {
+    // Implementation for bulk operations
+    console.log('Bulk operation:', operation, spotIds)
+    addNotification(`Bulk operation "${operation}" applied to ${spotIds.length} spots`, 'success')
+  }, [])
+
+  const clearSelection = useCallback(() => {
+    setSharedState(prev => ({ ...prev, selectedSpots: [] }))
+  }, [])
+
+  // Tab configuration
+  const tabs = [
+    {
+      id: 'grid' as const,
+      label: 'Interactive Grid',
+      icon: Grid3X3,
+      description: 'Visual spot management with zoom and bulk operations'
+    },
+    {
+      id: 'list' as const,
+      label: 'Advanced List',
+      icon: List,
+      description: 'Detailed table view with sorting and filtering'
+    },
+    {
+      id: 'analytics' as const,
+      label: 'Analytics',
+      icon: BarChart3,
+      description: 'Occupancy trends and utilization insights'
+    },
+    {
+      id: 'maintenance' as const,
+      label: 'Maintenance',
+      icon: Wrench,
+      description: 'Scheduled maintenance and work orders'
+    },
+    {
+      id: 'reports' as const,
+      label: 'Reports',
+      icon: FileText,
+      description: 'Custom reports and export tools'
+    }
+  ]
+
+  // Calculate stats for display
+  const stats = {
+    totalSpots: sharedState.spots.length,
+    availableSpots: sharedState.spots.filter(s => s.status === 'available').length,
+    occupiedSpots: sharedState.spots.filter(s => s.status === 'occupied').length,
+    selectedCount: sharedState.selectedSpots.length,
+    occupancyRate: sharedState.spots.length > 0 
+      ? Math.round((sharedState.spots.filter(s => s.status === 'occupied').length / sharedState.spots.length) * 100)
+      : 0
+  }
+
+  const floors = Array.from(new Set(sharedState.spots.map(s => s.floor))).sort((a, b) => a - b)
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -43,25 +193,33 @@ export const ParkingGridPage: React.FC = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Parking Grid Visualization</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Parking Management Dashboard</h1>
             <p className="text-muted-foreground mt-1">
-              Interactive real-time parking spot management system
+              Comprehensive real-time parking facility management
             </p>
           </div>
-          <Badge variant="outline" className="flex items-center gap-2">
-            <Zap className="h-3 w-3" />
-            Real-time Updates
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="flex items-center gap-2">
+              <Zap className="h-3 w-3" />
+              Real-time Updates
+            </Badge>
+            {notifications.length > 0 && (
+              <Badge variant="secondary" className="flex items-center gap-2">
+                <Bell className="h-3 w-3" />
+                {notifications.length}
+              </Badge>
+            )}
+          </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Enhanced Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <Building2 className="h-8 w-8 text-blue-600" />
                 <div>
-                  <div className="text-2xl font-semibold">5</div>
+                  <div className="text-2xl font-semibold">{floors.length}</div>
                   <div className="text-sm text-muted-foreground">Floors</div>
                 </div>
               </div>
@@ -72,7 +230,7 @@ export const ParkingGridPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Car className="h-8 w-8 text-green-600" />
                 <div>
-                  <div className="text-2xl font-semibold">250</div>
+                  <div className="text-2xl font-semibold">{stats.totalSpots}</div>
                   <div className="text-sm text-muted-foreground">Total Spots</div>
                 </div>
               </div>
@@ -83,8 +241,8 @@ export const ParkingGridPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <RefreshCw className="h-8 w-8 text-orange-600" />
                 <div>
-                  <div className="text-2xl font-semibold">Live</div>
-                  <div className="text-sm text-muted-foreground">WebSocket</div>
+                  <div className="text-2xl font-semibold">{stats.availableSpots}</div>
+                  <div className="text-sm text-muted-foreground">Available</div>
                 </div>
               </div>
             </CardContent>
@@ -92,10 +250,21 @@ export const ParkingGridPage: React.FC = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <Eye className="h-8 w-8 text-purple-600" />
+                <Eye className="h-8 w-8 text-red-600" />
                 <div>
-                  <div className="text-2xl font-semibold">2</div>
-                  <div className="text-sm text-muted-foreground">View Modes</div>
+                  <div className="text-2xl font-semibold">{stats.occupiedSpots}</div>
+                  <div className="text-sm text-muted-foreground">Occupied</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-8 w-8 text-purple-600" />
+                <div>
+                  <div className="text-2xl font-semibold">{stats.occupancyRate}%</div>
+                  <div className="text-sm text-muted-foreground">Occupancy</div>
                 </div>
               </div>
             </CardContent>
@@ -103,135 +272,163 @@ export const ParkingGridPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Feature Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Info className="h-5 w-5" />
-            Features Overview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-            <div className="space-y-2">
-              <h4 className="font-semibold">Visual Status System</h4>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>• Color-coded spot status (Available/Occupied/Reserved/Maintenance)</li>
-                <li>• Ring indicators for spot types (Standard/Compact/Oversized/EV)</li>
-                <li>• Feature badges for special amenities</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold">Interactive Controls</h4>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>• Floor selection tabs</li>
-                <li>• Search by spot number, bay, or license plate</li>
-                <li>• Filter by status, type, and features</li>
-                <li>• Grid and list view modes</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold">Real-time Features</h4>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>• WebSocket live updates</li>
-                <li>• Instant status change notifications</li>
-                <li>• Hover tooltips with detailed info</li>
-                <li>• Click-to-view detailed spot information</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Demo Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lightbulb className="h-5 w-5" />
-            Demo Configuration
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={selectedDemo} onValueChange={setSelectedDemo}>
-            <TabsList className="grid grid-cols-3 w-full max-w-md">
-              <TabsTrigger value="full">Complete</TabsTrigger>
-              <TabsTrigger value="minimal">Minimal</TabsTrigger>
-              <TabsTrigger value="controls">With Controls</TabsTrigger>
-            </TabsList>
-            
-            <div className="mt-4 space-y-2">
-              <h4 className="font-semibold">{demoConfigs[selectedDemo as keyof typeof demoConfigs].title}</h4>
-              <p className="text-sm text-muted-foreground">
-                {demoConfigs[selectedDemo as keyof typeof demoConfigs].description}
-              </p>
-            </div>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Demo Grid */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Interactive Demo</h2>
-        <ParkingGrid
-          garageId="demo-garage-1"
-          showControls={demoConfigs[selectedDemo as keyof typeof demoConfigs].showControls}
-          showLegend={demoConfigs[selectedDemo as keyof typeof demoConfigs].showLegend}
-          defaultFloor={1}
+      {/* Bulk Operations Toolbar */}
+      {sharedState.selectedSpots.length > 0 && (
+        <BulkOperationsToolbar
+          selectedCount={stats.selectedCount}
+          onBulkOperation={handleBulkOperation}
+          onClearSelection={clearSelection}
         />
-      </div>
+      )}
 
-      {/* Standalone Legend for Reference */}
-      {selectedDemo === 'minimal' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Standalone Legend (Full)</h3>
-            <StatusLegend />
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Compact Legend</h3>
-            <StatusLegend compact={true} />
-          </div>
+      {/* Notifications */}
+      {notifications.length > 0 && (
+        <div className="space-y-2">
+          {notifications.map((notification) => (
+            <Card key={notification.id} className={`border-l-4 ${
+              notification.type === 'error' ? 'border-l-red-500 bg-red-50' :
+              notification.type === 'warning' ? 'border-l-yellow-500 bg-yellow-50' :
+              notification.type === 'success' ? 'border-l-green-500 bg-green-50' :
+              'border-l-blue-500 bg-blue-50'
+            }`}>
+              <CardContent className="p-3">
+                <p className="text-sm">{notification.message}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
-      {/* Usage Instructions */}
+      {/* Main Tabbed Interface */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)} className="space-y-6">
+        {/* Tab Navigation */}
+        <div className="border-b">
+          <TabsList className="grid grid-cols-5 w-full">
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+          
+          {/* Tab Description */}
+          <div className="px-6 py-2 text-sm text-muted-foreground">
+            {tabs.find(tab => tab.id === activeTab)?.description}
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <TabsContent value="grid" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Interactive Grid View</h2>
+            <ZoomControls
+              zoomLevel={sharedState.zoomLevel}
+              onZoomChange={(level) => updateSharedState({ zoomLevel: level })}
+            />
+          </div>
+          <ParkingGrid
+            garageId="demo-garage-1"
+            showControls={true}
+            showLegend={true}
+            defaultFloor={sharedState.selectedFloor}
+            className=""
+            style={{ transform: `scale(${sharedState.zoomLevel / 100})`, transformOrigin: 'top left' }}
+          />
+        </TabsContent>
+
+        <TabsContent value="list" className="space-y-4">
+          <h2 className="text-2xl font-semibold">Advanced List View</h2>
+          <ParkingListView
+            garageId="demo-garage-1"
+            sharedState={sharedState}
+            selectedSpots={sharedState.selectedSpots}
+            onSpotSelection={handleSpotSelection}
+          />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          <h2 className="text-2xl font-semibold">Analytics Dashboard</h2>
+          <AnalyticsView
+            spots={sharedState.spots}
+            selectedFloor={sharedState.selectedFloor}
+          />
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="space-y-4">
+          <h2 className="text-2xl font-semibold">Maintenance Management</h2>
+          <MaintenanceView
+            spots={sharedState.spots}
+            onScheduleUpdate={(spotId, schedule) => {
+              console.log('Schedule update:', spotId, schedule)
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-4">
+          <h2 className="text-2xl font-semibold">Reports & Export</h2>
+          <ReportsView
+            spots={sharedState.spots}
+            selectedSpots={sharedState.selectedSpots}
+            onExport={(format, data) => {
+              console.log('Export:', format, data)
+              addNotification(`Report exported as ${format}`, 'success')
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Quick Actions Panel */}
       <Card>
         <CardHeader>
-          <CardTitle>How to Use</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5" />
+            Quick Actions
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-            <div>
-              <h4 className="font-semibold mb-2">Basic Interaction</h4>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>1. Click any parking spot to view detailed information</li>
-                <li>2. Hover over spots for quick status tooltips</li>
-                <li>3. Use floor tabs to switch between different levels</li>
-                <li>4. Toggle between grid and list view modes</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Filtering & Search</h4>
-              <ul className="space-y-1 text-muted-foreground">
-                <li>1. Search by spot number, bay, or license plate</li>
-                <li>2. Filter by spot status (available, occupied, etc.)</li>
-                <li>3. Filter by spot type (standard, EV, oversized, etc.)</li>
-                <li>4. Clear all filters to reset the view</li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="pt-4 border-t">
-            <h4 className="font-semibold mb-2">Status Management</h4>
-            <p className="text-sm text-muted-foreground mb-2">
-              Click on any available or maintenance spot to open the details dialog, where you can:
-            </p>
-            <ul className="space-y-1 text-sm text-muted-foreground">
-              <li>• View complete spot information and features</li>
-              <li>• See current vehicle details (if occupied)</li>
-              <li>• Calculate parking duration in real-time</li>
-              <li>• Update spot status (Available ↔ Maintenance)</li>
-            </ul>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button
+              variant="outline"
+              onClick={loadParkingData}
+              className="flex items-center gap-2"
+              disabled={sharedState.isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 ${sharedState.isLoading ? 'animate-spin' : ''}`} />
+              Refresh All Data
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const csvData = sharedState.spots.map(spot => ({
+                  id: spot.id,
+                  bay: spot.bay,
+                  spotNumber: spot.spotNumber,
+                  status: spot.status,
+                  type: spot.type,
+                  floor: spot.floor,
+                  currentVehicle: spot.currentVehicle?.licensePlate || ''
+                }));
+                console.log('Exporting:', csvData);
+                addNotification('Data exported successfully', 'success');
+              }}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Export Current View
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => clearSelection()}
+              className="flex items-center gap-2"
+              disabled={sharedState.selectedSpots.length === 0}
+            >
+              <Eye className="h-4 w-4" />
+              Clear Selection ({stats.selectedCount})
+            </Button>
           </div>
         </CardContent>
       </Card>

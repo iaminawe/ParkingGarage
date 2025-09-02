@@ -11,7 +11,7 @@
 import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SpotRepository } from '../repositories/SpotRepository';
 import { SessionRepository } from '../repositories/SessionRepository';
-const BillingService = require('./billingService');
+import { BillingService } from './billingService';
 
 interface CheckoutOptions {
   applyGracePeriod?: boolean;

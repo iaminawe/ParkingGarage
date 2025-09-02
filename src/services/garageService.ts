@@ -449,7 +449,7 @@ class GarageService {
    */
   async resetGarage(): Promise<{ message: string; timestamp: string }> {
     this.garageRepository.clear();
-    this.spotRepository.clear();
+    await this.spotRepository.deleteMany({});
 
     return {
       message: 'Garage reset successfully',

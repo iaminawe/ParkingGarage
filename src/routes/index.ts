@@ -32,6 +32,7 @@ router.get('/', (req: Request, res: Response): void => {
         reservations: '/api/reservations',
         payments: '/api/payments',
         transactions: '/api/transactions',
+        analytics: '/api/analytics',
         documentation: '/api-docs',
       },
       timestamp: new Date().toISOString(),
@@ -58,6 +59,7 @@ import usersRoutes from './users';
 import reservationsRoutes from './reservations';
 import paymentsRoutes from './payments';
 import transactionsRoutes from './transactions';
+import analyticsRoutes from './analytics';
 
 // Mount health check routes first (no auth required)
 router.use('/health', healthRoutes);
@@ -79,5 +81,6 @@ router.use('/users', usersRoutes);
 router.use('/reservations', reservationsRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/transactions', transactionsRoutes);
+router.use('/analytics', analyticsRoutes);
 
 export default router;

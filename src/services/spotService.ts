@@ -97,8 +97,9 @@ class SpotService {
     try {
       const startTime = process.hrtime.bigint();
 
-      // Get all spots using efficient Map iteration
-      const allSpots = this.spotRepository.findAll();
+      // Get all spots using repository - returns PaginatedResult
+      const spotResult = await this.spotRepository.findAll({ take: 1000 }); // Get more spots
+      const allSpots = spotResult.data;
 
       // Apply filters efficiently using iterator pattern
       const filteredSpots = this._filterSpots(allSpots, filters);
@@ -139,8 +140,8 @@ class SpotService {
    */
   async getSpotById(spotId: string): Promise<any | null> {
     try {
-      const spot = this.spotRepository.findById(spotId);
-      return spot ? spot.toObject() : null;
+      const spot = await this.spotRepository.findById(spotId);
+      return spot;
     } catch (error) {
       throw new Error(`Failed to retrieve spot ${spotId}: ${(error as Error).message}`);
     }
@@ -157,13 +158,13 @@ class SpotService {
       const startTime = process.hrtime.bigint();
 
       // Check if spot exists first
-      const existingSpot = this.spotRepository.findById(spotId);
+      const existingSpot = await this.spotRepository.findById(spotId);
       if (!existingSpot) {
         return null;
       }
 
       // Perform atomic update
-      const updatedSpot = this.spotRepository.update(spotId, updates);
+      const updatedSpot = await this.spotRepository.update(spotId, updates);
 
       const endTime = process.hrtime.bigint();
       const processingTime = Number(endTime - startTime) / 1000000;
@@ -172,7 +173,7 @@ class SpotService {
         return null;
       }
 
-      const result = updatedSpot.toObject();
+      const result = updatedSpot;
       (result as any).metadata = {
         processingTimeMs: Math.round(processingTime * 100) / 100,
         timestamp: new Date().toISOString(),
@@ -191,10 +192,11 @@ class SpotService {
    */
   async findAvailableSpots(filters: SpotFilters = {}): Promise<any[]> {
     try {
-      const allSpots = this.spotRepository.findAll();
+      const spotResult = await this.spotRepository.findAll({ take: 1000 });
+      const allSpots = spotResult.data;
 
       // Filter for available spots first
-      const availableSpots = allSpots.filter(spot => spot.status === 'available');
+      const availableSpots = allSpots.filter(spot => spot.status === 'AVAILABLE');
 
       // Apply additional filters
       const filteredSpots = this._filterSpots(availableSpots, filters);
@@ -212,7 +214,8 @@ class SpotService {
    */
   async findSpots(filters: SpotFilters = {}): Promise<any[]> {
     try {
-      const allSpots = this.spotRepository.findAll();
+      const spotResult = await this.spotRepository.findAll({ take: 1000 });
+      const allSpots = spotResult.data;
 
       // Apply filters
       const filteredSpots = this._filterSpots(allSpots, filters);
@@ -272,8 +275,20 @@ class SpotService {
     try {
       const startTime = process.hrtime.bigint();
 
-      const occupancyStats = this.spotRepository.getOccupancyStats();
-      const allSpots = this.spotRepository.findAll();
+      // Note: getOccupancyStats doesn't exist in SpotRepository, so we'll build stats from spots
+      const spotResult = await this.spotRepository.findAll({ take: 1000 });
+      const allSpots = spotResult.data;
+      
+      const occupancyStats = {
+        total: allSpots.length,
+        available: allSpots.filter(s => s.status === 'AVAILABLE').length,
+        occupied: allSpots.filter(s => s.status === 'OCCUPIED').length,
+        rate: 0
+      };
+      
+      occupancyStats.rate = occupancyStats.total > 0 
+        ? (occupancyStats.occupied / occupancyStats.total) * 100 
+        : 0;
 
       // Generate detailed statistics
       const stats = this._generateDetailedStats(allSpots, occupancyStats);

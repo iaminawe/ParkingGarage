@@ -633,6 +633,195 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
       return false;
     }
   }
+
+  /**
+   * Create a parking spot (legacy compatibility method)
+   * @param floor - Floor number
+   * @param bay - Bay number  
+   * @param spotNumber - Spot number
+   * @param spotType - Spot type
+   * @param features - Spot features
+   * @returns Created parking spot
+   */
+  /**
+   * Override findAll to handle ParkingSpot specific logic (no soft deletes)
+   */
+  override async findAll(
+    options?: QueryOptions,
+    tx?: any
+  ): Promise<PaginatedResult<ParkingSpot>> {
+    return this.executeWithRetry(async () => {
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const where = { isActive: true }; // Use isActive instead of deletedAt
+
+      // Get total count
+      const totalCount = await delegate.count({ where });
+
+      // Build pagination
+      const take = options?.take || 10;
+      const skip = options?.skip || 0;
+      const currentPage = Math.floor(skip / take) + 1;
+      const totalPages = Math.ceil(totalCount / take);
+
+      // Get paginated data
+      const data = await delegate.findMany({
+        where,
+        ...this.buildQueryOptions(options),
+      });
+
+      this.logger.debug(`Found all parking spots`, {
+        totalCount,
+        currentPage,
+        totalPages,
+        take,
+        skip,
+      });
+
+      return {
+        data,
+        totalCount,
+        hasNextPage: currentPage < totalPages,
+        hasPrevPage: currentPage > 1,
+        currentPage,
+        totalPages,
+        pageSize: take
+      };
+    }, 'find all parking spots');
+  }
+
+  async createSpot(
+    floor: number,
+    bay: number,
+    spotNumber: number,
+    spotType: string = 'STANDARD',
+    features: string[] = []
+  ): Promise<ParkingSpot> {
+    return this.executeWithRetry(async () => {
+      // First, find or create a floor
+      let floorRecord = await this.prisma.floor.findFirst({
+        where: { floorNumber: floor }
+      });
+      
+      if (!floorRecord) {
+        // Try to find a garage to associate with
+        let garage = await this.prisma.garage.findFirst({
+          where: { isActive: true }
+        });
+        
+        if (!garage) {
+          // Check if garage already exists by name
+          garage = await this.prisma.garage.findUnique({
+            where: { name: 'Default Parking Garage' }
+          });
+          
+          if (!garage) {
+            // Create a default garage if none exists
+            garage = await this.prisma.garage.create({
+              data: {
+                name: 'Default Parking Garage',
+                description: 'Auto-generated parking garage',
+                totalFloors: 5,
+                totalSpots: 500,
+                isActive: true,
+                operatingHours: JSON.stringify({
+                  open: '06:00',
+                  close: '22:00',
+                  timezone: 'UTC',
+                }),
+              }
+            });
+          }
+        }
+        
+        // Try to find existing floor first
+        floorRecord = await this.prisma.floor.findUnique({
+          where: {
+            garageId_floorNumber: {
+              garageId: garage.id,
+              floorNumber: floor,
+            }
+          }
+        });
+
+        // Create the floor if it doesn't exist
+        if (!floorRecord) {
+          floorRecord = await this.prisma.floor.create({
+            data: {
+              garageId: garage.id,
+              floorNumber: floor,
+              description: `Floor ${floor}`,
+              totalSpots: 100,
+              isActive: true,
+            }
+          });
+        }
+      }
+      
+      // Check if spot already exists
+      const spotNumberStr = `F${floor}-B${bay}-S${spotNumber.toString().padStart(3, '0')}`;
+      let existingSpot = await this.prisma.parkingSpot.findUnique({
+        where: { spotNumber: spotNumberStr }
+      });
+
+      if (existingSpot) {
+        this.logger.debug('Spot already exists, returning existing', {
+          spotNumber: spotNumberStr,
+          spotId: existingSpot.id,
+        });
+        return existingSpot;
+      }
+
+      // Map spot type to proper enum value
+      const mappedSpotType = this.mapSpotTypeToEnum(spotType);
+      
+      // Create spot data
+      const spotData: CreateSpotData = {
+        floorId: floorRecord.id,
+        spotNumber: spotNumberStr,
+        level: floor,
+        section: `B${bay}`,
+        spotType: mappedSpotType,
+        status: 'AVAILABLE',
+        width: 2.5,
+        length: 5.5,
+        height: 2.2,
+      };
+
+      const result = await this.create(spotData);
+      
+      this.logger.info('Created parking spot', {
+        floor,
+        bay,
+        spotNumber,
+        spotType,
+        spotId: result.id,
+        floorId: floorRecord.id,
+      });
+
+      return result;
+    }, `create spot F${floor}-B${bay}-S${spotNumber}`);
+  }
+
+  /**
+   * Map spot type string to Prisma enum
+   * @private
+   */
+  private mapSpotTypeToEnum(spotType: string): SpotType {
+    const typeMap: Record<string, SpotType> = {
+      'compact': 'COMPACT',
+      'standard': 'STANDARD',
+      'oversized': 'OVERSIZED',
+      'electric': 'ELECTRIC',
+      'handicap': 'HANDICAP',
+      'COMPACT': 'COMPACT',
+      'STANDARD': 'STANDARD',
+      'OVERSIZED': 'OVERSIZED',
+      'ELECTRIC': 'ELECTRIC',
+      'HANDICAP': 'HANDICAP',
+    };
+
+    return typeMap[spotType] || 'STANDARD';
+  }
 }
 
 export default SpotRepository;
