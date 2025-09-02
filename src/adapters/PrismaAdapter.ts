@@ -85,6 +85,9 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   // Abstract properties to be implemented by subclasses
   protected abstract readonly modelName: string;
   protected abstract readonly delegate: any; // Prisma delegate (e.g., prisma.user, prisma.post)
+  
+  // Models that support soft delete (have deletedAt field)
+  private readonly SOFT_DELETE_MODELS = ['vehicle', 'payment'];
 
   constructor(
     prisma?: PrismaClient,
@@ -160,16 +163,27 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   }
 
   /**
+   * Check if the current model supports soft delete
+   */
+  protected supportsSoftDelete(): boolean {
+    return this.SOFT_DELETE_MODELS.includes(this.modelName.toLowerCase());
+  }
+
+  /**
    * Find a record by ID
    */
   async findById(id: string, options?: QueryOptions, tx?: Prisma.TransactionClient): Promise<T | null> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const whereClause: any = { id };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        whereClause.deletedAt = null;
+      }
+      
       const result = await delegate.findFirst({
-        where: { 
-          id,
-          deletedAt: null // Exclude soft-deleted records
-        },
+        where: whereClause,
         ...this.buildQueryOptions(options)
       });
       
@@ -193,10 +207,12 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   ): Promise<T[]> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
-      const where = {
-        ...filter,
-        deletedAt: null // Exclude soft-deleted records
-      };
+      const where: any = { ...filter };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        where.deletedAt = null;
+      }
       const result = await delegate.findMany({
         where,
         ...this.buildQueryOptions(options)
@@ -266,11 +282,15 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   ): Promise<T> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const whereClause: any = { id };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        whereClause.deletedAt = null;
+      }
+      
       const result = await delegate.update({
-        where: { 
-          id,
-          deletedAt: null // Only update non-deleted records
-        },
+        where: whereClause,
         data: this.addAuditFields(data, 'update'),
         ...this.buildQueryOptions(options)
       });
@@ -307,6 +327,10 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    * Soft delete a record by ID (sets deletedAt)
    */
   async softDelete(id: string, tx?: Prisma.TransactionClient): Promise<T> {
+    if (!this.supportsSoftDelete()) {
+      throw new Error(`Model ${this.modelName} does not support soft delete. Use delete() instead.`);
+    }
+    
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const result = await delegate.update({
@@ -335,10 +359,12 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   async count(filter?: Record<string, unknown>, tx?: Prisma.TransactionClient): Promise<number> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
-      const where = {
-        ...filter,
-        deletedAt: null // Exclude soft-deleted records
-      };
+      const where: any = { ...filter };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        where.deletedAt = null;
+      }
 
       const count = await delegate.count({ where });
       
@@ -358,11 +384,15 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   async exists(id: string, tx?: Prisma.TransactionClient): Promise<boolean> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const whereClause: any = { id };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        whereClause.deletedAt = null;
+      }
+      
       const result = await delegate.findFirst({
-        where: { 
-          id,
-          deletedAt: null // Exclude soft-deleted records
-        },
+        where: whereClause,
         select: { id: true }
       });
       
@@ -409,10 +439,12 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   ): Promise<Prisma.BatchPayload> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
-      const where = {
-        ...filter,
-        deletedAt: null // Only update non-deleted records
-      };
+      const where: any = { ...filter };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        where.deletedAt = null;
+      }
 
       const result = await delegate.updateMany({
         where,
@@ -588,10 +620,12 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   ): Promise<T[]> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
-      const where = {
-        ...filter,
-        deletedAt: null
-      };
+      const where: any = { ...filter };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        where.deletedAt = null;
+      }
 
       const result = await delegate.findMany({
         where,
@@ -624,10 +658,12 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   ): Promise<any> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
-      const where = {
-        ...filter,
-        deletedAt: null
-      };
+      const where: any = { ...filter };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        where.deletedAt = null;
+      }
 
       const result = await delegate.aggregate({
         where,
@@ -663,10 +699,12 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   ): Promise<{ data: T[]; nextCursor: Record<string, unknown> | null; hasNextPage: boolean }> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
-      const where = {
-        ...filter,
-        deletedAt: null
-      };
+      const where: any = { ...filter };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        where.deletedAt = null;
+      }
 
       const queryOptions: any = {
         where,
@@ -743,6 +781,10 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     filter: Record<string, unknown>,
     tx?: Prisma.TransactionClient
   ): Promise<Prisma.BatchPayload> {
+    if (!this.supportsSoftDelete()) {
+      throw new Error(`Model ${this.modelName} does not support soft delete. Use deleteMany() instead.`);
+    }
+    
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
@@ -784,10 +826,12 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   ): Promise<any[]> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
-      const where = {
-        ...filter,
-        deletedAt: null
-      };
+      const where: any = { ...filter };
+      
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        where.deletedAt = null;
+      }
 
       const result = await delegate.groupBy({
         by,

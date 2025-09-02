@@ -7,18 +7,14 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { ValidationResult } from './models';
+import { User } from '@prisma/client';
 
 // Extended Express Request Types
 export interface CustomRequest extends Request {
   startTime?: number;
   requestId?: string;
   correlationId?: string;
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-    permissions: string[];
-  };
+  user?: User;
   validated?: {
     params?: Record<string, any>;
     query?: Record<string, any>;

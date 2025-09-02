@@ -18,10 +18,24 @@ import authService, { AuthService } from './services/authService';
 import { env } from './config/environment';
 import { HTTP_STATUS, TIME_CONSTANTS } from './config/constants';
 
+// Import monitoring and logging configurations
+import { monitoring } from './config/monitoring.config';
+import { systemLogger } from './config/logger.config';
+import { createMonitoringMiddleware, errorTrackingMiddleware } from './middleware/monitoring.middleware';
+import healthRoutes from './routes/health';
+
 // Load environment variables
 dotenv.config();
 
+// Initialize monitoring system
+monitoring.initialize().catch(error => {
+  console.error('Failed to initialize monitoring:', error);
+});
+
 const app: Application = express();
+
+// Add monitoring middleware stack (correlation ID, logging, performance)
+app.use(...createMonitoringMiddleware());
 
 // Enhanced security middleware with strict CSP
 app.use(helmetSecurity);
@@ -97,6 +111,9 @@ app.use((req: Request, res: Response, next) => {
 // CSRF Protection (after cookie parser and before routes)
 app.use(csrfProtection);
 
+// Health and monitoring endpoints (before other routes)
+app.use('/health', healthRoutes);
+
 // API Documentation (Swagger UI)
 const swagger = createSwaggerMiddleware();
 app.use('/api-docs', ...swagger.serve, swagger.setup);
@@ -153,6 +170,9 @@ app.use('*', (req: Request, res: Response) => {
   });
 });
 
+// Error tracking middleware for monitoring
+app.use(errorTrackingMiddleware);
+
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
@@ -169,14 +189,24 @@ process.on('SIGINT', async () => {
 
 async function gracefulShutdown() {
   try {
+    systemLogger.info('Starting graceful shutdown process');
+    
     // Close session manager
     await sessionManager.close();
+    systemLogger.info('Session manager closed');
+    
+    // Report shutdown event to monitoring
+    monitoring.reportEvent('application.shutdown', {
+      reason: 'graceful_shutdown',
+      uptime: process.uptime(),
+    });
     
     // Clean up any other resources
-    console.log('Graceful shutdown completed');
+    systemLogger.info('Graceful shutdown completed');
     process.exit(0);
   } catch (error) {
-    console.error('Error during graceful shutdown:', error);
+    systemLogger.error('Error during graceful shutdown', error as Error);
+    monitoring.reportError(error as Error, { context: 'graceful_shutdown' });
     process.exit(1);
   }
 }

@@ -131,19 +131,7 @@ export const getHelmetConfig = () => {
     },
     
     // Origin-Agent-Cluster
-    originAgentCluster: true,
-    
-    // Permissions Policy (formerly Feature Policy)
-    permissionsPolicy: {
-      camera: [],
-      microphone: [],
-      geolocation: [],
-      notifications: [],
-      push: [],
-      syncXhr: [],
-      fullscreen: ['self'],
-      payment: []
-    }
+    originAgentCluster: true
   });
 };
 
@@ -156,11 +144,6 @@ export const createRateLimiters = () => {
   const generalLimiter = rateLimit({
     windowMs: SECURITY_CONSTANTS.RATE_LIMIT_WINDOW,
     max: 100, // 100 requests per 15 minutes
-    message: {
-      error: 'Too many requests from this IP, please try again later.',
-      code: 'RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.ceil(SECURITY_CONSTANTS.RATE_LIMIT_WINDOW / 1000)
-    },
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
@@ -177,11 +160,6 @@ export const createRateLimiters = () => {
   const authLimiter = rateLimit({
     windowMs: SECURITY_CONSTANTS.STRICT_RATE_LIMIT_WINDOW,
     max: 5, // 5 requests per 5 minutes
-    message: {
-      error: 'Too many authentication attempts, please try again later.',
-      code: 'AUTH_RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.ceil(SECURITY_CONSTANTS.STRICT_RATE_LIMIT_WINDOW / 1000)
-    },
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: true,
@@ -199,26 +177,32 @@ export const createRateLimiters = () => {
   const mutationLimiter = rateLimit({
     windowMs: SECURITY_CONSTANTS.RATE_LIMIT_WINDOW,
     max: 50, // 50 requests per 15 minutes
-    message: {
-      error: 'Too many modification requests, please try again later.',
-      code: 'MUTATION_RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.ceil(SECURITY_CONSTANTS.RATE_LIMIT_WINDOW / 1000)
-    },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({
+        error: 'Too many modification requests, please try again later.',
+        code: 'MUTATION_RATE_LIMIT_EXCEEDED',
+        retryAfter: Math.ceil(SECURITY_CONSTANTS.RATE_LIMIT_WINDOW / 1000),
+        timestamp: new Date().toISOString()
+      });
+    }
   });
 
   // Lenient limiter for read-only endpoints
   const readLimiter = rateLimit({
     windowMs: SECURITY_CONSTANTS.RATE_LIMIT_WINDOW,
     max: 200, // 200 requests per 15 minutes
-    message: {
-      error: 'Too many read requests, please try again later.',
-      code: 'READ_RATE_LIMIT_EXCEEDED',
-      retryAfter: Math.ceil(SECURITY_CONSTANTS.RATE_LIMIT_WINDOW / 1000)
-    },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({
+        error: 'Too many read requests, please try again later.',
+        code: 'READ_RATE_LIMIT_EXCEEDED',
+        retryAfter: Math.ceil(SECURITY_CONSTANTS.RATE_LIMIT_WINDOW / 1000),
+        timestamp: new Date().toISOString()
+      });
+    }
   });
 
   return {

@@ -419,7 +419,7 @@ export class SessionsService {
       // Combine headers and rows
       const csvContent = [headers, ...rows]
         .map(row => row.map(field => `"${field}"`).join(','))
-        .join('\n');
+        .join('\\n');
 
       return csvContent;
     } catch (error) {

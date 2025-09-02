@@ -74,8 +74,18 @@ const environmentSchema = z.object({
   EMAIL_RATE_LIMIT_PER_HOUR: z.string().transform(Number).pipe(z.number()).default(100),
   EMAIL_RATE_LIMIT_PER_RECIPIENT_HOUR: z.string().transform(Number).pipe(z.number()).default(5),
 
+  // Logging Configuration
+  LOG_FILE_DATE_PATTERN: z.string().default('YYYY-MM-DD-HH'),
+  LOG_FILE_MAX_SIZE: z.string().default('20m'),
+  LOG_FILE_MAX_FILES: z.string().default('14d'),
+  ENABLE_ERROR_LOGGING: z.string().transform((val) => val === 'true').default(true),
+  ENABLE_REQUEST_LOGGING: z.string().transform((val) => val === 'true').default(true),
+
   // Monitoring (optional)
   SENTRY_DSN: z.string().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.string().transform(Number).pipe(z.number().min(0).max(1)).default(0.1),
+  HEALTH_CHECK_TIMEOUT: z.string().transform(Number).pipe(z.number()).default(30000),
   ENABLE_METRICS: z.string().transform((val) => val === 'true').default(false),
 });
 
@@ -199,6 +209,14 @@ export class EnvironmentValidator {
       API_URL: 'http://localhost:3001',
       EMAIL_RATE_LIMIT_PER_HOUR: 100,
       EMAIL_RATE_LIMIT_PER_RECIPIENT_HOUR: 5,
+      // Add missing required logging fields
+      LOG_FILE_DATE_PATTERN: 'YYYY-MM-DD-HH',
+      LOG_FILE_MAX_SIZE: '20m',
+      LOG_FILE_MAX_FILES: '14d',
+      ENABLE_ERROR_LOGGING: true,
+      ENABLE_REQUEST_LOGGING: true,
+      SENTRY_TRACES_SAMPLE_RATE: 0.1,
+      HEALTH_CHECK_TIMEOUT: 30000,
       ENABLE_METRICS: false,
     };
   }

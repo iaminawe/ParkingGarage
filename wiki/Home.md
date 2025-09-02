@@ -18,9 +18,12 @@ Welcome to the **production-ready** Parking Garage Management System documentati
 - **[Project Overview](Project-Overview.md)** - Production status and system capabilities
 - **[Architecture](Architecture.md)** - Technical architecture with TypeScript details
 - **[API Documentation](API-Documentation.md)** - Complete API reference
+- **[Database Schema](Database-Schema.md)** - Database structure and optimization
+- **[State Management](State-Management.md)** - Multi-layered state architecture
 - **[Development Guide](Development-Guide.md)** - Setup and development workflow
 - **[Testing Strategy](Testing-Strategy.md)** - Comprehensive testing approach
 - **[Deployment Guide](Deployment-Guide.md)** - Production deployment instructions
+- **[Migration Guide](Migration-Guide.md)** - Data migration and transfer procedures
 
 ### **Advanced Features** ⭐
 - **[TypeScript Migration](TypeScript-Migration.md)** - Complete migration guide and benefits
@@ -90,9 +93,13 @@ wiki/
 ├── Project-Overview.md             # Production status and capabilities  
 ├── Architecture.md                 # System architecture with TypeScript
 ├── API-Documentation.md            # Complete API endpoints reference
+├── Database-Schema.md              # Database structure and optimization
+├── State-Management.md             # Multi-layered state architecture
 ├── Development-Guide.md            # Development setup and workflows
 ├── Testing-Strategy.md             # Comprehensive testing approach
 ├── Deployment-Guide.md             # Production deployment instructions
+├── Migration-Guide.md              # Data migration and transfer procedures
+├── Quick-Start.md                  # Quick start guide for developers
 ├── TypeScript-Migration.md         # ✨ Migration guide and benefits
 ├── Performance-Load-Testing.md     # ✨ Benchmarks and optimization
 ├── Enhanced-API-Interface.md       # ✨ Modern interactive documentation  
@@ -158,12 +165,16 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🎯 **Quick Access Links**
 
 ### **For Developers**
-- **[Development Guide](Development-Guide.md)** - Get started with development
-- **[TypeScript Migration](TypeScript-Migration.md)** - Understanding the TypeScript implementation  
+- **[Quick Start](Quick-Start.md)** - Quick setup guide for new developers
+- **[Development Guide](Development-Guide.md)** - Complete development workflow
 - **[API Documentation](API-Documentation.md)** - Complete endpoint reference
+- **[Database Schema](Database-Schema.md)** - Database structure and relationships
+- **[State Management](State-Management.md)** - Multi-layered state architecture
+- **[TypeScript Migration](TypeScript-Migration.md)** - Understanding the TypeScript implementation
 
 ### **For Operations**
 - **[Deployment Guide](Deployment-Guide.md)** - Production deployment steps
+- **[Migration Guide](Migration-Guide.md)** - Data migration procedures
 - **[Performance Testing](Performance-Load-Testing.md)** - Performance benchmarks
 - **[Security Features](Security-Features.md)** - Security implementation details
 

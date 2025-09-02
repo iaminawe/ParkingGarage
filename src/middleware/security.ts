@@ -15,18 +15,24 @@ import * as crypto from 'crypto';
  * Enhanced security middleware collection
  */
 export class SecurityMiddleware {
-  private cacheService: CacheService;
+  private cacheService: CacheService | null = null;
 
   constructor() {
-    this.cacheService = new CacheService({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD,
-      keyPrefix: 'security:',
-      defaultTTL: 3600,
-      maxRetries: 3,
-      retryDelayMs: 1000
-    });
+    // Initialize CacheService only if Redis configuration is available
+    try {
+      this.cacheService = new CacheService({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD,
+        keyPrefix: 'security:',
+        defaultTTL: 3600,
+        maxRetries: 3,
+        retryDelayMs: 1000
+      });
+    } catch (error) {
+      console.warn('CacheService initialization failed, using in-memory fallback:', error);
+      this.cacheService = null;
+    }
   }
 
   /**
@@ -118,11 +124,6 @@ export class SecurityMiddleware {
     return rateLimit({
       windowMs: RATE_LIMITS.DEFAULT_WINDOW_MS,
       max: RATE_LIMITS.AUTH_MAX_ATTEMPTS,
-      message: {
-        success: false,
-        message: API_RESPONSES.ERRORS.RATE_LIMIT_EXCEEDED,
-        retryAfter: Math.ceil(RATE_LIMITS.DEFAULT_WINDOW_MS / 1000 / 60) // minutes
-      },
       standardHeaders: true,
       legacyHeaders: false,
       // Custom key generator based on IP and endpoint
@@ -133,6 +134,13 @@ export class SecurityMiddleware {
       skipSuccessfulRequests: true,
       // Skip failed requests only for non-critical endpoints
       skipFailedRequests: false,
+      handler: (req: Request, res: Response): void => {
+        res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
+          success: false,
+          message: API_RESPONSES.ERRORS.RATE_LIMIT_EXCEEDED,
+          retryAfter: Math.ceil(RATE_LIMITS.DEFAULT_WINDOW_MS / 1000 / 60) // minutes
+        });
+      }
     });
   }
 
@@ -143,11 +151,6 @@ export class SecurityMiddleware {
     return rateLimit({
       windowMs: RATE_LIMITS.DEFAULT_WINDOW_MS * 4, // 1 hour
       max: RATE_LIMITS.SIGNUP_MAX_ATTEMPTS,
-      message: {
-        success: false,
-        message: 'Too many signup attempts. Please try again later.',
-        retryAfter: Math.ceil(RATE_LIMITS.DEFAULT_WINDOW_MS * 4 / 1000 / 60) // minutes
-      },
       standardHeaders: true,
       legacyHeaders: false,
       keyGenerator: (req: Request): string => {
@@ -155,6 +158,13 @@ export class SecurityMiddleware {
         const email = req.body?.email || 'unknown';
         return `signup_${req.ip}_${email}`;
       },
+      handler: (req: Request, res: Response): void => {
+        res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
+          success: false,
+          message: 'Too many signup attempts. Please try again later.',
+          retryAfter: Math.ceil(RATE_LIMITS.DEFAULT_WINDOW_MS * 4 / 1000 / 60) // minutes
+        });
+      }
     });
   }
 
@@ -163,15 +173,19 @@ export class SecurityMiddleware {
    */
   static createPasswordValidationLimit() {
     return rateLimit({
-      windowMs: RATE_LIMITS.DEFAULT_WINDOW_MS,
+      windowMs: TIME_CONSTANTS.PASSWORD_VALIDATION_WINDOW_MS,
       max: RATE_LIMITS.PASSWORD_VALIDATION_MAX_ATTEMPTS,
-      message: {
-        success: false,
-        message: 'Too many password validation attempts'
-      },
+      standardHeaders: true,
+      legacyHeaders: false,
       keyGenerator: (req: Request): string => {
         return `pwd_val_${req.ip}`;
       },
+      handler: (req: Request, res: Response): void => {
+        res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({
+          success: false,
+          message: 'Too many password validation attempts'
+        });
+      }
     });
   }
 
@@ -179,19 +193,49 @@ export class SecurityMiddleware {
    * IP-based suspicious activity detection
    */
   suspiciousActivityDetection() {
+    // In-memory fallback when CacheService is not available
+    const inMemoryScores = new Map<string, { score: number; expires: number }>();
+
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       try {
         const ip = req.ip;
         const key = `suspicious_${ip}`;
         
-        // Get current suspicious activity score
-        const currentScore = await this.cacheService.get(key) || '0';
-        let score = parseInt(String(currentScore), 10);
+        let score = 0;
 
-        // Increase score for suspicious patterns
-        if (this.isSuspiciousRequest(req)) {
-          score += 1;
-          await this.cacheService.set(key, score.toString(), 3600); // 1 hour TTL
+        if (this.cacheService) {
+          // Use CacheService if available
+          const currentScore = await this.cacheService.get(key) || '0';
+          score = parseInt(String(currentScore), 10);
+
+          // Increase score for suspicious patterns
+          if (this.isSuspiciousRequest(req)) {
+            score += 1;
+            await this.cacheService.set(key, score.toString(), 3600); // 1 hour TTL
+          }
+        } else {
+          // Use in-memory fallback
+          const now = Date.now();
+          const entry = inMemoryScores.get(key);
+          
+          if (entry && entry.expires > now) {
+            score = entry.score;
+          } else {
+            score = 0;
+          }
+
+          // Increase score for suspicious patterns
+          if (this.isSuspiciousRequest(req)) {
+            score += 1;
+            inMemoryScores.set(key, { score, expires: now + 3600000 }); // 1 hour TTL
+          }
+
+          // Clean up expired entries
+          for (const [k, v] of inMemoryScores.entries()) {
+            if (v.expires <= now) {
+              inMemoryScores.delete(k);
+            }
+          }
         }
 
         // Block if score is too high

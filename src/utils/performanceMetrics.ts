@@ -167,7 +167,7 @@ export class PerformanceMetricsCollector extends EventEmitter {
       this.emit('metrics', { system: systemMetrics, application: applicationMetrics });
 
     } catch (error) {
-      logger.error('Failed to collect performance metrics', error);
+      logger.error('Failed to collect performance metrics', error as Error);
     }
   }
 
@@ -214,6 +214,7 @@ export class PerformanceMetricsCollector extends EventEmitter {
     // These would typically be injected from actual services
     // For now, we'll return placeholder data that would be populated by real services
     return {
+      timestamp: Date.now(),
       requests: {
         total: 0,
         active: 0,
@@ -484,7 +485,7 @@ export class PerformanceMetricsCollector extends EventEmitter {
     };
 
     this.thresholds.forEach(threshold => {
-      const value = values[threshold.metric];
+      const value = (values as any)[threshold.metric] as number | undefined;
       if (value === undefined) return;
 
       if (value >= threshold.critical) {

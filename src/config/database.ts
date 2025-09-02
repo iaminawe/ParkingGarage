@@ -38,7 +38,8 @@ class PrismaClientSingleton {
 
     // Handle graceful shutdown
     const gracefulShutdown = async (signal: string) => {
-      console.log(`\n${signal} received. Closing Prisma client...`);
+      console.log(`
+${signal} received. Closing Prisma client...`);
       if (PrismaClientSingleton.instance) {
         await PrismaClientSingleton.instance.$disconnect();
         PrismaClientSingleton.instance = null;

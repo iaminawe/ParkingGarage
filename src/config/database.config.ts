@@ -317,7 +317,7 @@ async function applySQLiteOptimizations(
     });
     
   } catch (error) {
-    logger.error('Failed to apply SQLite optimizations', error);
+    logger.error('Failed to apply SQLite optimizations', error as Error);
   }
 }
 
