@@ -42,9 +42,9 @@ async function startServer(): Promise<Server> {
 
       if (process.env.NODE_ENV !== 'production') {
         console.log('\n💡 Tip: Seed data has been loaded. Try these endpoints:');
-        console.log('   curl http://localhost:3000/api/garage/status');
-        console.log('   curl http://localhost:3000/api/spots?status=available');
-        console.log('   curl http://localhost:3000/api/spots?floor=1');
+        console.log(`   curl http://localhost:${PORT}/api/garage/status`);
+        console.log(`   curl http://localhost:${PORT}/api/spots?status=available`);
+        console.log(`   curl http://localhost:${PORT}/api/spots?floor=1`);
       }
     });
 
