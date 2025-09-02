@@ -355,7 +355,8 @@ export class VehicleRepository {
     });
   }
 
-  async updatePaymentStatus(id: string, isPaid: boolean): Promise<Vehicle> {
+  // Payment system - Future Feature
+  // async updatePaymentStatus(id: string, isPaid: boolean): Promise<Vehicle> {
     return prisma.vehicle.update({
       where: { id },
       data: { isPaid, updatedAt: new Date() }

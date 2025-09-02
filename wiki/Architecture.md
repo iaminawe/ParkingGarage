@@ -119,7 +119,7 @@ Vehicle {
   rateType: RateType
   spotId?: string
   owner information
-  payment details
+  payment details (future feature)
   timestamps
 }
 
@@ -143,7 +143,7 @@ ParkingSession {
   startTime: DateTime
   endTime?: DateTime
   duration?: number
-  payment details
+  payment details (future feature)
   status: SessionStatus
 }
 
