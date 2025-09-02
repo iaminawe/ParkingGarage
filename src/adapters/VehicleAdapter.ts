@@ -7,7 +7,7 @@
  * @module VehicleAdapter
  */
 
-import { Vehicle, Prisma, PrismaClient } from '../generated/prisma';
+import { Vehicle, Prisma, PrismaClient, VehicleStatus, VehicleType } from '../generated/prisma';
 import { PrismaAdapter } from './PrismaAdapter';
 import { IAdapterLogger } from './interfaces/BaseAdapter';
 import { RetryConfig } from '../utils/prisma-errors';
@@ -64,7 +64,7 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   /**
    * Find vehicles by status
    */
-  async findByStatus(status: string, tx?: Prisma.TransactionClient): Promise<Vehicle[]> {
+  async findByStatus(status: VehicleStatus, tx?: Prisma.TransactionClient): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
       const result = await client.vehicle.findMany({
@@ -90,7 +90,7 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   /**
    * Find vehicles by type
    */
-  async findByVehicleType(vehicleType: string, tx?: Prisma.TransactionClient): Promise<Vehicle[]> {
+  async findByVehicleType(vehicleType: VehicleType, tx?: Prisma.TransactionClient): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
       const result = await client.vehicle.findMany({
@@ -153,13 +153,13 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
    */
   async searchVehicles(criteria: {
     licensePlate?: string;
-    vehicleType?: string;
+    vehicleType?: VehicleType;
     make?: string;
     model?: string;
     color?: string;
     ownerName?: string;
     ownerEmail?: string;
-    status?: string;
+    status?: VehicleStatus;
     yearFrom?: number;
     yearTo?: number;
   }, tx?: Prisma.TransactionClient): Promise<Vehicle[]> {
@@ -302,7 +302,7 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
         },
         data: {
           currentSpotId: spotId,
-          status: 'ACTIVE', // Assuming vehicle becomes active when parked
+          status: VehicleStatus.ACTIVE, // Assuming vehicle becomes active when parked
           updatedAt: new Date()
         },
         include: {
@@ -373,10 +373,10 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
         typeStats
       ] = await Promise.all([
         client.vehicle.count({ where: { deletedAt: null } }),
-        client.vehicle.count({ where: { status: 'ACTIVE', deletedAt: null } }),
-        client.vehicle.count({ where: { status: 'BLOCKED', deletedAt: null } }),
-        client.vehicle.count({ where: { status: 'BANNED', deletedAt: null } }),
-        client.vehicle.count({ where: { status: 'INACTIVE', deletedAt: null } }),
+        client.vehicle.count({ where: { status: VehicleStatus.ACTIVE, deletedAt: null } }),
+        client.vehicle.count({ where: { status: VehicleStatus.BLOCKED, deletedAt: null } }),
+        client.vehicle.count({ where: { status: VehicleStatus.BANNED, deletedAt: null } }),
+        client.vehicle.count({ where: { status: VehicleStatus.INACTIVE, deletedAt: null } }),
         client.vehicle.count({ where: { currentSpotId: { not: null }, deletedAt: null } }),
         client.vehicle.groupBy({
           by: ['vehicleType'],

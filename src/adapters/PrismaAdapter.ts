@@ -459,7 +459,17 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   async executeRaw(sql: string, values?: unknown[], tx?: Prisma.TransactionClient): Promise<number> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
-      const result = await client.$executeRaw(Prisma.sql([sql], ...Array.from(values || [])));
+      let result: number;
+      
+      if (values && values.length > 0) {
+        // Create template literal array manually for parameterized queries
+        const sqlParts = sql.split('?');
+        const templateStrings = sqlParts;
+        result = await client.$executeRaw(Prisma.sql(templateStrings, ...values));
+      } else {
+        // For non-parameterized queries, use executeRawUnsafe
+        result = await client.$executeRawUnsafe(sql);
+      }
       
       this.logger.debug('Executed raw SQL', {
         sql: sql.substring(0, 100) + (sql.length > 100 ? '...' : ''),
@@ -478,7 +488,17 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   async queryRaw<R = unknown>(sql: string, values?: unknown[], tx?: Prisma.TransactionClient): Promise<R> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
-      const result = await client.$queryRaw(Prisma.sql([sql], ...Array.from(values || [])));
+      let result: unknown;
+      
+      if (values && values.length > 0) {
+        // Create template literal array manually for parameterized queries
+        const sqlParts = sql.split('?');
+        const templateStrings = sqlParts;
+        result = await client.$queryRaw(Prisma.sql(templateStrings, ...values));
+      } else {
+        // For non-parameterized queries, use queryRawUnsafe
+        result = await client.$queryRawUnsafe(sql);
+      }
       
       this.logger.debug('Executed raw SQL query', {
         sql: sql.substring(0, 100) + (sql.length > 100 ? '...' : ''),

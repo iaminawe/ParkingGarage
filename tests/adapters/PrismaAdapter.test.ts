@@ -8,7 +8,7 @@
  * @module PrismaAdapterTests
  */
 
-import { PrismaClient, Prisma } from '../../src/generated/prisma';
+import { PrismaClient, Prisma, VehicleStatus, VehicleType } from '../../src/generated/prisma';
 import { PrismaAdapter, PrismaConnectionManager } from '../../src/adapters/PrismaAdapter';
 import { VehicleAdapter, VehicleCreateData, VehicleUpdateData } from '../../src/adapters/VehicleAdapter';
 import { DomainError, ErrorCode, handlePrismaError } from '../../src/utils/prisma-errors';
@@ -16,7 +16,7 @@ import { ConsoleLogger, NoopLogger } from '../../src/utils/logger';
 
 // Test implementation of PrismaAdapter for testing
 class TestAdapter extends PrismaAdapter<any, any, any> {
-  protected readonly modelName = 'testModel';
+  protected readonly modelName = 'vehicle'; // Use actual model name from schema
   protected readonly delegate = {} as any;
 }
 
@@ -25,19 +25,10 @@ const mockPrismaClient = {
   $connect: jest.fn(),
   $disconnect: jest.fn(),
   $queryRaw: jest.fn(),
+  $queryRawUnsafe: jest.fn(),
   $executeRaw: jest.fn(),
+  $executeRawUnsafe: jest.fn(),
   $transaction: jest.fn(),
-  testModel: {
-    create: jest.fn(),
-    findFirst: jest.fn(),
-    findMany: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    count: jest.fn(),
-    createMany: jest.fn(),
-    updateMany: jest.fn(),
-    deleteMany: jest.fn()
-  },
   vehicle: {
     create: jest.fn(),
     findFirst: jest.fn(),
@@ -125,12 +116,12 @@ describe('PrismaAdapter', () => {
     describe('create', () => {
       test('should create a new record successfully', async () => {
         const createData = { name: 'Test Record' };
-        (mockPrismaClient.testModel.create as jest.Mock).mockResolvedValue(mockRecord);
+        (mockPrismaClient.vehicle.create as jest.Mock).mockResolvedValue(mockRecord);
 
         const result = await adapter.create(createData);
 
         expect(result).toEqual(mockRecord);
-        expect(mockPrismaClient.testModel.create).toHaveBeenCalledWith({
+        expect(mockPrismaClient.vehicle.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
             name: 'Test Record',
             createdAt: expect.any(Date),
@@ -145,7 +136,7 @@ describe('PrismaAdapter', () => {
           'Unique constraint failed',
           { code: 'P2002', clientVersion: '4.0.0' }
         );
-        (mockPrismaClient.testModel.create as jest.Mock).mockRejectedValue(prismaError);
+        (mockPrismaClient.vehicle.create as jest.Mock).mockRejectedValue(prismaError);
 
         await expect(adapter.create(createData)).rejects.toThrow(DomainError);
       });
@@ -153,18 +144,18 @@ describe('PrismaAdapter', () => {
 
     describe('findById', () => {
       test('should find record by ID', async () => {
-        (mockPrismaClient.testModel.findFirst as jest.Mock).mockResolvedValue(mockRecord);
+        (mockPrismaClient.vehicle.findFirst as jest.Mock).mockResolvedValue(mockRecord);
 
         const result = await adapter.findById('test-id-1');
 
         expect(result).toEqual(mockRecord);
-        expect(mockPrismaClient.testModel.findFirst).toHaveBeenCalledWith({
+        expect(mockPrismaClient.vehicle.findFirst).toHaveBeenCalledWith({
           where: { id: 'test-id-1', deletedAt: null }
         });
       });
 
       test('should return null when record not found', async () => {
-        (mockPrismaClient.testModel.findFirst as jest.Mock).mockResolvedValue(null);
+        (mockPrismaClient.vehicle.findFirst as jest.Mock).mockResolvedValue(null);
 
         const result = await adapter.findById('nonexistent-id');
 
@@ -175,12 +166,12 @@ describe('PrismaAdapter', () => {
     describe('findMany', () => {
       test('should find multiple records with filter', async () => {
         const records = [mockRecord];
-        (mockPrismaClient.testModel.findMany as jest.Mock).mockResolvedValue(records);
+        (mockPrismaClient.vehicle.findMany as jest.Mock).mockResolvedValue(records);
 
         const result = await adapter.findMany({ name: 'Test' });
 
         expect(result).toEqual(records);
-        expect(mockPrismaClient.testModel.findMany).toHaveBeenCalledWith({
+        expect(mockPrismaClient.vehicle.findMany).toHaveBeenCalledWith({
           where: { name: 'Test', deletedAt: null }
         });
       });
@@ -189,8 +180,8 @@ describe('PrismaAdapter', () => {
     describe('findAll', () => {
       test('should find all records with pagination', async () => {
         const records = [mockRecord];
-        (mockPrismaClient.testModel.count as jest.Mock).mockResolvedValue(1);
-        (mockPrismaClient.testModel.findMany as jest.Mock).mockResolvedValue(records);
+        (mockPrismaClient.vehicle.count as jest.Mock).mockResolvedValue(1);
+        (mockPrismaClient.vehicle.findMany as jest.Mock).mockResolvedValue(records);
 
         const result = await adapter.findAll({ take: 10, skip: 0 });
 
@@ -209,12 +200,12 @@ describe('PrismaAdapter', () => {
       test('should update record successfully', async () => {
         const updateData = { name: 'Updated Record' };
         const updatedRecord = { ...mockRecord, name: 'Updated Record' };
-        (mockPrismaClient.testModel.update as jest.Mock).mockResolvedValue(updatedRecord);
+        (mockPrismaClient.vehicle.update as jest.Mock).mockResolvedValue(updatedRecord);
 
         const result = await adapter.update('test-id-1', updateData);
 
         expect(result).toEqual(updatedRecord);
-        expect(mockPrismaClient.testModel.update).toHaveBeenCalledWith({
+        expect(mockPrismaClient.vehicle.update).toHaveBeenCalledWith({
           where: { id: 'test-id-1', deletedAt: null },
           data: expect.objectContaining({
             name: 'Updated Record',
@@ -229,7 +220,7 @@ describe('PrismaAdapter', () => {
           'Record not found',
           { code: 'P2025', clientVersion: '4.0.0' }
         );
-        (mockPrismaClient.testModel.update as jest.Mock).mockRejectedValue(prismaError);
+        (mockPrismaClient.vehicle.update as jest.Mock).mockRejectedValue(prismaError);
 
         await expect(adapter.update('nonexistent-id', updateData)).rejects.toThrow(DomainError);
       });
@@ -237,12 +228,12 @@ describe('PrismaAdapter', () => {
 
     describe('delete', () => {
       test('should delete record successfully', async () => {
-        (mockPrismaClient.testModel.delete as jest.Mock).mockResolvedValue(mockRecord);
+        (mockPrismaClient.vehicle.delete as jest.Mock).mockResolvedValue(mockRecord);
 
         const result = await adapter.delete('test-id-1');
 
         expect(result).toEqual(mockRecord);
-        expect(mockPrismaClient.testModel.delete).toHaveBeenCalledWith({
+        expect(mockPrismaClient.vehicle.delete).toHaveBeenCalledWith({
           where: { id: 'test-id-1' }
         });
       });
@@ -251,12 +242,12 @@ describe('PrismaAdapter', () => {
     describe('softDelete', () => {
       test('should soft delete record successfully', async () => {
         const softDeletedRecord = { ...mockRecord, deletedAt: new Date() };
-        (mockPrismaClient.testModel.update as jest.Mock).mockResolvedValue(softDeletedRecord);
+        (mockPrismaClient.vehicle.update as jest.Mock).mockResolvedValue(softDeletedRecord);
 
         const result = await adapter.softDelete('test-id-1');
 
         expect(result).toEqual(softDeletedRecord);
-        expect(mockPrismaClient.testModel.update).toHaveBeenCalledWith({
+        expect(mockPrismaClient.vehicle.update).toHaveBeenCalledWith({
           where: { id: 'test-id-1', deletedAt: null },
           data: {
             deletedAt: expect.any(Date),
@@ -268,12 +259,12 @@ describe('PrismaAdapter', () => {
 
     describe('count', () => {
       test('should count records successfully', async () => {
-        (mockPrismaClient.testModel.count as jest.Mock).mockResolvedValue(5);
+        (mockPrismaClient.vehicle.count as jest.Mock).mockResolvedValue(5);
 
         const result = await adapter.count({ name: 'Test' });
 
         expect(result).toBe(5);
-        expect(mockPrismaClient.testModel.count).toHaveBeenCalledWith({
+        expect(mockPrismaClient.vehicle.count).toHaveBeenCalledWith({
           where: { name: 'Test', deletedAt: null }
         });
       });
@@ -281,19 +272,19 @@ describe('PrismaAdapter', () => {
 
     describe('exists', () => {
       test('should return true when record exists', async () => {
-        (mockPrismaClient.testModel.findFirst as jest.Mock).mockResolvedValue({ id: 'test-id-1' });
+        (mockPrismaClient.vehicle.findFirst as jest.Mock).mockResolvedValue({ id: 'test-id-1' });
 
         const result = await adapter.exists('test-id-1');
 
         expect(result).toBe(true);
-        expect(mockPrismaClient.testModel.findFirst).toHaveBeenCalledWith({
+        expect(mockPrismaClient.vehicle.findFirst).toHaveBeenCalledWith({
           where: { id: 'test-id-1', deletedAt: null },
           select: { id: true }
         });
       });
 
       test('should return false when record does not exist', async () => {
-        (mockPrismaClient.testModel.findFirst as jest.Mock).mockResolvedValue(null);
+        (mockPrismaClient.vehicle.findFirst as jest.Mock).mockResolvedValue(null);
 
         const result = await adapter.exists('nonexistent-id');
 
@@ -305,7 +296,7 @@ describe('PrismaAdapter', () => {
   describe('Bulk Operations', () => {
     test('should create many records', async () => {
       const batchResult = { count: 3 };
-      (mockPrismaClient.testModel.createMany as jest.Mock).mockResolvedValue(batchResult);
+      (mockPrismaClient.vehicle.createMany as jest.Mock).mockResolvedValue(batchResult);
 
       const data = [
         { name: 'Record 1' },
@@ -316,7 +307,7 @@ describe('PrismaAdapter', () => {
       const result = await adapter.createMany(data);
 
       expect(result).toEqual(batchResult);
-      expect(mockPrismaClient.testModel.createMany).toHaveBeenCalledWith({
+      expect(mockPrismaClient.vehicle.createMany).toHaveBeenCalledWith({
         data: expect.arrayContaining([
           expect.objectContaining({ name: 'Record 1' }),
           expect.objectContaining({ name: 'Record 2' }),
@@ -328,7 +319,7 @@ describe('PrismaAdapter', () => {
 
     test('should update many records', async () => {
       const batchResult = { count: 2 };
-      (mockPrismaClient.testModel.updateMany as jest.Mock).mockResolvedValue(batchResult);
+      (mockPrismaClient.vehicle.updateMany as jest.Mock).mockResolvedValue(batchResult);
 
       const result = await adapter.updateMany(
         { name: 'Old Name' },
@@ -336,7 +327,7 @@ describe('PrismaAdapter', () => {
       );
 
       expect(result).toEqual(batchResult);
-      expect(mockPrismaClient.testModel.updateMany).toHaveBeenCalledWith({
+      expect(mockPrismaClient.vehicle.updateMany).toHaveBeenCalledWith({
         where: { name: 'Old Name', deletedAt: null },
         data: expect.objectContaining({
           name: 'New Name',
@@ -347,12 +338,12 @@ describe('PrismaAdapter', () => {
 
     test('should delete many records', async () => {
       const batchResult = { count: 2 };
-      (mockPrismaClient.testModel.deleteMany as jest.Mock).mockResolvedValue(batchResult);
+      (mockPrismaClient.vehicle.deleteMany as jest.Mock).mockResolvedValue(batchResult);
 
       const result = await adapter.deleteMany({ name: 'Test' });
 
       expect(result).toEqual(batchResult);
-      expect(mockPrismaClient.testModel.deleteMany).toHaveBeenCalledWith({
+      expect(mockPrismaClient.vehicle.deleteMany).toHaveBeenCalledWith({
         where: { name: 'Test' }
       });
     });
@@ -360,16 +351,16 @@ describe('PrismaAdapter', () => {
 
   describe('Raw Queries', () => {
     test('should execute raw SQL', async () => {
-      (mockPrismaClient.$executeRaw as jest.Mock).mockResolvedValue(1);
+      (mockPrismaClient.$executeRawUnsafe as jest.Mock).mockResolvedValue(1);
 
-      const result = await adapter.executeRaw('UPDATE table SET column = ?', ['value']);
+      const result = await adapter.executeRaw('UPDATE table SET column = value');
 
       expect(result).toBe(1);
     });
 
     test('should query raw SQL', async () => {
       const queryResult = [{ count: 5 }];
-      (mockPrismaClient.$queryRaw as jest.Mock).mockResolvedValue(queryResult);
+      (mockPrismaClient.$queryRawUnsafe as jest.Mock).mockResolvedValue(queryResult);
 
       const result = await adapter.queryRaw('SELECT COUNT(*) as count FROM table');
 
@@ -428,8 +419,8 @@ describe('VehicleAdapter', () => {
   const mockVehicle = {
     id: 'vehicle-1',
     licensePlate: 'ABC123',
-    vehicleType: 'STANDARD',
-    status: 'ACTIVE',
+    vehicleType: VehicleType.STANDARD,
+    status: VehicleStatus.ACTIVE,
     make: 'Toyota',
     model: 'Camry',
     color: 'Blue',
@@ -469,11 +460,11 @@ describe('VehicleAdapter', () => {
       const vehicles = [mockVehicle];
       (mockPrismaClient.vehicle.findMany as jest.Mock).mockResolvedValue(vehicles);
 
-      const result = await vehicleAdapter.findByStatus('ACTIVE');
+      const result = await vehicleAdapter.findByStatus(VehicleStatus.ACTIVE);
 
       expect(result).toEqual(vehicles);
       expect(mockPrismaClient.vehicle.findMany).toHaveBeenCalledWith({
-        where: { status: 'ACTIVE', deletedAt: null },
+        where: { status: VehicleStatus.ACTIVE, deletedAt: null },
         orderBy: { updatedAt: 'desc' }
       });
     });
@@ -486,9 +477,9 @@ describe('VehicleAdapter', () => {
 
       const criteria = {
         licensePlate: 'ABC',
-        vehicleType: 'STANDARD',
+        vehicleType: VehicleType.STANDARD,
         make: 'Toyota',
-        status: 'ACTIVE'
+        status: VehicleStatus.ACTIVE
       };
 
       const result = await vehicleAdapter.searchVehicles(criteria);
@@ -498,9 +489,9 @@ describe('VehicleAdapter', () => {
         where: {
           deletedAt: null,
           licensePlate: { contains: 'ABC', mode: 'insensitive' },
-          vehicleType: 'STANDARD',
+          vehicleType: VehicleType.STANDARD,
           make: { contains: 'Toyota', mode: 'insensitive' },
-          status: 'ACTIVE'
+          status: VehicleStatus.ACTIVE
         },
         orderBy: { updatedAt: 'desc' }
       });
@@ -540,7 +531,7 @@ describe('VehicleAdapter', () => {
 
   describe('assignToSpot', () => {
     test('should assign vehicle to parking spot', async () => {
-      const assignedVehicle = { ...mockVehicle, currentSpotId: 'spot-1', status: 'ACTIVE' };
+      const assignedVehicle = { ...mockVehicle, currentSpotId: 'spot-1', status: VehicleStatus.ACTIVE };
       (mockPrismaClient.vehicle.update as jest.Mock).mockResolvedValue(assignedVehicle);
 
       const result = await vehicleAdapter.assignToSpot('vehicle-1', 'spot-1');
@@ -550,7 +541,7 @@ describe('VehicleAdapter', () => {
         where: { id: 'vehicle-1', deletedAt: null },
         data: {
           currentSpotId: 'spot-1',
-          status: 'ACTIVE',
+          status: VehicleStatus.ACTIVE,
           updatedAt: expect.any(Date)
         },
         include: { currentSpot: true }
@@ -570,9 +561,9 @@ describe('VehicleAdapter', () => {
       ];
 
       const mockTypeStats = [
-        { vehicleType: 'STANDARD', _count: { id: 6 } },
-        { vehicleType: 'COMPACT', _count: { id: 3 } },
-        { vehicleType: 'OVERSIZED', _count: { id: 1 } }
+        { vehicleType: VehicleType.STANDARD, _count: { id: 6 } },
+        { vehicleType: VehicleType.COMPACT, _count: { id: 3 } },
+        { vehicleType: VehicleType.OVERSIZED, _count: { id: 1 } }
       ];
 
       (mockPrismaClient.vehicle.count as jest.Mock)
@@ -595,9 +586,9 @@ describe('VehicleAdapter', () => {
         inactive: 1,
         currentlyParked: 5,
         byType: {
-          'STANDARD': 6,
-          'COMPACT': 3,
-          'OVERSIZED': 1
+          [VehicleType.STANDARD]: 6,
+          [VehicleType.COMPACT]: 3,
+          [VehicleType.OVERSIZED]: 1
         }
       });
     });
@@ -641,7 +632,7 @@ describe('Error Handling', () => {
   test('should handle Prisma validation errors', () => {
     const prismaError = new Prisma.PrismaClientValidationError(
       'Invalid value provided for field',
-      '4.0.0'
+      { clientVersion: '4.0.0' }
     );
 
     const domainError = handlePrismaError(prismaError, 'validate data');
