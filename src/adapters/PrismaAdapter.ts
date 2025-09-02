@@ -164,8 +164,8 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async findById(id: string, options?: QueryOptions, tx?: Prisma.TransactionClient): Promise<T | null> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      const result = await client[this.modelName].findFirst({
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const result = await delegate.findFirst({
         where: { 
           id,
           deletedAt: null // Exclude soft-deleted records
@@ -192,13 +192,12 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<T[]> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
         deletedAt: null // Exclude soft-deleted records
       };
-
-      const result = await client[this.modelName].findMany({
+      const result = await delegate.findMany({
         where,
         ...this.buildQueryOptions(options)
       });
@@ -218,11 +217,11 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async findAll(options?: QueryOptions, tx?: Prisma.TransactionClient): Promise<PaginatedResult<T>> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = { deletedAt: null }; // Exclude soft-deleted records
       
       // Get total count
-      const totalCount = await client[this.modelName].count({ where });
+      const totalCount = await delegate.count({ where });
       
       // Build pagination
       const take = options?.take || 10;
@@ -231,7 +230,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
       const totalPages = Math.ceil(totalCount / take);
       
       // Get paginated data
-      const data = await client[this.modelName].findMany({
+      const data = await delegate.findMany({
         where,
         ...this.buildQueryOptions(options)
       });
@@ -266,8 +265,8 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<T> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      const result = await client[this.modelName].update({
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const result = await delegate.update({
         where: { 
           id,
           deletedAt: null // Only update non-deleted records
@@ -290,8 +289,8 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async delete(id: string, tx?: Prisma.TransactionClient): Promise<T> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      const result = await client[this.modelName].delete({
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const result = await delegate.delete({
         where: { id }
       });
       
@@ -309,8 +308,8 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async softDelete(id: string, tx?: Prisma.TransactionClient): Promise<T> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      const result = await client[this.modelName].update({
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const result = await delegate.update({
         where: { 
           id,
           deletedAt: null // Only soft-delete non-deleted records
@@ -335,13 +334,13 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async count(filter?: Record<string, unknown>, tx?: Prisma.TransactionClient): Promise<number> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
         deletedAt: null // Exclude soft-deleted records
       };
 
-      const count = await client[this.modelName].count({ where });
+      const count = await delegate.count({ where });
       
       this.logger.debug(`Counted ${this.modelName} records`, {
         count,
@@ -358,8 +357,8 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async exists(id: string, tx?: Prisma.TransactionClient): Promise<boolean> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      const result = await client[this.modelName].findFirst({
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const result = await delegate.findFirst({
         where: { 
           id,
           deletedAt: null // Exclude soft-deleted records
@@ -383,10 +382,10 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async createMany(data: CreateData[], tx?: Prisma.TransactionClient): Promise<Prisma.BatchPayload> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const dataWithAudit = data.map(item => this.addAuditFields(item, 'create'));
       
-      const result = await client[this.modelName].createMany({
+      const result = await delegate.createMany({
         data: dataWithAudit,
         skipDuplicates: true
       });
@@ -409,13 +408,13 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<Prisma.BatchPayload> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
         deletedAt: null // Only update non-deleted records
       };
 
-      const result = await client[this.modelName].updateMany({
+      const result = await delegate.updateMany({
         where,
         data: this.addAuditFields(data, 'update')
       });
@@ -438,8 +437,8 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<Prisma.BatchPayload> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      const result = await client[this.modelName].deleteMany({
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const result = await delegate.deleteMany({
         where: filter
       });
       
@@ -458,7 +457,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async executeRaw(sql: string, values?: unknown[], tx?: Prisma.TransactionClient): Promise<number> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       let result: number;
       
       if (values && values.length > 0) {
@@ -487,7 +486,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async queryRaw<R = unknown>(sql: string, values?: unknown[], tx?: Prisma.TransactionClient): Promise<R> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       let result: unknown;
       
       if (values && values.length > 0) {
@@ -588,13 +587,13 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<T[]> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
         deletedAt: null
       };
 
-      const result = await client[this.modelName].findMany({
+      const result = await delegate.findMany({
         where,
         include,
         ...this.buildQueryOptions(options)
@@ -624,13 +623,13 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<any> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
         deletedAt: null
       };
 
-      const result = await client[this.modelName].aggregate({
+      const result = await delegate.aggregate({
         where,
         ...aggregations
       });
@@ -663,7 +662,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<{ data: T[]; nextCursor: Record<string, unknown> | null; hasNextPage: boolean }> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
         deletedAt: null
@@ -680,7 +679,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
         queryOptions.skip = 1; // Skip the cursor record
       }
 
-      const result = await client[this.modelName].findMany(queryOptions);
+      const result = await delegate.findMany(queryOptions);
       
       const hasNextPage = result.length > take;
       const data = hasNextPage ? result.slice(0, take) : result;
@@ -717,8 +716,8 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<T> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      const result = await client[this.modelName].upsert({
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const result = await delegate.upsert({
         where,
         create: this.addAuditFields(create, 'create'),
         update: this.addAuditFields(update, 'update')
@@ -745,13 +744,13 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<Prisma.BatchPayload> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
         deletedAt: null // Only soft-delete non-deleted records
       };
 
-      const result = await client[this.modelName].updateMany({
+      const result = await delegate.updateMany({
         where,
         data: {
           deletedAt: new Date(),
@@ -784,13 +783,13 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<any[]> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
         deletedAt: null
       };
 
-      const result = await client[this.modelName].groupBy({
+      const result = await delegate.groupBy({
         by,
         where,
         ...aggregations
