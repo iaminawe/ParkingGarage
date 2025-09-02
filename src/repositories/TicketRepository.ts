@@ -130,14 +130,11 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findFirst({
         where: {
-          ticketNumber,
-          deletedAt: null
+          ticketNumber
         },
         include: {
           garage: true,
-          vehicle: true,
-          session: true,
-          payments: true
+          transactions: true
         },
         ...this.buildQueryOptions(options)
       });
@@ -343,9 +340,12 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
       const createData = {
         ...ticketData,
         ticketNumber,
-        status: ticketData.status || 'ISSUED',
-        isPaid: false,
-        paymentDueDate: ticketData.paymentDueDate || this.calculateDueDate(ticketData.violationTime)
+        status: ticketData.status || 'ACTIVE',
+        paymentStatus: ticketData.paymentStatus || 'UNPAID',
+        entryTime: ticketData.entryTime || new Date(),
+        totalAmount: ticketData.totalAmount || 0,
+        paidAmount: ticketData.paidAmount || 0,
+        isLostTicket: ticketData.isLostTicket || false
       };
 
       const ticket = await this.create(createData);
@@ -353,8 +353,8 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
       this.logger.info('Ticket created', {
         ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
-        type: ticket.type,
-        fineAmount: ticket.fineAmount
+        vehiclePlate: ticket.vehiclePlate,
+        totalAmount: ticket.totalAmount
       });
 
       return ticket;
@@ -371,8 +371,7 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
     return this.executeWithRetry(async () => {
       const ticket = await this.delegate.findFirst({
         where: {
-          id: ticketId,
-          deletedAt: null
+          id: ticketId
         }
       });
 
@@ -380,25 +379,26 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
         throw new Error(`Ticket with ID ${ticketId} not found`);
       }
 
-      if (ticket.isPaid) {
+      if (ticket.paymentStatus === 'PAID') {
         throw new Error(`Ticket ${ticket.ticketNumber} is already paid`);
       }
 
-      if (paymentAmount < ticket.fineAmount) {
+      if (paymentAmount < ticket.totalAmount) {
         throw new Error(
-          `Insufficient payment. Required: $${ticket.fineAmount}, Provided: $${paymentAmount}`
+          `Insufficient payment. Required: $${ticket.totalAmount}, Provided: $${paymentAmount}`
         );
       }
 
       const updatedTicket = await this.update(ticketId, {
-        isPaid: true,
+        paymentStatus: 'PAID',
+        paidAmount: paymentAmount,
         status: 'PAID'
       });
 
       this.logger.info('Ticket marked as paid', {
         ticketId,
         ticketNumber: ticket.ticketNumber,
-        fineAmount: ticket.fineAmount,
+        totalAmount: ticket.totalAmount,
         paymentAmount
       });
 
@@ -407,51 +407,50 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
   }
 
   /**
-   * Dispute a ticket
+   * Cancel a ticket
    * @param ticketId - Ticket ID
-   * @param disputeReason - Reason for dispute
+   * @param cancellationReason - Reason for cancellation
    * @returns Updated ticket
    */
-  async disputeTicket(ticketId: string, disputeReason: string): Promise<Ticket> {
+  async cancelTicket(ticketId: string, cancellationReason: string): Promise<Ticket> {
     return this.executeWithRetry(async () => {
       const ticket = await this.delegate.findFirst({
         where: {
           id: ticketId,
-          status: 'ISSUED',
-          deletedAt: null
+          status: 'ACTIVE'
         }
       });
 
       if (!ticket) {
-        throw new Error(`Issued ticket with ID ${ticketId} not found`);
+        throw new Error(`Active ticket with ID ${ticketId} not found`);
       }
 
       const updatedTicket = await this.update(ticketId, {
-        status: 'DISPUTED'
+        status: 'CANCELLED',
+        notes: cancellationReason
       });
 
-      this.logger.info('Ticket disputed', {
+      this.logger.info('Ticket cancelled', {
         ticketId,
         ticketNumber: ticket.ticketNumber,
-        disputeReason
+        cancellationReason
       });
 
       return updatedTicket;
-    }, `dispute ticket: ${ticketId}`);
+    }, `cancel ticket: ${ticketId}`);
   }
 
   /**
-   * Dismiss a ticket
+   * Report a ticket as lost
    * @param ticketId - Ticket ID
-   * @param dismissalReason - Reason for dismissal
+   * @param lostTicketFee - Additional fee for lost ticket
    * @returns Updated ticket
    */
-  async dismissTicket(ticketId: string, dismissalReason: string): Promise<Ticket> {
+  async reportLostTicket(ticketId: string, lostTicketFee: number): Promise<Ticket> {
     return this.executeWithRetry(async () => {
       const ticket = await this.delegate.findFirst({
         where: {
-          id: ticketId,
-          deletedAt: null
+          id: ticketId
         }
       });
 
@@ -460,17 +459,21 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
       }
 
       const updatedTicket = await this.update(ticketId, {
-        status: 'DISMISSED'
+        status: 'LOST',
+        isLostTicket: true,
+        lostTicketFee,
+        totalAmount: ticket.totalAmount + lostTicketFee
       });
 
-      this.logger.info('Ticket dismissed', {
+      this.logger.info('Ticket reported as lost', {
         ticketId,
         ticketNumber: ticket.ticketNumber,
-        dismissalReason
+        lostTicketFee,
+        newTotalAmount: ticket.totalAmount + lostTicketFee
       });
 
       return updatedTicket;
-    }, `dismiss ticket: ${ticketId}`);
+    }, `report lost ticket: ${ticketId}`);
   }
 
   /**
@@ -487,62 +490,52 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
 
       // Count by status
       const statusCounts = await this.prisma.$queryRaw<
-        Array<{ status: TicketStatus; count: bigint }>
+        Array<{ status: string; count: bigint }>
       >`
         SELECT status, COUNT(*) as count
         FROM tickets
-        WHERE deletedAt IS NULL ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
+        ${garageId ? Prisma.sql`WHERE garageId = ${garageId}` : Prisma.empty}
         GROUP BY status
       `;
 
-      // Count by type
-      const typeCounts = await this.prisma.$queryRaw<
-        Array<{ type: TicketType; count: bigint }>
+      // Count by payment status
+      const paymentStatusCounts = await this.prisma.$queryRaw<
+        Array<{ paymentStatus: string; count: bigint }>
       >`
-        SELECT type, COUNT(*) as count
+        SELECT paymentStatus, COUNT(*) as count
         FROM tickets
-        WHERE deletedAt IS NULL ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
-        GROUP BY type
+        ${garageId ? Prisma.sql`WHERE garageId = ${garageId}` : Prisma.empty}
+        GROUP BY paymentStatus
       `;
 
       // Financial statistics
       const financialStats = await this.prisma.$queryRaw<
         Array<{
-          totalFines: number | null;
+          totalAmount: number | null;
           totalPaid: number | null;
           totalOutstanding: number | null;
         }>
       >`
         SELECT 
-          SUM(fineAmount) as totalFines,
-          SUM(CASE WHEN isPaid = 1 THEN fineAmount ELSE 0 END) as totalPaid,
-          SUM(CASE WHEN isPaid = 0 THEN fineAmount ELSE 0 END) as totalOutstanding
+          SUM(totalAmount) as totalAmount,
+          SUM(paidAmount) as totalPaid,
+          SUM(totalAmount - paidAmount) as totalOutstanding
         FROM tickets
-        WHERE deletedAt IS NULL ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
+        ${garageId ? Prisma.sql`WHERE garageId = ${garageId}` : Prisma.empty}
       `;
-
-      // Count overdue tickets
-      const now = new Date();
-      const overdueCount = await this.count({
-        ...whereClause,
-        isPaid: false,
-        status: 'ISSUED',
-        paymentDueDate: { lt: now }
-      });
 
       // Build result
       const stats: TicketStats = {
         total: totalCount,
-        issued: 0,
+        active: 0,
         paid: 0,
-        disputed: 0,
-        dismissed: 0,
-        overdue: overdueCount,
-        totalFines: financialStats[0]?.totalFines || 0,
+        lost: 0,
+        cancelled: 0,
+        totalAmount: financialStats[0]?.totalAmount || 0,
         totalPaid: financialStats[0]?.totalPaid || 0,
         totalOutstanding: financialStats[0]?.totalOutstanding || 0,
-        byType: {} as Record<TicketType, number>,
-        byStatus: {} as Record<TicketStatus, number>
+        byStatus: {},
+        byPaymentStatus: {}
       };
 
       // Process status counts
@@ -551,24 +544,24 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
         stats.byStatus[status] = countNum;
         
         switch (status) {
-          case 'ISSUED':
-            stats.issued = countNum;
+          case 'ACTIVE':
+            stats.active = countNum;
             break;
           case 'PAID':
             stats.paid = countNum;
             break;
-          case 'DISPUTED':
-            stats.disputed = countNum;
+          case 'LOST':
+            stats.lost = countNum;
             break;
-          case 'DISMISSED':
-            stats.dismissed = countNum;
+          case 'CANCELLED':
+            stats.cancelled = countNum;
             break;
         }
       });
 
-      // Process type counts
-      typeCounts.forEach(({ type, count }) => {
-        stats.byType[type] = Number(count);
+      // Process payment status counts
+      paymentStatusCounts.forEach(({ paymentStatus, count }) => {
+        stats.byPaymentStatus[paymentStatus] = Number(count);
       });
 
       this.logger.debug('Ticket statistics calculated', {
@@ -603,15 +596,15 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
   }
 
   /**
-   * Calculate payment due date
-   * @param violationTime - Time of violation
-   * @param daysToAdd - Days to add for due date (default 30)
-   * @returns Due date
+   * Calculate exit time based on entry time and duration
+   * @param entryTime - Time of entry
+   * @param minutes - Duration in minutes
+   * @returns Exit time
    */
-  private calculateDueDate(violationTime: Date, daysToAdd: number = 30): Date {
-    const dueDate = new Date(violationTime);
-    dueDate.setDate(dueDate.getDate() + daysToAdd);
-    return dueDate;
+  private calculateExitTime(entryTime: Date, minutes: number): Date {
+    const exitTime = new Date(entryTime);
+    exitTime.setMinutes(exitTime.getMinutes() + minutes);
+    return exitTime;
   }
 }
 

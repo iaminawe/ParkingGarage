@@ -435,9 +435,9 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
   /**
    * Create a new parking session and update related entities
    * @param sessionData - Session creation data
-   * @returns Created session
+   * @returns Created session with relations
    */
-  async createSession(sessionData: CreateSessionData): Promise<ParkingSession> {
+  async createSession(sessionData: CreateSessionData): Promise<ParkingSession & { vehicle: any; spot: any }> {
     return this.executeTransaction(async (tx) => {
       // Create the session
       const session = await tx.parkingSession.create({
