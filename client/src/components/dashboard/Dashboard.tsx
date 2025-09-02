@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { apiService } from '@/services/api'
+import { socketService } from '@/services/socket'
 import type { GarageAnalytics, ParkingGarage, ParkingSession } from '@/types/api'
 import MetricCard from './MetricCard'
 import QuickActions from './QuickActions'
@@ -27,6 +28,7 @@ const Dashboard: React.FC = () => {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'error'>('disconnected')
 
   const fetchDashboardData = async () => {
     try {
@@ -96,12 +98,78 @@ const Dashboard: React.FC = () => {
   }
 
   useEffect(() => {
+    // Initialize WebSocket connection
+    socketService.connect()
+    
+    // Initial data fetch
     fetchDashboardData()
     
-    // Poll for updates every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000)
+    // Set up connection status monitoring
+    const handleConnectionStatusChange = (status: 'connected' | 'connecting' | 'disconnected' | 'error') => {
+      setConnectionStatus(status)
+    }
     
-    return () => clearInterval(interval)
+    socketService.onConnectionStatusChange(handleConnectionStatusChange)
+    setConnectionStatus(socketService.getConnectionStatus())
+    
+    // Listen for real-time updates
+    const handleGarageStatusUpdate = (update: any) => {
+      console.log('🔄 Received garage status update:', update)
+      
+      // Update relevant data based on the update
+      setData(prev => {
+        const updatedData = { ...prev }
+        
+        // Update analytics if provided
+        if (update.analytics) {
+          updatedData.analytics = update.analytics
+        }
+        
+        // Update total occupancy if provided
+        if (update.occupancy) {
+          updatedData.totalOccupancy = update.occupancy
+        }
+        
+        return updatedData
+      })
+    }
+    
+    const handleSpotUpdate = (update: any) => {
+      console.log('🔄 Received spot update:', update)
+      
+      // Refresh analytics when spots change
+      // This is more efficient than polling every 30 seconds
+      setTimeout(() => {
+        fetchDashboardData()
+      }, 1000) // Small delay to ensure server has processed the update
+    }
+    
+    const handleSessionUpdate = (sessionData: any) => {
+      console.log('🔄 Received session update:', sessionData)
+      
+      // Update recent sessions
+      setData(prev => ({
+        ...prev,
+        recentSessions: [sessionData, ...prev.recentSessions.slice(0, 9)] // Keep latest 10
+      }))
+    }
+    
+    // Set up WebSocket event listeners
+    socketService.onGarageStatusUpdate(handleGarageStatusUpdate)
+    socketService.onSpotUpdate(handleSpotUpdate)
+    socketService.onSessionStart(handleSessionUpdate)
+    socketService.onSessionEnd(handleSessionUpdate)
+    
+    // Join garage room for updates (assuming garage ID 'main' or get from context)
+    socketService.joinGarage('main')
+    
+    // Cleanup function
+    return () => {
+      socketService.offConnectionStatusChange(handleConnectionStatusChange)
+      socketService.removeAllListeners()
+      socketService.leaveGarage('main')
+      // Don't disconnect here as other components might be using it
+    }
   }, [])
 
   if (isLoading) {
@@ -178,8 +246,18 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span>Live</span>
+          <div className={`w-2 h-2 rounded-full ${
+            connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' :
+            connectionStatus === 'connecting' ? 'bg-yellow-500 animate-bounce' :
+            connectionStatus === 'error' ? 'bg-red-500' :
+            'bg-gray-500'
+          }`} />
+          <span>{
+            connectionStatus === 'connected' ? 'Live' :
+            connectionStatus === 'connecting' ? 'Connecting...' :
+            connectionStatus === 'error' ? 'Connection Error' :
+            'Offline'
+          }</span>
         </div>
       </div>
 

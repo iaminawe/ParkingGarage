@@ -128,7 +128,7 @@ router.get(
 
       logger.info('Users list retrieved successfully', {
         count: result.data?.data.length,
-        totalItems: result.data?.totalCount,
+        totalItems: result.data?.totalItems,
         page: parseInt(page as string),
       });
 
@@ -152,16 +152,16 @@ router.get(
   '/:id',
   authenticate,
   userOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const currentUser = authReq.user;
 
       // Check if user is trying to access their own profile or has admin/manager role
       const isOwnProfile = currentUser.id === id;
-      const hasAdminAccess = [USER_ROLES.ADMIN, USER_ROLES.MANAGER].includes(
-        currentUser.role as UserRole
-      );
+      const userRole = currentUser.role as UserRole;
+      const hasAdminAccess = userRole === USER_ROLES.ADMIN || userRole === USER_ROLES.MANAGER;
 
       if (!isOwnProfile && !hasAdminAccess) {
         res.status(HTTP_STATUS.FORBIDDEN).json({
@@ -171,7 +171,7 @@ router.get(
         return;
       }
 
-      const result = await userService.getUserById(id);
+      const result = await userService.getUserById(id!);
 
       if (!result.success) {
         const statusCode =
@@ -187,7 +187,7 @@ router.get(
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
-      logger.error('Failed to retrieve user', error as Error, { userId: req.params.id });
+      logger.error('Failed to retrieve user', error as Error, { userId: authReq.params.id });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
@@ -205,17 +205,17 @@ router.put(
   '/:id',
   authenticate,
   userOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const currentUser = req.user;
-      const updateData: UpdateUserRequest = req.body;
+      const { id } = authReq.params;
+      const currentUser = authReq.user;
+      const updateData: UpdateUserRequest = authReq.body;
 
       // Check if user is trying to update their own profile or has admin/manager role
       const isOwnProfile = currentUser.id === id;
-      const hasAdminAccess = [USER_ROLES.ADMIN, USER_ROLES.MANAGER].includes(
-        currentUser.role as UserRole
-      );
+      const userRole = currentUser.role as UserRole;
+      const hasAdminAccess = userRole === USER_ROLES.ADMIN || userRole === USER_ROLES.MANAGER;
 
       if (!isOwnProfile && !hasAdminAccess) {
         res.status(HTTP_STATUS.FORBIDDEN).json({
@@ -240,7 +240,7 @@ router.put(
         return;
       }
 
-      const result = await userService.updateUser(id, updateData);
+      const result = await userService.updateUser(id!, updateData);
 
       if (!result.success) {
         const statusCode =
@@ -257,7 +257,7 @@ router.put(
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
-      logger.error('Failed to update user', error as Error, { userId: req.params.id });
+      logger.error('Failed to update user', error as Error, { userId: authReq.params.id });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
@@ -276,10 +276,11 @@ router.delete(
   authenticate,
   adminOnly,
   sensitiveOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const currentUser = authReq.user;
 
       // Prevent users from deleting themselves
       if (currentUser.id === id) {
@@ -290,7 +291,7 @@ router.delete(
         return;
       }
 
-      const result = await userService.deleteUser(id);
+      const result = await userService.deleteUser(id!);
 
       if (!result.success) {
         const statusCode =
@@ -306,7 +307,7 @@ router.delete(
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
-      logger.error('Failed to delete user', error as Error, { userId: req.params.id });
+      logger.error('Failed to delete user', error as Error, { userId: authReq.params.id });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
@@ -324,10 +325,11 @@ router.post(
   '/change-password',
   authenticate,
   sensitiveOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const currentUser = req.user;
-      const { currentPassword, newPassword }: ChangePasswordRequest = req.body;
+      const currentUser = authReq.user;
+      const { currentPassword, newPassword }: ChangePasswordRequest = authReq.body;
 
       // Input validation
       if (!currentPassword || !newPassword) {
@@ -450,7 +452,7 @@ router.get(
       logger.info('Users by role retrieved successfully', {
         role,
         count: result.data?.data.length,
-        totalItems: result.data?.totalCount,
+        totalItems: result.data?.totalItems,
       });
 
       res.status(HTTP_STATUS.OK).json(result);
@@ -474,11 +476,12 @@ router.put(
   authenticate,
   adminOnly,
   sensitiveOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const { role } = req.body;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const { role } = authReq.body;
+      const currentUser = authReq.user;
 
       // Validate role
       const validRoles = Object.values(USER_ROLES);
@@ -499,7 +502,7 @@ router.put(
         return;
       }
 
-      const result = await userService.updateUserRole(id, role);
+      const result = await userService.updateUserRole(id!, role);
 
       if (!result.success) {
         const statusCode =
@@ -516,7 +519,7 @@ router.put(
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
-      logger.error('Failed to update user role', error as Error, { userId: req.params.id });
+      logger.error('Failed to update user role', error as Error, { userId: authReq.params.id });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
@@ -535,12 +538,13 @@ router.put(
   authenticate,
   managerOrAdmin,
   sensitiveOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const currentUser = authReq.user;
 
-      const result = await userService.activateUser(id);
+      const result = await userService.activateUser(id!);
 
       if (!result.success) {
         const statusCode =
@@ -556,7 +560,7 @@ router.put(
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
-      logger.error('Failed to activate user', error as Error, { userId: req.params.id });
+      logger.error('Failed to activate user', error as Error, { userId: authReq.params.id });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
@@ -575,10 +579,11 @@ router.put(
   authenticate,
   managerOrAdmin,
   sensitiveOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const currentUser = authReq.user;
 
       // Prevent users from deactivating themselves
       if (currentUser.id === id) {
@@ -589,7 +594,7 @@ router.put(
         return;
       }
 
-      const result = await userService.deactivateUser(id);
+      const result = await userService.deactivateUser(id!);
 
       if (!result.success) {
         const statusCode =
@@ -605,7 +610,7 @@ router.put(
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
-      logger.error('Failed to deactivate user', error as Error, { userId: req.params.id });
+      logger.error('Failed to deactivate user', error as Error, { userId: authReq.params.id });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,

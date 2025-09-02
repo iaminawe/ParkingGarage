@@ -36,7 +36,7 @@ export interface ServerConfig {
     credentials: boolean;
   };
   /** Socket.IO transport methods */
-  transports: string[];
+  transports: ('websocket' | 'polling')[];
   /** Graceful shutdown timeout in milliseconds */
   shutdownTimeout: number;
 }

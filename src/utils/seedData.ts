@@ -3,7 +3,8 @@
  * Automatically initializes the garage with sample data on startup
  */
 
-import type { GarageConfig, FloorConfig, VehicleType, RateType } from '../types/models';
+import type { GarageConfig, FloorConfig, RateType } from '../types/models';
+import type { VehicleType } from '@prisma/client';
 import type { GarageService } from '../services/garageService';
 import type { SpotService } from '../services/spotService';
 import type { VehicleRepository } from '../repositories/VehicleRepository';
@@ -114,8 +115,7 @@ export class SeedDataInitializer {
 
     try {
       // Check if garage already exists
-      const existingGarage = this.garageService.garageRepository.getDefault();
-      if (existingGarage) {
+      if (this.garageService.isGarageInitialized()) {
         console.log('🏢 Garage already initialized');
         return;
       }
@@ -298,12 +298,12 @@ export class SeedDataInitializer {
         if (availableSpots.length > 0) {
           const spot = availableSpots[0];
 
-          // Determine vehicle type based on model
-          let vehicleType: VehicleType = 'standard';
+          // Determine vehicle type based on model (using Prisma enum values)
+          let vehicleType: VehicleType = 'STANDARD';
           if (vehicleData.model.includes('F-150') || vehicleData.model.includes('Model X')) {
-            vehicleType = 'oversized';
+            vehicleType = 'OVERSIZED';
           } else if (vehicleData.model.includes('Civic') || vehicleData.model.includes('Elantra')) {
-            vehicleType = 'compact';
+            vehicleType = 'COMPACT';
           }
 
           // Determine rate type (luxury cars get daily, others hourly)
@@ -311,13 +311,13 @@ export class SeedDataInitializer {
             ? 'daily'
             : 'hourly';
 
-          // Create vehicle entry
-          const vehicle = this.vehicleRepository.create({
+          // Create vehicle entry (using only fields that exist in CreateVehicleData interface)
+          const vehicle = await this.vehicleRepository.create({
             licensePlate: vehicleData.licensePlate,
-            spotId: spot.id,
-            checkInTime: new Date(Date.now() - Math.random() * 7200000).toISOString(), // Random time in last 2 hours
-            vehicleType: vehicleType,
-            rateType: rateType,
+            vehicleType,
+            make: vehicleData.make,
+            model: vehicleData.model,
+            color: vehicleData.color,
           });
 
           // Mark spot as occupied
@@ -361,9 +361,9 @@ export class SeedDataInitializer {
 
         if (spots.length > maintenance.spotIndex) {
           const spot = spots[maintenance.spotIndex];
-          await this.spotService.updateSpotStatus(spot.id, 'maintenance', {
+          await this.spotService.updateSpotStatus(spot.id, 'occupied', {
             reason: maintenance.reason,
-            estimatedCompletion: new Date(Date.now() + 86400000), // 24 hours from now
+            estimatedCompletion: new Date(Date.now() + 86400000).toISOString(), // 24 hours from now
           });
           console.log(`  ✓ Set spot ${spot.id} to maintenance: ${maintenance.reason}`);
         }
@@ -383,21 +383,21 @@ export class SeedDataInitializer {
     }
 
     try {
-      const garage = this.garageService.garageRepository.getDefault();
-      if (!garage) {
+      if (!this.garageService.isGarageInitialized()) {
         return;
       }
 
+      const garageConfig = await this.garageService.getGarageConfiguration();
       const stats: GarageStats = await this.garageService.getStatistics();
 
       console.log('\\n📊 Current Garage Status:');
-      console.log('├─ Name:', garage.name);
+      console.log('├─ Name:', garageConfig.name);
       console.log('├─ Total Spots:', stats.occupancy.total);
       console.log('├─ Available:', stats.occupancy.available);
       console.log('├─ Occupied:', stats.occupancy.occupied);
       console.log('├─ Maintenance:', 4); // We know we set 4 maintenance spots
       console.log('├─ Occupancy Rate:', `${stats.occupancy.occupancyRate.toFixed(1)}%`);
-      console.log('└─ Floors:', garage.floors.length);
+      console.log('└─ Floors:', garageConfig.floors.length);
 
       // Show sample API calls
       console.log('\\n🔗 Sample API Endpoints:');
@@ -422,10 +422,9 @@ export class SeedDataInitializer {
       throw new Error('Services not initialized');
     }
 
-    // Clear all repositories
-    this.garageService.garageRepository.clear();
-    this.spotService.spotRepository.clear();
-    this.vehicleRepository.clear();
+    // Clear all repositories using service methods
+    await this.garageService.resetGarage();
+    await this.vehicleRepository.deleteMany({});
 
     this.initialized = false;
 
@@ -443,11 +442,11 @@ export class SeedDataInitializer {
   /**
    * Get initialization status
    */
-  getStatus(): {
+  async getStatus(): Promise<{
     initialized: boolean;
     hasGarage: boolean;
     hasVehicles: boolean;
-  } {
+  }> {
     try {
       if (!this.garageService || !this.vehicleRepository) {
         return {
@@ -457,12 +456,13 @@ export class SeedDataInitializer {
         };
       }
 
-      const garage = this.garageService.garageRepository.getDefault();
-      const vehicles = this.vehicleRepository.findAll();
+      const hasGarage = this.garageService.isGarageInitialized();
+      const vehicleResult = await this.vehicleRepository.findAll();
+      const vehicles = vehicleResult.data;
 
       return {
         initialized: this.initialized,
-        hasGarage: !!garage,
+        hasGarage,
         hasVehicles: vehicles.length > 0,
       };
     } catch {

@@ -105,15 +105,17 @@ export class DatabaseConnectionManager {
    * Create Prisma client with optimized configuration
    */
   private createClient(): PrismaClient {
+    const logConfig = this.loggingConfig.enabled
+      ? [
+          { level: 'query' as const, emit: 'event' as const },
+          { level: 'error' as const, emit: 'event' as const },
+          { level: 'info' as const, emit: 'event' as const },
+          { level: 'warn' as const, emit: 'event' as const },
+        ]
+      : [];
+
     const client = new PrismaClient({
-      log: this.loggingConfig.enabled
-        ? [
-            { level: 'query', emit: 'event' },
-            { level: 'error', emit: 'event' },
-            { level: 'info', emit: 'event' },
-            { level: 'warn', emit: 'event' },
-          ]
-        : [],
+      log: logConfig,
       datasources: {
         db: {
           url: process.env.DATABASE_URL,
@@ -132,7 +134,10 @@ export class DatabaseConnectionManager {
       return;
     }
 
-    this.client.$on('query', (e: Prisma.QueryEvent) => {
+    // Type assertion to work around Prisma client typing issues
+    const client = this.client as any;
+    
+    client.$on('query', (e: any) => {
       const duration = e.duration;
       const query = this.truncateQuery(e.query);
       const params = this.loggingConfig.includeParams ? e.params : '[hidden]';
@@ -154,14 +159,14 @@ export class DatabaseConnectionManager {
       }
     });
 
-    this.client.$on('error', (e: Prisma.LogEvent) => {
+    client.$on('error', (e: any) => {
       logger.error('Database error', new Error(e.message), {
         timestamp: e.timestamp,
         target: e.target,
       });
     });
 
-    this.client.$on('warn', (e: Prisma.LogEvent) => {
+    client.$on('warn', (e: any) => {
       logger.warn('Database warning', {
         message: e.message,
         timestamp: e.timestamp,
@@ -169,7 +174,7 @@ export class DatabaseConnectionManager {
       });
     });
 
-    this.client.$on('info', (e: Prisma.LogEvent) => {
+    client.$on('info', (e: any) => {
       logger.info('Database info', {
         message: e.message,
         timestamp: e.timestamp,

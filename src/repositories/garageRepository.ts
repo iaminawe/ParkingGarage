@@ -66,7 +66,8 @@ export class GarageRepository {
    * @returns Found garage configuration or null if not found
    */
   findByName(configName: string = this.defaultConfigKey): Garage | null {
-    return this.store.garageConfig.get(configName) || null;
+    const garage = this.store.garageConfig.get(configName);
+    return garage || null;
   }
 
   /**
@@ -82,7 +83,8 @@ export class GarageRepository {
    * @returns Array of all garage configurations
    */
   findAll(): Garage[] {
-    return Array.from(this.store.garageConfig.values());
+    const garages = Array.from(this.store.garageConfig.values());
+    return garages;
   }
 
   /**

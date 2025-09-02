@@ -498,8 +498,16 @@ router.get(
       const { page = '1', limit = '20' } = req.query;
       const currentUser = authReq.user;
 
+      if (!garageId) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Garage ID is required',
+        });
+        return;
+      }
+
       const result = await transactionService.getTransactionsByGarage(
-        garageId,
+        garageId as string,
         parseInt(page as string),
         parseInt(limit as string)
       );
@@ -546,6 +554,15 @@ router.get(
       const { page = '1', limit = '20' } = req.query;
       const currentUser = authReq.user;
 
+      // Validate status parameter exists
+      if (!status) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Status parameter is required',
+        });
+        return;
+      }
+
       // Validate status
       const validStatuses = ['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'];
       if (!validStatuses.includes(status.toUpperCase())) {
@@ -557,7 +574,7 @@ router.get(
       }
 
       const result = await transactionService.getTransactionsByStatus(
-        status.toUpperCase(),
+        status!.toUpperCase(),
         parseInt(page as string),
         parseInt(limit as string)
       );

@@ -179,7 +179,7 @@ router.get(
       const { id } = authReq.params;
       const currentUser = authReq.user;
 
-      const result = await reservationService.getReservationById(id);
+      const result = await reservationService.getReservationById(id!);
 
       if (!result.success) {
         const statusCode =
@@ -193,7 +193,7 @@ router.get(
       // Check if user can access this reservation
       const reservation = result.data;
       const canAccess =
-        currentUser.role !== USER_ROLES.USER || reservation?.vehicle?.ownerId === currentUser.id;
+        currentUser.role !== USER_ROLES.USER || reservation?.vehicleId === currentUser.id;
 
       if (!canAccess) {
         res.status(HTTP_STATUS.FORBIDDEN).json({
@@ -315,7 +315,7 @@ router.put(
       const currentUser = authReq.user;
 
       // Check if reservation exists and user has permission
-      const existingReservationResult = await reservationService.getReservationById(id);
+      const existingReservationResult = await reservationService.getReservationById(id!);
       if (!existingReservationResult.success) {
         const statusCode =
           existingReservationResult.message === 'Reservation not found'
@@ -328,7 +328,7 @@ router.put(
       const existingReservation = existingReservationResult.data;
       const canUpdate =
         currentUser.role !== USER_ROLES.USER ||
-        existingReservation?.vehicle?.ownerId === currentUser.id;
+        existingReservation?.vehicleId === currentUser.id;
 
       if (!canUpdate) {
         res.status(HTTP_STATUS.FORBIDDEN).json({
@@ -361,7 +361,7 @@ router.put(
           : undefined,
       };
 
-      const result = await reservationService.updateReservation(id, processedUpdateData);
+      const result = await reservationService.updateReservation(id!, processedUpdateData);
 
       if (!result.success) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(result);
@@ -404,7 +404,7 @@ router.delete(
       const currentUser = authReq.user;
 
       // Check if reservation exists and user has permission
-      const existingReservationResult = await reservationService.getReservationById(id);
+      const existingReservationResult = await reservationService.getReservationById(id!);
       if (!existingReservationResult.success) {
         const statusCode =
           existingReservationResult.message === 'Reservation not found'
@@ -417,7 +417,7 @@ router.delete(
       const existingReservation = existingReservationResult.data;
       const canCancel =
         currentUser.role !== USER_ROLES.USER ||
-        existingReservation?.vehicle?.ownerId === currentUser.id;
+        existingReservation?.vehicleId === currentUser.id;
 
       if (!canCancel) {
         res.status(HTTP_STATUS.FORBIDDEN).json({
@@ -427,7 +427,7 @@ router.delete(
         return;
       }
 
-      const result = await reservationService.cancelReservation(id, reason);
+      const result = await reservationService.cancelReservation(id!, reason);
 
       if (!result.success) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(result);
@@ -471,7 +471,7 @@ router.put(
       const currentUser = authReq.user;
 
       const completionTime = endTime ? new Date(endTime) : new Date();
-      const result = await reservationService.completeReservation(id, completionTime);
+      const result = await reservationService.completeReservation(id!, completionTime);
 
       if (!result.success) {
         const statusCode =
@@ -595,7 +595,7 @@ router.get(
 
       // This would need vehicle ownership validation in a real implementation
       const result = await reservationService.getReservationsByVehicle(
-        vehicleId,
+        vehicleId!,
         parseInt(page as string),
         parseInt(limit as string)
       );
@@ -643,7 +643,7 @@ router.get(
       const currentUser = authReq.user;
 
       const result = await reservationService.getReservationsByLicensePlate(
-        licensePlate,
+        licensePlate!,
         parseInt(page as string),
         parseInt(limit as string)
       );
