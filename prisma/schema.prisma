@@ -1,0 +1,382 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Garage model - represents the overall garage configuration
+model Garage {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  
+  // Configuration
+  totalFloors Int       @default(1)
+  totalSpots  Int       @default(0)
+  isActive    Boolean   @default(true)
+  
+  // Operating hours (JSON stored as string)
+  operatingHours String? // JSON: { open: "08:00", close: "22:00", timezone: "UTC" }
+  
+  // Relationships
+  floors      Floor[]
+  spots       Spot[]
+  sessions    ParkingSession[]
+  tickets     Ticket[]
+  payments    Payment[]
+  
+  // Audit fields
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  
+  @@map("garages")
+}
+
+// Floor model - represents floors within a garage
+model Floor {
+  id          String    @id @default(cuid())
+  garageId    String
+  number      Int       // Floor number (1, 2, 3, etc.)
+  name        String?   // Optional name like "Ground Floor", "Level B1"
+  
+  // Configuration
+  bays        Int       @default(1)
+  spotsPerBay Int       @default(20)
+  isActive    Boolean   @default(true)
+  
+  // Relationships
+  garage      Garage    @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  spots       Spot[]
+  
+  // Audit fields
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  
+  @@unique([garageId, number])
+  @@map("floors")
+}
+
+// Spot model - represents individual parking spots
+model Spot {
+  id          String      @id @default(cuid())
+  garageId    String
+  floorId     String?
+  
+  // Location information
+  floor       Int         @default(1)
+  bay         Int         @default(1)
+  spotNumber  String      // e.g., "A1", "B15", "101"
+  
+  // Spot configuration
+  type        SpotType    @default(STANDARD)
+  status      SpotStatus  @default(AVAILABLE)
+  
+  // Features (JSON array stored as string)
+  features    String      @default("[]") // JSON array: ["ev_charging", "handicap"]
+  
+  // Current occupancy
+  currentVehicleId String? @unique
+  
+  // Relationships
+  garage      Garage          @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  floorRel    Floor?          @relation(fields: [floorId], references: [id], onDelete: SetNull)
+  currentVehicle Vehicle?     @relation("CurrentSpot", fields: [currentVehicleId], references: [id])
+  sessions    ParkingSession[]
+  
+  // Audit fields
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+  
+  @@unique([garageId, spotNumber])
+  @@map("spots")
+}
+
+// Vehicle model - represents vehicles in the system
+model Vehicle {
+  id           String        @id @default(cuid())
+  licensePlate String        @unique
+  
+  // Vehicle information
+  vehicleType  VehicleType   @default(STANDARD)
+  make         String?
+  model        String?
+  color        String?
+  year         Int?
+  
+  // Owner information (optional)
+  ownerName    String?
+  ownerEmail   String?
+  ownerPhone   String?
+  
+  // Current status
+  status       VehicleStatus @default(ACTIVE)
+  
+  // Current parking information
+  currentSpotId String?      @unique
+  
+  // Relationships
+  currentSpot  Spot?         @relation("CurrentSpot")
+  sessions     ParkingSession[]
+  tickets      Ticket[]
+  payments     Payment[]
+  
+  // Audit fields
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+  
+  @@map("vehicles")
+}
+
+// ParkingSession model - represents parking sessions
+model ParkingSession {
+  id          String            @id @default(cuid())
+  garageId    String
+  spotId      String
+  vehicleId   String
+  
+  // Session information
+  status      SessionStatus     @default(ACTIVE)
+  rateType    RateType         @default(HOURLY)
+  
+  // Time tracking
+  checkInTime DateTime
+  checkOutTime DateTime?
+  expectedEndTime DateTime?
+  
+  // Calculated duration (in minutes)
+  durationMinutes Int?
+  
+  // Cost calculation
+  hourlyRate      Float?
+  totalAmount     Float         @default(0.0)
+  isPaid          Boolean       @default(false)
+  
+  // Additional information
+  notes       String?
+  metadata    String?           // JSON for additional data
+  endReason   String?           // "manual", "timeout", "payment_expired", etc.
+  
+  // Relationships
+  garage      Garage            @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  spot        Spot              @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  tickets     Ticket[]
+  payments    Payment[]
+  
+  // Audit fields
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
+  
+  @@map("parking_sessions")
+}
+
+// Ticket model - represents parking tickets/violations
+model Ticket {
+  id            String       @id @default(cuid())
+  garageId      String
+  vehicleId     String
+  sessionId     String?
+  
+  // Ticket information
+  ticketNumber  String       @unique
+  type          TicketType   @default(OVERSTAY)
+  status        TicketStatus @default(ISSUED)
+  
+  // Violation details
+  description   String
+  violationTime DateTime
+  location      String?      // Spot number or general location
+  
+  // Fine information
+  fineAmount    Float        @default(0.0)
+  isPaid        Boolean      @default(false)
+  paymentDueDate DateTime?
+  
+  // Officer information
+  issuedBy      String?      // Officer ID or system
+  
+  // Relationships
+  garage        Garage       @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  vehicle       Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  session       ParkingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  payments      Payment[]
+  
+  // Audit fields
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+  
+  @@map("tickets")
+}
+
+// Payment model - represents all payments in the system
+model Payment {
+  id              String        @id @default(cuid())
+  garageId        String
+  vehicleId       String?
+  sessionId       String?
+  ticketId        String?
+  
+  // Payment information
+  paymentNumber   String        @unique
+  type            PaymentType   @default(PARKING)
+  method          PaymentMethod @default(CASH)
+  status          PaymentStatus @default(PENDING)
+  
+  // Amount details
+  amount          Float
+  currency        String        @default("USD")
+  
+  // Transaction details
+  transactionId   String?       // External payment processor ID
+  gatewayResponse String?       // JSON response from payment gateway
+  
+  // Payment timing
+  paymentDate     DateTime
+  processedAt     DateTime?
+  
+  // Refund information
+  refundAmount    Float         @default(0.0)
+  refundDate      DateTime?
+  refundReason    String?
+  
+  // Relationships
+  garage          Garage        @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle?      @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  session         ParkingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  ticket          Ticket?       @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  
+  // Audit fields
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+  
+  @@map("payments")
+}
+
+// Enums
+enum SpotType {
+  COMPACT
+  STANDARD
+  OVERSIZED
+  HANDICAP
+  ELECTRIC
+  MOTORCYCLE
+  
+  @@map("spot_type")
+}
+
+enum SpotStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  OUT_OF_ORDER
+  MAINTENANCE
+  
+  @@map("spot_status")
+}
+
+enum VehicleType {
+  COMPACT
+  STANDARD
+  OVERSIZED
+  MOTORCYCLE
+  TRUCK
+  BUS
+  
+  @@map("vehicle_type")
+}
+
+enum VehicleStatus {
+  ACTIVE
+  BLOCKED
+  BANNED
+  INACTIVE
+  
+  @@map("vehicle_status")
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+  ABANDONED
+  
+  @@map("session_status")
+}
+
+enum RateType {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  FLAT_RATE
+  
+  @@map("rate_type")
+}
+
+enum TicketType {
+  OVERSTAY
+  NO_PAYMENT
+  EXPIRED_METER
+  INVALID_SPOT
+  HANDICAP_VIOLATION
+  BLOCKING
+  OTHER
+  
+  @@map("ticket_type")
+}
+
+enum TicketStatus {
+  ISSUED
+  PAID
+  DISPUTED
+  DISMISSED
+  OVERDUE
+  
+  @@map("ticket_status")
+}
+
+enum PaymentType {
+  PARKING
+  FINE
+  DEPOSIT
+  REFUND
+  
+  @@map("payment_type")
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  MOBILE_PAYMENT
+  BANK_TRANSFER
+  CHECK
+  
+  @@map("payment_method")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+  
+  @@map("payment_status")
+}
