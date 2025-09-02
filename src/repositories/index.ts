@@ -9,6 +9,15 @@
  * @module Repositories
  */
 
+<<<<<<< HEAD
+// Import and export individual repository classes
+import { VehicleRepository } from './VehicleRepository';
+import { SpotRepository } from './SpotRepository';
+import { SessionRepository } from './SessionRepository';
+import { GarageRepository } from './garageRepository';
+
+export { VehicleRepository, SpotRepository, SessionRepository, GarageRepository };
+=======
 // Modern Prisma-based repositories
 export { VehicleRepository } from './VehicleRepository';
 export { SpotRepository } from './SpotRepository';
@@ -18,6 +27,7 @@ export { PaymentRepository } from './PaymentRepository';
 
 // Legacy exports for backward compatibility
 export { SessionRepository as SessionsRepository } from './SessionRepository';
+>>>>>>> origin/main
 
 // Database service
 export { DatabaseService } from '../services/DatabaseService';
@@ -133,8 +143,12 @@ export interface IRepositories {
   vehicleRepository: VehicleRepository;
   spotRepository: SpotRepository;
   sessionRepository: SessionRepository;
+<<<<<<< HEAD
+  garageRepository: GarageRepository;
+=======
   ticketRepository: TicketRepository;
   paymentRepository: PaymentRepository;
+>>>>>>> origin/main
 }
 
 /**
@@ -146,11 +160,18 @@ export function createRepositories(databaseService?: DatabaseService): IReposito
   const factory = RepositoryFactory.getInstance(databaseService);
   
   return {
+<<<<<<< HEAD
+    vehicleRepository: new VehicleRepository(),
+    spotRepository: new SpotRepository(),
+    sessionRepository: new SessionRepository(),
+    garageRepository: new GarageRepository()
+=======
     vehicleRepository: factory.getVehicleRepository(),
     spotRepository: factory.getSpotRepository(),
     sessionRepository: factory.getSessionRepository(),
     ticketRepository: factory.getTicketRepository(),
     paymentRepository: factory.getPaymentRepository()
+>>>>>>> origin/main
   };
 }
 

@@ -8,7 +8,7 @@
  * @module SearchService
  */
 
-import { VehicleRepository } from '../repositories/vehicleRepository';
+import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SpotRepository } from '../repositories/spotRepository';
 import { searchLicensePlates, validateSearchTerm } from '../utils/stringMatcher';
 import { VehicleType, SpotFeature, VehicleStatus } from '../types/models';

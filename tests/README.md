@@ -1,238 +1,265 @@
-# Parking Garage API - Test Suite
+# Test Suite Documentation
 
 ## Overview
-Comprehensive test suite for the Parking Garage Management Web API, covering all MVP functionalities identified in the project brief.
 
-## Test Coverage
-
-### Core Features Tested
-1. **Garage Layout Management**
-   - Garage structure retrieval
-   - Floor and bay configuration
-
-2. **Parking Spot Management**
-   - List all spots with status
-   - Filter by availability, floor, bay
-   - Get next available spot
-   - Update spot status
-
-3. **Car Check-In**
-   - Successful vehicle check-in
-   - Spot assignment
-   - Duplicate prevention
-   - Full garage handling
-   - License plate validation
-
-4. **Car Check-Out**
-   - Successful vehicle check-out
-   - Spot release
-   - Duration calculation
-   - Non-existent vehicle handling
-
-5. **Car Search (Stretch Goal)**
-   - Find vehicle by license plate
-   - Case-insensitive search
-   - Real-time duration tracking
-
-## Running Tests
-
-### Install Dependencies
-```bash
-npm install
-```
-
-### Run All Tests
-```bash
-npm test
-```
-
-### Run Specific Test Suites
-```bash
-# Integration tests only
-npm run test:integration
-
-# Unit tests only
-npm run test:unit
-
-# Watch mode for development
-npm run test:watch
-
-# With coverage report
-npm run test:coverage
-```
-
-### Run Individual Test Files
-```bash
-# Main integration tests
-npx jest tests/integration/parking-garage.test.js
-
-# Performance tests
-npx jest tests/integration/performance.test.js
-```
+This comprehensive test suite is designed for the Parking Garage API with SQLite/Prisma integration. The tests ensure database operations, API endpoints, business logic, and performance requirements are all validated.
 
 ## Test Structure
 
 ```
 tests/
-├── integration/
-│   ├── parking-garage.test.js  # Main integration tests
-│   └── performance.test.js     # Load and performance tests
-├── helpers/
-│   ├── setup.js                # Test environment setup
-│   ├── testUtils.js            # Test utilities and builders
-│   └── mockApp.js              # Mock Express application
-└── README.md                    # This file
+├── helpers/          # Test setup and utilities
+├── factories/        # Test data generation
+├── unit/            # Unit tests for repositories and services
+├── integration/     # API integration tests
+├── database/        # Database-specific tests
+├── performance/     # Performance and load tests
+└── data/           # Test database files
 ```
 
-## Test Categories
+## Test Types
 
-### 1. Happy Path Tests
-- Standard check-in/check-out flow
-- Normal spot queries
-- Basic search operations
-- Expected state transitions
+### Unit Tests
+- **Repository Tests**: Test data access layer with Prisma ORM
+- **Service Tests**: Test business logic in isolation
+- **Model Tests**: Test data models and validations
 
-### 2. Edge Case Tests
-- Empty garage
-- Full garage (100% capacity)
-- Single spot available
-- Special characters in license plates
-- Rapid concurrent operations
+### Integration Tests
+- **API Tests**: Test REST endpoints with database persistence
+- **End-to-End Tests**: Complete workflows from API to database
 
-### 3. Error Handling Tests
-- Invalid license plates
-- Duplicate check-ins
-- Non-existent vehicles
-- Malformed requests
-- Invalid spot IDs
+### Database Tests
+- **Schema Tests**: Verify database structure and constraints
+- **Migration Tests**: Ensure schema changes work correctly
+- **Transaction Tests**: Test ACID properties and rollbacks
 
-### 4. Performance Tests
-- Normal load (100 vehicles/hour)
-- Peak load (500 vehicles/hour)
-- Stress testing
-- Query performance
-- Memory management
+### Performance Tests
+- **Query Performance**: Measure database query execution time
+- **Bulk Operations**: Test large dataset handling
+- **Concurrent Operations**: Test multi-user scenarios
 
-### 5. Data Integrity Tests
-- Spot count consistency
-- No orphaned parking sessions
-- Spot-vehicle relationship integrity
-- State consistency under stress
+## Test Configuration
 
-## Test Data
+### Jest Configuration
+The test suite uses Jest with TypeScript support and multiple test environments:
 
-### Default Garage Structure
-- **Floors**: 3
-- **Bays**: 2 per floor (except floor 3 has only bay A)
-- **Spots per bay**: 25
-- **Total spots**: 125
+- **Unit Tests**: Fast, isolated tests with mocked dependencies
+- **Integration Tests**: Tests with test database
+- **Database Tests**: Direct database operations testing
+- **Performance Tests**: Extended timeout for performance measurement
 
-### Test Vehicles
-- Standard format: `TEST-###`
-- Special test cases: Unicode, spaces, hyphens
-- Load test format: `LOAD-###`, `PEAK-###`, `STRESS-###`
+### Database Setup
+- **Test Database**: Separate SQLite database (`tests/data/test.db`)
+- **Isolation**: Each test suite resets database state
+- **Fixtures**: Consistent test data through factories
 
-## Assertions and Expectations
+## Running Tests
 
-### Response Times
-- Normal operations: < 100ms
-- Under load: < 500ms average
-- Query operations: < 100ms
+### All Tests
+```bash
+npm test
+```
 
-### Throughput
-- Minimum: 1 operation/second
-- Target: 10+ operations/second
+### Test Categories
+```bash
+# Unit tests only
+npm run test:unit
 
-### Data Consistency
-- Total spots = Available + Occupied
-- No duplicate spot assignments
-- No orphaned sessions
+# Integration tests only
+npm run test:integration
 
-## Mock API Implementation
+# Database-specific tests
+npm run test:database
 
-The test suite includes a complete mock implementation of the Parking Garage API that:
-- Maintains in-memory state
-- Simulates all API endpoints
-- Provides test utilities for setup/teardown
-- Supports occupancy simulation
+# Performance tests
+npm run test:performance
+```
 
-## Continuous Integration
+### Test Options
+```bash
+# Watch mode
+npm run test:watch
 
-### GitHub Actions Workflow
-```yaml
-name: Tests
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-      - run: npm ci
-      - run: npm test
-      - run: npm run test:coverage
+# Coverage report
+npm run test:coverage
+
+# Verbose output
+npm test -- --verbose
+```
+
+## Test Factories
+
+### Usage
+```javascript
+const { VehicleFactory, SpotFactory, SessionFactory } = require('../factories');
+
+// Create single entities
+const vehicle = await VehicleFactory.createVehicle({
+  licensePlate: 'TEST001',
+  make: 'Toyota'
+});
+
+// Create related entities
+const scenario = await createParkingScenario({
+  spotCount: 10,
+  vehicleCount: 5,
+  activeSessionCount: 2
+});
+```
+
+### Available Factories
+- **GarageFactory**: Create parking garages
+- **SpotFactory**: Create parking spots
+- **VehicleFactory**: Create vehicles
+- **SessionFactory**: Create parking sessions
+- **PaymentFactory**: Create payment records
+
+## Database Test Utilities
+
+### Setup and Teardown
+```javascript
+// Global setup (once before all tests)
+global.testDb.getPrisma()  // Get Prisma client
+global.testDb.reset()      // Reset database
+global.testDb.seed()       // Seed with basic data
+```
+
+### Test Isolation
+- Each test starts with clean database state
+- Transactions can be used for faster cleanup
+- Foreign key constraints are maintained
+
+## Performance Benchmarks
+
+### Thresholds
+- Single operations: < 100ms
+- Bulk operations: < 5 seconds
+- Complex queries: < 1 second
+- Concurrent operations: < 2 seconds
+
+### Monitoring
+Performance tests track:
+- Query execution time
+- Memory usage
+- Database connection pool usage
+- Transaction rollback time
+
+## Best Practices
+
+### Test Structure
+1. **Arrange**: Set up test data using factories
+2. **Act**: Execute the operation being tested  
+3. **Assert**: Verify expected outcomes
+
+### Test Data
+- Use factories for consistent test data
+- Create minimal data needed for each test
+- Clean up data between tests automatically
+
+### Error Testing
+- Test both success and failure scenarios
+- Verify error messages are user-friendly
+- Test edge cases and boundary conditions
+
+### Database Testing
+- Test constraints and validations
+- Verify foreign key relationships
+- Test transaction rollback scenarios
+- Validate data integrity across operations
+
+## Troubleshooting
+
+### Common Issues
+
+#### Test Database Connection
+If tests fail with database connection errors:
+```bash
+npm run test:setup
+```
+
+#### Slow Test Execution
+- Check for missing database indexes
+- Verify test database is using SQLite in-memory mode where appropriate
+- Monitor for test data cleanup issues
+
+#### Flaky Tests
+- Ensure proper test isolation
+- Check for timing issues in concurrent tests
+- Verify test data is deterministic
+
+#### Memory Issues
+- Check for database connection leaks
+- Monitor for large test data sets
+- Ensure proper cleanup in test teardown
+
+### Debug Mode
+```bash
+# Run with debug output
+DEBUG_TESTS=true npm test
+
+# Run specific test file
+npm test -- tests/unit/repositories/vehicleRepository.test.js
 ```
 
 ## Coverage Requirements
 
-- **Unit Tests**: 80% code coverage
-- **Integration Tests**: 100% endpoint coverage
-- **Critical Paths**: 100% coverage for check-in/check-out
-- **Error Scenarios**: All documented error codes tested
+### Minimum Coverage
+- Statements: 80%
+- Branches: 75%
+- Functions: 80%
+- Lines: 80%
 
-## Debugging Tests
+### Critical Areas
+- Repository methods: 95%
+- API endpoints: 90%
+- Business logic: 90%
+- Error handling: 85%
 
-### Enable Debug Output
-```bash
-DEBUG_TESTS=true npm test
-```
+## Continuous Integration
 
-### Run Specific Test
-```bash
-npx jest -t "should successfully check in a vehicle"
-```
+### Test Pipeline
+1. Setup test database
+2. Run unit tests (fast)
+3. Run integration tests
+4. Run database tests
+5. Run performance tests (if not pull request)
+6. Generate coverage report
 
-### Generate Coverage Report
-```bash
-npm run test:coverage
-open coverage/index.html
-```
-
-## Test Utilities
-
-### TestDataBuilder
-Creates test data objects:
-- `createGarage()`
-- `createSpot()`
-- `createVehicle()`
-- `createBulkSpots()`
-
-### GarageStateManager
-Manages test state:
-- `reset()`
-- `checkInVehicle()`
-- `checkOutVehicle()`
-- `setOccupancy()`
-
-### MockGarageAPI
-Simulates API behavior:
-- All endpoint implementations
-- State management
-- Error simulation
+### Environment Variables
+- `NODE_ENV=test`: Test environment
+- `DATABASE_URL`: Test database connection
+- `DEBUG_TESTS`: Enable debug output
 
 ## Contributing
 
-When adding new tests:
-1. Follow existing test structure
-2. Use descriptive test names
-3. Include both positive and negative cases
-4. Add performance considerations for new endpoints
-5. Update this README with new test categories
+### Adding New Tests
+1. Create test file in appropriate directory
+2. Use existing factories for test data
+3. Follow naming conventions
+4. Include both positive and negative test cases
+5. Update documentation if needed
 
-## Notes
+### Test Naming
+```javascript
+describe('EntityName', () => {
+  describe('methodName', () => {
+    test('should perform expected behavior with valid input', () => {
+      // Test implementation
+    });
+    
+    test('should handle invalid input gracefully', () => {
+      // Error case testing
+    });
+  });
+});
+```
 
-- Tests use Jest and Supertest
-- Mock implementation for testing without actual API
-- Supports concurrent testing
-- Includes performance benchmarks
-- Comprehensive error scenario coverage
+### Factory Guidelines
+- Keep factories simple and focused
+- Support property overrides
+- Handle database relationships properly
+- Provide both data creation and entity creation methods
+
+---
+
+For more information, see individual test files and the project's main documentation.

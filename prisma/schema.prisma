@@ -1,6 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -11,7 +14,196 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Garage model - represents the overall garage configuration
+// Authentication Models (User Management System)
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  passwordHash      String
+  firstName         String?
+  lastName          String?
+  role              String      @default("USER") // USER, ADMIN, MANAGER, OPERATOR
+  isActive          Boolean     @default(true)
+  isEmailVerified   Boolean     @default(false)
+  emailVerificationToken String?
+  emailVerificationExpires DateTime?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  lastLoginAt       DateTime?
+  loginAttempts     Int         @default(0)
+  lockoutUntil      DateTime?
+  twoFactorSecret   String?
+  isTwoFactorEnabled Boolean    @default(false)
+  twoFactorBackupCodes String?  // JSON array of backup codes
+  lastPasswordChange DateTime?  @default(now())
+  passwordChangeRequired Boolean @default(false)
+  securityQuestionHash String?
+  securityAnswerHash String?
+  preferredLanguage String      @default("en")
+  timezone          String      @default("UTC")
+  phoneNumber       String?
+  isPhoneVerified   Boolean     @default(false)
+  phoneVerificationToken String?
+  phoneVerificationExpires DateTime?
+  googleId          String?     @unique
+  githubId          String?     @unique
+  profileImageUrl   String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  vehicles          Vehicle[]   // User can own multiple vehicles
+  sessions          UserSession[]
+  auditLogs         SecurityAuditLog[]
+  devices           UserDevice[]
+  loginHistory      LoginHistory[]
+
+  // Performance indexes
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([lastLoginAt])
+  @@index([loginAttempts, lockoutUntil])
+  @@index([googleId])
+  @@index([githubId])
+  @@index([emailVerificationToken])
+  @@index([passwordResetToken])
+  @@map("users")
+}
+
+model UserSession {
+  id                String      @id @default(cuid())
+  userId            String
+  token             String      @unique
+  refreshToken      String?     @unique
+  expiresAt         DateTime
+  refreshExpiresAt  DateTime?
+  isRevoked         Boolean     @default(false)
+  deviceInfo        String?     // User agent/device information
+  deviceFingerprint String?
+  ipAddress         String?
+  geoLocation       String?     // City, Country from IP
+  lastActivityAt    DateTime    @default(now())
+  sessionType       String      @default("WEB") // WEB, MOBILE, API
+  csrfToken         String?
+  revokedReason     String?     // LOGOUT, SECURITY, EXPIRED, ADMIN
+  revokedAt         DateTime?
+  isSecure          Boolean     @default(false) // HTTPS connection
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device            UserDevice? @relation(fields: [deviceFingerprint], references: [fingerprint])
+
+  // Performance indexes
+  @@index([userId])
+  @@index([token])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@index([isRevoked])
+  @@index([deviceFingerprint])
+  @@index([ipAddress])
+  @@index([lastActivityAt])
+  @@index([userId, isRevoked, expiresAt])
+  @@map("user_sessions")
+}
+
+model UserDevice {
+  id              String      @id @default(cuid())
+  userId          String
+  fingerprint     String      @unique // Device fingerprint hash
+  name            String?     // User-assigned device name
+  deviceType      String      // DESKTOP, MOBILE, TABLET
+  browser         String?
+  operatingSystem String?
+  ipAddress       String?
+  geoLocation     String?
+  isTrusted       Boolean     @default(false)
+  lastSeenAt      DateTime    @default(now())
+  firstSeenAt     DateTime    @default(now())
+  isActive        Boolean     @default(true)
+  notificationSettings String? // JSON string for push notification preferences
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions        UserSession[]
+  loginHistory    LoginHistory[]
+
+  // Performance indexes
+  @@index([userId])
+  @@index([fingerprint])
+  @@index([isTrusted])
+  @@index([isActive])
+  @@index([lastSeenAt])
+  @@index([userId, isActive])
+  @@map("user_devices")
+}
+
+model LoginHistory {
+  id              String      @id @default(cuid())
+  userId          String
+  deviceId        String?
+  attemptType     String      // SUCCESS, FAILED_PASSWORD, FAILED_2FA, BLOCKED
+  ipAddress       String
+  geoLocation     String?
+  userAgent       String?
+  failureReason   String?     // INVALID_PASSWORD, ACCOUNT_LOCKED, 2FA_REQUIRED, etc.
+  isSuspicious    Boolean     @default(false)
+  riskScore       Float?      // 0.0 to 1.0 risk assessment
+  metadata        String?     // JSON string for additional context data
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device          UserDevice? @relation(fields: [deviceId], references: [id])
+
+  // Performance indexes
+  @@index([userId])
+  @@index([attemptType])
+  @@index([ipAddress])
+  @@index([isSuspicious])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([attemptType, createdAt])
+  @@map("login_history")
+}
+
+model SecurityAuditLog {
+  id              String      @id @default(cuid())
+  userId          String?
+  sessionId       String?
+  action          String      // LOGIN, LOGOUT, PASSWORD_CHANGE, 2FA_ENABLE, etc.
+  category        String      // AUTH, ACCOUNT, SECURITY, DATA_ACCESS
+  severity        String      // LOW, MEDIUM, HIGH, CRITICAL
+  description     String
+  ipAddress       String?
+  userAgent       String?
+  metadata        String?     // JSON string for additional context data
+  riskLevel       String?     // LOW, MEDIUM, HIGH, CRITICAL
+  isAnomaly       Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  user            User?       @relation(fields: [userId], references: [id])
+
+  // Performance indexes
+  @@index([userId])
+  @@index([action])
+  @@index([category])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([isAnomaly])
+  @@index([riskLevel])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([severity, createdAt])
+  @@map("security_audit_logs")
+}
+
+// Parking Management Models (Core Business Logic)
 model Garage {
   id          String    @id @default(cuid())
   name        String    @unique
@@ -27,356 +219,261 @@ model Garage {
   
   // Relationships
   floors      Floor[]
-  spots       Spot[]
-  sessions    ParkingSession[]
   tickets     Ticket[]
-  payments    Payment[]
+  transactions Transaction[]
   
-  // Audit fields
+  // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
   
   @@map("garages")
 }
 
-// Floor model - represents floors within a garage
 model Floor {
-  id          String    @id @default(cuid())
-  garageId    String
-  number      Int       // Floor number (1, 2, 3, etc.)
-  name        String?   // Optional name like "Ground Floor", "Level B1"
-  
-  // Configuration
-  bays        Int       @default(1)
-  spotsPerBay Int       @default(20)
-  isActive    Boolean   @default(true)
+  id        String   @id @default(cuid())
+  garageId  String
+  floorNumber Int
+  description String?
+  totalSpots Int     @default(0)
+  isActive  Boolean  @default(true)
   
   // Relationships
-  garage      Garage    @relation(fields: [garageId], references: [id], onDelete: Cascade)
-  spots       Spot[]
+  garage    Garage   @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  spots     ParkingSpot[]
   
-  // Audit fields
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  @@unique([garageId, number])
+  @@unique([garageId, floorNumber])
   @@map("floors")
 }
 
-// Spot model - represents individual parking spots
-model Spot {
+model ParkingSpot {
   id          String      @id @default(cuid())
-  garageId    String
-  floorId     String?
-  
-  // Location information
-  floor       Int         @default(1)
-  bay         Int         @default(1)
-  spotNumber  String      // e.g., "A1", "B15", "101"
-  
-  // Spot configuration
-  type        SpotType    @default(STANDARD)
-  status      SpotStatus  @default(AVAILABLE)
-  
-  // Features (JSON array stored as string)
-  features    String      @default("[]") // JSON array: ["ev_charging", "handicap"]
-  
-  // Current occupancy
-  currentVehicleId String? @unique
-  
-  // Relationships
-  garage      Garage          @relation(fields: [garageId], references: [id], onDelete: Cascade)
-  floorRel    Floor?          @relation(fields: [floorId], references: [id], onDelete: SetNull)
-  currentVehicle Vehicle?     @relation("CurrentSpot", fields: [currentVehicleId], references: [id])
-  sessions    ParkingSession[]
-  
-  // Audit fields
+  spotNumber  String      @unique
+  floorId     String
+  level       Int
+  section     String?
+  spotType    String      @default("STANDARD") // COMPACT, STANDARD, OVERSIZED, HANDICAP, ELECTRIC
+  status      String      @default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE, OUT_OF_ORDER
+  isActive    Boolean     @default(true)
+  width       Float?
+  length      Float?
+  height      Float?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  deletedAt   DateTime?
-  
-  @@unique([garageId, spotNumber])
-  @@map("spots")
+
+  // Relations
+  floor       Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  vehicles    Vehicle[]
+  sessions    ParkingSession[]
+
+  // Performance indexes
+  @@index([spotNumber])
+  @@index([status])
+  @@index([spotType])
+  @@index([level])
+  @@index([isActive])
+  @@index([floorId])
+  // Composite indexes for common queries
+  @@index([status, spotType])
+  @@index([level, section])
+  @@index([spotType, isActive])
+  @@map("parking_spots")
 }
 
-// Vehicle model - represents vehicles in the system
 model Vehicle {
-  id           String        @id @default(cuid())
-  licensePlate String        @unique
-  
-  // Vehicle information
-  vehicleType  VehicleType   @default(STANDARD)
-  make         String?
-  model        String?
-  color        String?
-  year         Int?
-  
-  // Owner information (optional)
-  ownerName    String?
-  ownerEmail   String?
-  ownerPhone   String?
-  
-  // Current status
-  status       VehicleStatus @default(ACTIVE)
-  
-  // Current parking information
-  currentSpotId String?      @unique
-  
-  // Relationships
-  currentSpot  Spot?         @relation("CurrentSpot")
-  sessions     ParkingSession[]
-  tickets      Ticket[]
-  payments     Payment[]
-  
-  // Audit fields
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  deletedAt    DateTime?
-  
+  id                String      @id @default(cuid())
+  licensePlate      String      @unique
+  vehicleType       String      @default("STANDARD") // COMPACT, STANDARD, OVERSIZED
+  rateType          String      @default("HOURLY")   // HOURLY, DAILY, MONTHLY, SPECIAL
+  spotId            String?
+  ownerId           String?     // References User.id when vehicle is owned by registered user
+  ownerName         String?
+  ownerEmail        String?
+  ownerPhone        String?
+  make              String?
+  model             String?
+  year              Int?
+  color             String?
+  checkInTime       DateTime    @default(now())
+  checkOutTime      DateTime?
+  isPaid            Boolean     @default(false)
+  hourlyRate        Float       @default(5.0)
+  totalAmount       Float       @default(0.0)
+  amountPaid        Float       @default(0.0)
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  sessions          ParkingSession[]
+  spot              ParkingSpot?    @relation(fields: [spotId], references: [id])
+  owner             User?           @relation(fields: [ownerId], references: [id])
+
+  // Performance indexes
+  @@index([licensePlate])
+  @@index([spotId])
+  @@index([ownerId])
+  @@index([vehicleType])
+  @@index([checkInTime])
+  @@index([isPaid])
+  @@index([createdAt])
+  // Composite indexes for common query patterns
+  @@index([spotId, isPaid])
+  @@index([vehicleType, checkInTime])
+  @@index([ownerId, checkInTime])
+  @@index([checkInTime, checkOutTime])
   @@map("vehicles")
 }
 
-// ParkingSession model - represents parking sessions
 model ParkingSession {
-  id          String            @id @default(cuid())
-  garageId    String
-  spotId      String
-  vehicleId   String
-  
-  // Session information
-  status      SessionStatus     @default(ACTIVE)
-  rateType    RateType         @default(HOURLY)
-  
-  // Time tracking
-  checkInTime DateTime
-  checkOutTime DateTime?
-  expectedEndTime DateTime?
-  
-  // Calculated duration (in minutes)
-  durationMinutes Int?
-  
-  // Cost calculation
-  hourlyRate      Float?
-  totalAmount     Float         @default(0.0)
-  isPaid          Boolean       @default(false)
-  
-  // Additional information
-  notes       String?
-  metadata    String?           // JSON for additional data
-  endReason   String?           // "manual", "timeout", "payment_expired", etc.
-  
-  // Relationships
-  garage      Garage            @relation(fields: [garageId], references: [id], onDelete: Cascade)
-  spot        Spot              @relation(fields: [spotId], references: [id], onDelete: Cascade)
-  vehicle     Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  tickets     Ticket[]
-  payments    Payment[]
-  
-  // Audit fields
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  deletedAt   DateTime?
-  
+  id              String      @id @default(cuid())
+  vehicleId       String
+  spotId          String
+  startTime       DateTime    @default(now())
+  endTime         DateTime?
+  duration        Int?        // Duration in minutes
+  hourlyRate      Float       @default(5.0)
+  totalAmount     Float       @default(0.0)
+  amountPaid      Float       @default(0.0)
+  isPaid          Boolean     @default(false)
+  paymentMethod   String?     // CASH, CREDIT_CARD, DEBIT_CARD, MOBILE_PAY, APP_PAYMENT
+  paymentTime     DateTime?
+  status          String      @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED, OVERSTAYED
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  vehicle         Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  spot            ParkingSpot @relation(fields: [spotId], references: [id])
+
+  // Performance indexes
+  @@index([vehicleId])
+  @@index([spotId])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([status])
+  @@index([isPaid])
+  @@index([paymentTime])
+  // Composite indexes for analytics and reporting
+  @@index([startTime, endTime])
+  @@index([status, isPaid])
+  @@index([vehicleId, startTime])
+  @@index([spotId, startTime])
+  @@index([paymentTime, totalAmount])
   @@map("parking_sessions")
 }
 
-// Ticket model - represents parking tickets/violations
+// Transaction Management Models
+model Transaction {
+  id                String      @id @default(cuid())
+  garageId          String
+  ticketId          String?
+  transactionType   String      // PARKING_FEE, PENALTY, REFUND, etc.
+  amount            Float
+  currency          String      @default("USD")
+  status            String      // PENDING, COMPLETED, FAILED, CANCELLED
+  paymentMethod     String?     // CASH, CREDIT_CARD, DEBIT_CARD, etc.
+  paymentReference  String?     // External payment system reference
+  description       String?
+  metadata          String?     // JSON for additional transaction data
+  processedAt       DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  garage            Garage      @relation(fields: [garageId], references: [id])
+  ticket            Ticket?     @relation(fields: [ticketId], references: [id])
+
+  // Performance indexes
+  @@index([garageId])
+  @@index([ticketId])
+  @@index([status])
+  @@index([transactionType])
+  @@index([createdAt])
+  @@index([processedAt])
+  @@map("transactions")
+}
+
 model Ticket {
-  id            String       @id @default(cuid())
-  garageId      String
-  vehicleId     String
-  sessionId     String?
-  
-  // Ticket information
-  ticketNumber  String       @unique
-  type          TicketType   @default(OVERSTAY)
-  status        TicketStatus @default(ISSUED)
-  
-  // Violation details
-  description   String
-  violationTime DateTime
-  location      String?      // Spot number or general location
-  
-  // Fine information
-  fineAmount    Float        @default(0.0)
-  isPaid        Boolean      @default(false)
-  paymentDueDate DateTime?
-  
-  // Officer information
-  issuedBy      String?      // Officer ID or system
-  
-  // Relationships
-  garage        Garage       @relation(fields: [garageId], references: [id], onDelete: Cascade)
-  vehicle       Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  session       ParkingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  payments      Payment[]
-  
-  // Audit fields
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  deletedAt     DateTime?
-  
+  id              String      @id @default(cuid())
+  garageId        String
+  ticketNumber    String      @unique
+  vehiclePlate    String
+  spotNumber      String?
+  entryTime       DateTime    @default(now())
+  exitTime        DateTime?
+  duration        Int?        // Duration in minutes
+  baseAmount      Float       @default(0.0)
+  additionalFees  Float       @default(0.0)
+  totalAmount     Float       @default(0.0)
+  paidAmount      Float       @default(0.0)
+  status          String      @default("ACTIVE") // ACTIVE, PAID, LOST, CANCELLED
+  paymentStatus   String      @default("UNPAID") // UNPAID, PARTIAL, PAID, REFUNDED
+  lostTicketFee   Float       @default(0.0)
+  isLostTicket    Boolean     @default(false)
+  qrCode          String?     // QR code for digital tickets
+  barcodeData     String?     // Barcode data for physical tickets
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  garage          Garage      @relation(fields: [garageId], references: [id])
+  transactions    Transaction[]
+
+  // Performance indexes
+  @@index([garageId])
+  @@index([ticketNumber])
+  @@index([vehiclePlate])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([entryTime])
+  @@index([exitTime])
+  @@index([isLostTicket])
   @@map("tickets")
 }
 
-// Payment model - represents all payments in the system
-model Payment {
-  id              String        @id @default(cuid())
-  garageId        String
-  vehicleId       String?
-  sessionId       String?
-  ticketId        String?
-  
-  // Payment information
-  paymentNumber   String        @unique
-  type            PaymentType   @default(PARKING)
-  method          PaymentMethod @default(CASH)
-  status          PaymentStatus @default(PENDING)
-  
-  // Amount details
-  amount          Float
-  currency        String        @default("USD")
-  
-  // Transaction details
-  transactionId   String?       // External payment processor ID
-  gatewayResponse String?       // JSON response from payment gateway
-  
-  // Payment timing
-  paymentDate     DateTime
-  processedAt     DateTime?
-  
-  // Refund information
-  refundAmount    Float         @default(0.0)
-  refundDate      DateTime?
-  refundReason    String?
-  
-  // Relationships
-  garage          Garage        @relation(fields: [garageId], references: [id], onDelete: Cascade)
-  vehicle         Vehicle?      @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  session         ParkingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  ticket          Ticket?       @relation(fields: [ticketId], references: [id], onDelete: SetNull)
-  
-  // Audit fields
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
-  
-  @@map("payments")
+// Configuration and Security Models
+model EmailTemplate {
+  id              String      @id @default(cuid())
+  name            String      @unique // VERIFICATION, RESET_PASSWORD, 2FA_ENABLED, etc.
+  subject         String
+  htmlContent     String
+  textContent     String
+  variables       String?     // JSON string for template variables schema
+  isActive        Boolean     @default(true)
+  language        String      @default("en")
+  version         Int         @default(1)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Performance indexes
+  @@index([name])
+  @@index([isActive])
+  @@index([language])
+  @@map("email_templates")
 }
 
-// Enums
-enum SpotType {
-  COMPACT
-  STANDARD
-  OVERSIZED
-  HANDICAP
-  ELECTRIC
-  MOTORCYCLE
-  
-  @@map("spot_type")
-}
+model SecuritySettings {
+  id                        String      @id @default(cuid())
+  key                       String      @unique
+  value                     String
+  dataType                  String      // STRING, NUMBER, BOOLEAN, JSON
+  category                  String      // AUTH, SESSION, SECURITY, EMAIL
+  description               String?
+  isEditable                Boolean     @default(true)
+  environmentSpecific       Boolean     @default(false)
+  lastModifiedBy            String?
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
 
-enum SpotStatus {
-  AVAILABLE
-  OCCUPIED
-  RESERVED
-  OUT_OF_ORDER
-  MAINTENANCE
-  
-  @@map("spot_status")
-}
-
-enum VehicleType {
-  COMPACT
-  STANDARD
-  OVERSIZED
-  MOTORCYCLE
-  TRUCK
-  BUS
-  
-  @@map("vehicle_type")
-}
-
-enum VehicleStatus {
-  ACTIVE
-  BLOCKED
-  BANNED
-  INACTIVE
-  
-  @@map("vehicle_status")
-}
-
-enum SessionStatus {
-  ACTIVE
-  COMPLETED
-  EXPIRED
-  CANCELLED
-  ABANDONED
-  
-  @@map("session_status")
-}
-
-enum RateType {
-  HOURLY
-  DAILY
-  WEEKLY
-  MONTHLY
-  FLAT_RATE
-  
-  @@map("rate_type")
-}
-
-enum TicketType {
-  OVERSTAY
-  NO_PAYMENT
-  EXPIRED_METER
-  INVALID_SPOT
-  HANDICAP_VIOLATION
-  BLOCKING
-  OTHER
-  
-  @@map("ticket_type")
-}
-
-enum TicketStatus {
-  ISSUED
-  PAID
-  DISPUTED
-  DISMISSED
-  OVERDUE
-  
-  @@map("ticket_status")
-}
-
-enum PaymentType {
-  PARKING
-  FINE
-  DEPOSIT
-  REFUND
-  
-  @@map("payment_type")
-}
-
-enum PaymentMethod {
-  CASH
-  CREDIT_CARD
-  DEBIT_CARD
-  MOBILE_PAYMENT
-  BANK_TRANSFER
-  CHECK
-  
-  @@map("payment_method")
-}
-
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  CANCELLED
-  REFUNDED
-  DISPUTED
-  
-  @@map("payment_status")
+  // Performance indexes
+  @@index([key])
+  @@index([category])
+  @@index([environmentSpecific])
+  @@map("security_settings")
 }

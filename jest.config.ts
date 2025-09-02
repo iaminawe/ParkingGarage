@@ -41,6 +41,8 @@ const config: Config = {
 
   // Setup files
   setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js'],
+  globalSetup: '<rootDir>/tests/helpers/global-setup.js',
+  globalTeardown: '<rootDir>/tests/helpers/global-teardown.js',
 
   // Transform settings for mixed JS/TS codebase
   transform: {
@@ -96,6 +98,36 @@ const config: Config = {
   globals: {
     'NODE_ENV': 'test'
   },
+
+  // Test environments
+  projects: [
+    {
+      displayName: 'unit',
+      testMatch: ['<rootDir>/tests/unit/**/*.test.{js,ts}'],
+      setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js']
+    },
+    {
+      displayName: 'integration',
+      testMatch: ['<rootDir>/tests/integration/**/*.test.{js,ts}'],
+      setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js', '<rootDir>/tests/helpers/setup-database.js']
+    },
+    {
+      displayName: 'database',
+      testMatch: ['<rootDir>/tests/database/**/*.test.{js,ts}'],
+      setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js', '<rootDir>/tests/helpers/setup-database.js']
+    },
+    {
+      displayName: 'performance',
+      testMatch: ['<rootDir>/tests/performance/**/*.test.{js,ts}'],
+      setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js', '<rootDir>/tests/helpers/setup-database.js'],
+      // testTimeout: 30000 // testTimeout should be at root level
+    },
+    {
+      displayName: 'security',
+      testMatch: ['<rootDir>/tests/security/**/*.test.{js,ts}'],
+      setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js', '<rootDir>/tests/helpers/setup-database.js']
+    }
+  ],
 
   // Max workers for parallel execution
   maxWorkers: '50%',

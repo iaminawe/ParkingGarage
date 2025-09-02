@@ -8,7 +8,7 @@
  * @module GarageRepository
  */
 
-import { MemoryStore } from '../storage/memoryStore';
+import MemoryStore = require('../storage/memoryStore');
 import { 
   GarageConfig, 
   GarageRecord, 

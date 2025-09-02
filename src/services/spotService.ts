@@ -8,7 +8,7 @@
  * @module SpotService
  */
 
-import { SpotRepository } from '../repositories/spotRepository';
+import { SpotRepository } from '../repositories/SpotRepository';
 import { calculatePagination, paginateArray } from '../utils/pagination';
 import { 
   SpotStatus, 

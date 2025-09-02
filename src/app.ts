@@ -4,23 +4,37 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
 
 import routes from './routes';
 import errorHandler from './middleware/errorHandler';
+import { env } from './config/environment';
+import { testDatabaseConnection } from './config/database';
+import authService from './services/authService';
+import { RATE_LIMITS } from './config/constants';
+
 const { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } = require('../docs/swagger.js');
 
-// Environment variables are loaded above
+// Validate environment and test database connection on startup
+console.log('🔧 Validating environment and database connection...');
+testDatabaseConnection().catch(error => {
+  console.error('❌ Database connection failed during startup:', error);
+  process.exit(1);
+});
+
+// Start periodic session cleanup
+console.log('🧹 Starting periodic session cleanup...');
+import { AuthService } from './services/authService';
+const cleanupInterval = AuthService.startPeriodicCleanup(authService);
 
 const app: Application = express();
 
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting using constants
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: RATE_LIMITS.DEFAULT_WINDOW_MS,
+  max: RATE_LIMITS.DEFAULT_MAX_REQUESTS,
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }

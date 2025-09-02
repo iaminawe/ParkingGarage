@@ -12,7 +12,7 @@ export { CheckoutController } from './checkoutController';
 export { GarageController } from './garageController';
 export { SpotController } from './spotController';
 export { StatsController } from './statsController';
-export { VehicleController } from './vehicleController';
+export { VehicleController } from './VehicleController';
 
 // Re-export types for convenience
 export type {
