@@ -8,7 +8,7 @@
  * @module TransactionTypes
  */
 
-import { Prisma } from '../generated/prisma';
+import { Prisma } from '@prisma/client';
 
 /**
  * Transaction isolation levels supported by SQLite

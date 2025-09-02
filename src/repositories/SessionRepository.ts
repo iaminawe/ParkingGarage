@@ -1,101 +1,15 @@
 /**
-<<<<<<< HEAD
- * Session repository for data access operations using Prisma ORM
- * 
- * This module provides data access methods for parking session records
- * using the repository pattern with Prisma integration. It handles 
- * session CRUD operations, duration calculations, and maintains data consistency.
-=======
  * Session repository for data access operations using Prisma
  * 
  * This module provides data access methods for parking sessions using
  * the PrismaAdapter pattern. It handles session CRUD operations,
  * tracking, and provides optimized queries for session management.
->>>>>>> origin/main
  * 
  * @module SessionRepository
  */
 
-<<<<<<< HEAD
-import { PrismaClient, ParkingSession, Prisma } from '@prisma/client';
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
-import { DatabaseService } from '../services/DatabaseService';
-
-// Type definitions for Session operations
-interface SessionCreateData {
-  vehicleId: string;
-  spotId: string;
-  startTime?: Date;
-  hourlyRate?: number;
-  status?: string;
-  paymentMethod?: string;
-  notes?: string;
-}
-
-interface SessionUpdateData {
-  endTime?: Date;
-  duration?: number;
-  totalAmount?: number;
-  amountPaid?: number;
-  isPaid?: boolean;
-  paymentMethod?: string;
-  paymentTime?: Date;
-  status?: string;
-  notes?: string;
-}
-
-interface SessionSearchCriteria {
-  vehicleId?: string;
-  spotId?: string;
-  status?: string;
-  isPaid?: boolean;
-  paymentMethod?: string;
-  startDateFrom?: Date;
-  startDateTo?: Date;
-  endDateFrom?: Date;
-  endDateTo?: Date;
-  durationMin?: number;
-  durationMax?: number;
-  amountMin?: number;
-  amountMax?: number;
-}
-
-/**
- * Repository for managing parking session records with Prisma ORM
- */
-export class SessionRepository extends PrismaAdapter<ParkingSession, SessionCreateData, SessionUpdateData> {
-  protected model: PrismaClient['parkingSession'];
-  protected readonly modelName = 'parkingSession';
-  protected readonly delegate: PrismaClient['parkingSession'];
-
-  constructor(databaseService?: DatabaseService) {
-    const dbService = databaseService || DatabaseService.getInstance();
-    const prisma = dbService.getPrismaClient();
-    super(prisma);
-    this.model = prisma.parkingSession;
-    this.delegate = prisma.parkingSession;
-  }
-
-  /**
-   * Create a new session record
-   * @param sessionData - Session data to create
-   * @returns Created session instance
-   * @throws Error if session data is invalid
-   */
-  async create(sessionData: SessionCreateData): Promise<ParkingSession> {
-    const normalizedData = {
-      ...sessionData,
-      startTime: sessionData.startTime || new Date(),
-      hourlyRate: sessionData.hourlyRate || 5.0,
-      status: sessionData.status || 'ACTIVE'
-    };
-
-    try {
-      return await this.model.create({
-        data: normalizedData as Prisma.ParkingSessionCreateInput,
-=======
-import { PrismaAdapter } from '../adapters/PrismaAdapter';
-import { ParkingSession, Prisma, SessionStatus, RateType } from '../generated/prisma';
+import { ParkingSession, Prisma, SessionStatus } from '@prisma/client';
 import type { 
   QueryOptions,
   PaginatedResult,
@@ -108,55 +22,47 @@ import { createLogger } from '../utils/logger';
  * Session creation data interface
  */
 export interface CreateSessionData {
-  garageId?: string;
-  spotId: string;
   vehicleId: string;
-  status?: SessionStatus;
-  rateType?: RateType;
-  entryTime?: Date;
-  checkInTime?: Date;
-  expectedExitTime?: Date;
-  expectedEndTime?: Date;
+  spotId: string;
+  startTime?: Date;
+  endTime?: Date;
+  duration?: number;
   hourlyRate?: number;
+  totalAmount?: number;
+  amountPaid?: number;
+  isPaid?: boolean;
+  paymentMethod?: string;
+  paymentTime?: Date;
+  status?: SessionStatus;
   notes?: string;
-  metadata?: string;
 }
 
 /**
  * Session update data interface
  */
 export interface UpdateSessionData {
-  garageId?: string;
-  spotId?: string;
   vehicleId?: string;
-  status?: SessionStatus;
-  rateType?: RateType;
-  entryTime?: Date;
-  checkInTime?: Date;
-  exitTime?: Date;
-  checkOutTime?: Date;
-  expectedExitTime?: Date;
-  expectedEndTime?: Date;
+  spotId?: string;
+  startTime?: Date;
+  endTime?: Date;
   duration?: number;
-  durationMinutes?: number;
-  totalFee?: number;
   hourlyRate?: number;
   totalAmount?: number;
+  amountPaid?: number;
   isPaid?: boolean;
+  paymentMethod?: string;
+  paymentTime?: Date;
+  status?: SessionStatus;
   notes?: string;
-  metadata?: string;
-  endReason?: string;
 }
 
 /**
  * Session search criteria interface
  */
 export interface SessionSearchCriteria {
-  garageId?: string;
   spotId?: string;
   vehicleId?: string;
   status?: SessionStatus;
-  rateType?: RateType;
   startDate?: Date;
   endDate?: Date;
   isPaid?: boolean;
@@ -254,15 +160,12 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const result = await this.delegate.findMany({
         where: {
           vehicle: {
-            licensePlate: licensePlate.toUpperCase(),
-            deletedAt: null
-          },
-          deletedAt: null
+            licensePlate: licensePlate.toUpperCase()
+          }
         },
         include: {
           vehicle: true,
-          spot: true,
-          garage: true
+          spot: true
         },
         ...this.buildQueryOptions(options)
       });
@@ -290,7 +193,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
   }
 
   /**
-   * Find sessions by garage ID
+   * Find sessions by garage ID (through spot relation)
    * @param garageId - Garage ID
    * @param options - Query options
    * @returns Array of sessions for the garage
@@ -299,7 +202,37 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
     garageId: string,
     options?: QueryOptions
   ): Promise<ParkingSession[]> {
-    return this.findMany({ garageId }, options);
+    return this.executeWithRetry(async () => {
+      const result = await this.delegate.findMany({
+        where: {
+          spot: {
+            floor: {
+              garageId
+            }
+          }
+        },
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true
+                }
+              }
+            }
+          }
+        },
+        ...this.buildQueryOptions(options)
+      });
+      
+      this.logger.debug('Found sessions by garage ID', {
+        garageId,
+        count: result.length
+      });
+      
+      return result;
+    }, `find sessions by garage ID: ${garageId}`);
   }
 
   /**
@@ -319,16 +252,14 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const result = await client.parkingSession.findFirst({
         where: {
           vehicleId,
-          status: 'ACTIVE',
-          deletedAt: null
+          status: 'ACTIVE'
         },
         include: {
           vehicle: true,
-          spot: true,
-          garage: true
+          spot: true
         },
         orderBy: {
-          checkInTime: 'desc'
+          startTime: 'desc'
         },
         ...this.buildQueryOptions(options)
       });
@@ -369,16 +300,14 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const result = await this.delegate.findFirst({
         where: {
           spotId,
-          status: 'ACTIVE',
-          deletedAt: null
+          status: 'ACTIVE'
         },
         include: {
           vehicle: true,
-          spot: true,
-          garage: true
+          spot: true
         },
         orderBy: {
-          checkInTime: 'desc'
+          startTime: 'desc'
         },
         ...this.buildQueryOptions(options)
       });
@@ -411,16 +340,14 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const result = await client.parkingSession.findFirst({
         where: {
           spotId,
-          status,
-          deletedAt: null
+          status
         },
         include: {
           vehicle: true,
-          spot: true,
-          garage: true
+          spot: true
         },
         orderBy: {
-          checkInTime: 'desc'
+          startTime: 'desc'
         },
         ...this.buildQueryOptions(options)
       });
@@ -446,14 +373,9 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
     options?: QueryOptions
   ): Promise<ParkingSession[]> {
     return this.executeWithRetry(async () => {
-      const whereClause: Prisma.ParkingSessionWhereInput = {
-        deletedAt: null
-      };
+      const whereClause: Prisma.ParkingSessionWhereInput = {};
 
       // Direct field matches
-      if (criteria.garageId) {
-        whereClause.garageId = criteria.garageId;
-      }
 
       if (criteria.spotId) {
         whereClause.spotId = criteria.spotId;
@@ -467,9 +389,6 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
         whereClause.status = criteria.status;
       }
 
-      if (criteria.rateType) {
-        whereClause.rateType = criteria.rateType;
-      }
 
       if (criteria.isPaid !== undefined) {
         whereClause.isPaid = criteria.isPaid;
@@ -477,12 +396,12 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
 
       // Date range search
       if (criteria.startDate || criteria.endDate) {
-        whereClause.checkInTime = {};
+        whereClause.startTime = {};
         if (criteria.startDate) {
-          whereClause.checkInTime.gte = criteria.startDate;
+          whereClause.startTime.gte = criteria.startDate;
         }
         if (criteria.endDate) {
-          whereClause.checkInTime.lte = criteria.endDate;
+          whereClause.startTime.lte = criteria.endDate;
         }
       }
 
@@ -490,10 +409,8 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       if (criteria.licensePlate) {
         whereClause.vehicle = {
           licensePlate: {
-            contains: criteria.licensePlate.toUpperCase(),
-            mode: 'insensitive'
-          },
-          deletedAt: null
+            contains: criteria.licensePlate.toUpperCase()
+          }
         };
       }
 
@@ -501,10 +418,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
         where: whereClause,
         include: {
           vehicle: true,
-          spot: true,
-          garage: true,
-          tickets: true,
-          payments: true
+          spot: true
         },
         ...this.buildQueryOptions(options)
       });
@@ -528,33 +442,25 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       // Create the session
       const session = await tx.parkingSession.create({
         data: {
-          ...sessionData,
-          checkInTime: sessionData.checkInTime || new Date(),
+          vehicleId: sessionData.vehicleId,
+          spotId: sessionData.spotId,
+          startTime: sessionData.startTime || new Date(),
           status: sessionData.status || 'ACTIVE',
-          rateType: sessionData.rateType || 'HOURLY',
-          totalAmount: 0.0,
-          isPaid: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          hourlyRate: sessionData.hourlyRate || 5.0,
+          totalAmount: sessionData.totalAmount || 0.0,
+          isPaid: sessionData.isPaid || false,
+          notes: sessionData.notes
         },
         include: {
           vehicle: true,
-          spot: true,
-          garage: true
+          spot: true
         }
       });
 
-      // Update vehicle's current spot
-      await tx.vehicle.update({
-        where: { id: sessionData.vehicleId },
-        data: { currentSpotId: sessionData.spotId }
-      });
-
-      // Update spot's current vehicle
-      await tx.spot.update({
+      // Update spot status to occupied
+      await tx.parkingSpot.update({
         where: { id: sessionData.spotId },
         data: { 
-          currentVehicleId: sessionData.vehicleId,
           status: 'OCCUPIED'
         }
       });
@@ -586,224 +492,13 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       const session = await tx.parkingSession.findFirst({
         where: {
           id: sessionId,
-          status: 'ACTIVE',
-          deletedAt: null
+          status: 'ACTIVE'
         },
->>>>>>> origin/main
         include: {
           vehicle: true,
           spot: true
         }
       });
-<<<<<<< HEAD
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new Error('Session with this data already exists');
-        }
-        if (error.code === 'P2003') {
-          throw new Error('Invalid vehicle or spot reference');
-        }
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Find session by ID
-   * @param id - Session ID to search for
-   * @returns Session if found, null otherwise
-   */
-  async findById(id: string): Promise<ParkingSession | null> {
-    return await this.model.findUnique({
-      where: { id },
-      include: {
-        vehicle: true,
-        spot: true
-      }
-    });
-  }
-
-  /**
-   * Find sessions by vehicle ID
-   * @param vehicleId - Vehicle ID to search for
-   * @returns Array of sessions for the vehicle
-   */
-  async findByVehicleId(vehicleId: string): Promise<ParkingSession[]> {
-    return await this.model.findMany({
-      where: { vehicleId },
-      include: {
-        vehicle: true,
-        spot: true
-      },
-      orderBy: { startTime: 'desc' }
-    });
-  }
-
-  /**
-   * Find sessions by spot ID
-   * @param spotId - Spot ID to search for
-   * @returns Array of sessions for the spot
-   */
-  async findBySpotId(spotId: string): Promise<ParkingSession[]> {
-    return await this.model.findMany({
-      where: { spotId },
-      include: {
-        vehicle: true,
-        spot: true
-      },
-      orderBy: { startTime: 'desc' }
-    });
-  }
-
-  /**
-   * Find active sessions
-   * @returns Array of currently active sessions
-   */
-  async findActive(): Promise<ParkingSession[]> {
-    return await this.model.findMany({
-      where: { 
-        status: 'ACTIVE',
-        endTime: null
-      },
-      include: {
-        vehicle: true,
-        spot: true
-      },
-      orderBy: { startTime: 'desc' }
-    });
-  }
-
-  /**
-   * Find unpaid sessions
-   * @returns Array of unpaid sessions
-   */
-  async findUnpaid(): Promise<ParkingSession[]> {
-    return await this.model.findMany({
-      where: { 
-        isPaid: false,
-        status: { not: 'CANCELLED' }
-      },
-      include: {
-        vehicle: true,
-        spot: true
-      },
-      orderBy: { startTime: 'desc' }
-    });
-  }
-
-  /**
-   * Search sessions with flexible criteria
-   * @param criteria - Search criteria
-   * @returns Array of matching sessions
-   */
-  async search(criteria: SessionSearchCriteria): Promise<ParkingSession[]> {
-    const whereClause: Prisma.ParkingSessionWhereInput = {};
-
-    if (criteria.vehicleId) {
-      whereClause.vehicleId = criteria.vehicleId;
-    }
-
-    if (criteria.spotId) {
-      whereClause.spotId = criteria.spotId;
-    }
-
-    if (criteria.status) {
-      whereClause.status = criteria.status;
-    }
-
-    if (criteria.isPaid !== undefined) {
-      whereClause.isPaid = criteria.isPaid;
-    }
-
-    if (criteria.paymentMethod) {
-      whereClause.paymentMethod = criteria.paymentMethod;
-    }
-
-    if (criteria.startDateFrom || criteria.startDateTo) {
-      whereClause.startTime = {};
-      if (criteria.startDateFrom) {
-        whereClause.startTime.gte = criteria.startDateFrom;
-      }
-      if (criteria.startDateTo) {
-        whereClause.startTime.lte = criteria.startDateTo;
-      }
-    }
-
-    if (criteria.endDateFrom || criteria.endDateTo) {
-      whereClause.endTime = {};
-      if (criteria.endDateFrom) {
-        whereClause.endTime.gte = criteria.endDateFrom;
-      }
-      if (criteria.endDateTo) {
-        whereClause.endTime.lte = criteria.endDateTo;
-      }
-    }
-
-    if (criteria.durationMin || criteria.durationMax) {
-      whereClause.duration = {};
-      if (criteria.durationMin) {
-        whereClause.duration.gte = criteria.durationMin;
-      }
-      if (criteria.durationMax) {
-        whereClause.duration.lte = criteria.durationMax;
-      }
-    }
-
-    if (criteria.amountMin || criteria.amountMax) {
-      whereClause.totalAmount = {};
-      if (criteria.amountMin) {
-        whereClause.totalAmount.gte = criteria.amountMin;
-      }
-      if (criteria.amountMax) {
-        whereClause.totalAmount.lte = criteria.amountMax;
-      }
-    }
-
-    return await this.model.findMany({
-      where: whereClause,
-      include: {
-        vehicle: true,
-        spot: true
-      },
-      orderBy: { startTime: 'desc' }
-    });
-  }
-
-  /**
-   * End a session
-   * @param id - Session ID to end
-   * @param endTime - Optional end time (defaults to now)
-   * @returns Updated session with calculated totals
-   */
-  async endSession(id: string, endTime?: Date): Promise<ParkingSession> {
-    const session = await this.findById(id);
-    if (!session) {
-      throw new Error('Session not found');
-    }
-
-    if (session.endTime) {
-      throw new Error('Session is already ended');
-    }
-
-    const actualEndTime = endTime || new Date();
-    const duration = Math.ceil((actualEndTime.getTime() - session.startTime.getTime()) / (1000 * 60)); // minutes
-    const hours = Math.ceil(duration / 60); // Round up to full hours
-    const totalAmount = hours * session.hourlyRate;
-
-    return await this.model.update({
-      where: { id },
-      data: {
-        endTime: actualEndTime,
-        duration,
-        totalAmount,
-        status: 'COMPLETED'
-      },
-      include: {
-        vehicle: true,
-        spot: true
-      }
-=======
 
       if (!session) {
         throw new Error(`Active session with ID ${sessionId} not found`);
@@ -811,7 +506,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
 
       // Calculate duration and amount
       const checkOutTime = new Date();
-      const durationMs = checkOutTime.getTime() - session.checkInTime.getTime();
+      const durationMs = checkOutTime.getTime() - session.startTime.getTime();
       const durationMinutes = Math.floor(durationMs / (1000 * 60));
       const durationHours = Math.ceil(durationMs / (1000 * 60 * 60));
       const totalAmount = Math.round(durationHours * hourlyRate * 100) / 100;
@@ -821,29 +516,18 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
         where: { id: sessionId },
         data: {
           status: 'COMPLETED',
-          checkOutTime,
-          durationMinutes,
+          endTime: checkOutTime,
+          duration: durationMinutes,
           hourlyRate,
-          totalAmount,
-          endReason,
-          updatedAt: new Date()
+          totalAmount
         }
       });
 
-      // Update vehicle's current spot (clear it)
-      if (session.vehicle) {
-        await tx.vehicle.update({
-          where: { id: session.vehicleId },
-          data: { currentSpotId: null }
-        });
-      }
-
       // Update spot status (make it available)
       if (session.spot) {
-        await tx.spot.update({
+        await tx.parkingSpot.update({
           where: { id: session.spotId },
           data: { 
-            currentVehicleId: null,
             status: 'AVAILABLE'
           }
         });
@@ -857,114 +541,10 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
       });
 
       return updatedSession;
->>>>>>> origin/main
     });
   }
 
   /**
-<<<<<<< HEAD
-   * Mark session as paid
-   * @param id - Session ID to mark as paid
-   * @param amountPaid - Amount paid
-   * @param paymentMethod - Payment method used
-   * @returns Updated session
-   */
-  async markAsPaid(id: string, amountPaid: number, paymentMethod?: string): Promise<ParkingSession> {
-    return await this.model.update({
-      where: { id },
-      data: {
-        isPaid: true,
-        amountPaid,
-        paymentMethod,
-        paymentTime: new Date()
-      },
-      include: {
-        vehicle: true,
-        spot: true
-      }
-    });
-  }
-
-  /**
-   * Cancel a session
-   * @param id - Session ID to cancel
-   * @param reason - Optional cancellation reason
-   * @returns Updated session
-   */
-  async cancel(id: string, reason?: string): Promise<ParkingSession> {
-    return await this.model.update({
-      where: { id },
-      data: {
-        status: 'CANCELLED',
-        endTime: new Date(),
-        notes: reason ? `Cancelled: ${reason}` : 'Cancelled'
-      },
-      include: {
-        vehicle: true,
-        spot: true
-      }
-    });
-  }
-
-  /**
-   * Update session information
-   * @param id - Session ID to update
-   * @param updateData - Data to update
-   * @returns Updated session
-   */
-  async update(id: string, updateData: SessionUpdateData): Promise<ParkingSession> {
-    return await this.model.update({
-      where: { id },
-      data: updateData as Prisma.ParkingSessionUpdateInput,
-      include: {
-        vehicle: true,
-        spot: true
-      }
-    });
-  }
-
-  /**
-   * Delete session record
-   * @param id - Session ID to delete
-   * @returns Deleted session
-   */
-  async delete(id: string): Promise<ParkingSession> {
-    return await this.model.delete({
-      where: { id },
-      include: {
-        vehicle: true,
-        spot: true
-      }
-    });
-  }
-
-  /**
-   * Get all sessions with pagination
-   * @param skip - Number of records to skip
-   * @param take - Number of records to take
-   * @returns Array of sessions
-   */
-  async findMany(skip: number = 0, take: number = 50): Promise<ParkingSession[]> {
-    return await this.model.findMany({
-      skip,
-      take,
-      include: {
-        vehicle: true,
-        spot: true
-      },
-      orderBy: { startTime: 'desc' }
-    });
-  }
-
-  /**
-   * Count total sessions
-   * @param criteria - Optional search criteria
-   * @returns Total count
-   */
-  async count(criteria?: SessionSearchCriteria): Promise<number> {
-    const whereClause = criteria ? this.buildWhereClause(criteria) : {};
-    return await this.model.count({ where: whereClause });
-=======
    * Mark a session as paid
    * @param sessionId - Session ID
    * @param amountPaid - Amount paid
@@ -974,8 +554,7 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
     return this.executeWithRetry(async () => {
       const session = await this.delegate.findFirst({
         where: {
-          id: sessionId,
-          deletedAt: null
+          id: sessionId
         }
       });
 
@@ -1005,166 +584,67 @@ export class SessionRepository extends PrismaAdapter<ParkingSession, CreateSessi
 
       return updatedSession;
     }, `mark session as paid: ${sessionId}`);
->>>>>>> origin/main
   }
 
   /**
    * Get session statistics
-<<<<<<< HEAD
-   * @returns Session statistics
-   */
-  async getStatistics(): Promise<{
-    totalSessions: number;
-    activeSessions: number;
-    completedSessions: number;
-    cancelledSessions: number;
-    paidSessions: number;
-    unpaidSessions: number;
-    totalRevenue: number;
-    averageDuration: number;
-    averageAmount: number;
-    byStatus: Record<string, number>;
-    byPaymentMethod: Record<string, number>;
-  }> {
-    const [
-      totalSessions,
-      activeSessions,
-      completedSessions,
-      cancelledSessions,
-      paidSessions,
-      unpaidSessions,
-      revenueResult,
-      avgDurationResult,
-      avgAmountResult,
-      byStatus,
-      byPaymentMethod
-    ] = await Promise.all([
-      this.model.count(),
-      this.model.count({ where: { status: 'ACTIVE' } }),
-      this.model.count({ where: { status: 'COMPLETED' } }),
-      this.model.count({ where: { status: 'CANCELLED' } }),
-      this.model.count({ where: { isPaid: true } }),
-      this.model.count({ where: { isPaid: false, status: { not: 'CANCELLED' } } }),
-      this.model.aggregate({
-        _sum: { amountPaid: true },
-        where: { isPaid: true }
-      }),
-      this.model.aggregate({
-        _avg: { duration: true },
-        where: { duration: { not: null } }
-      }),
-      this.model.aggregate({
-        _avg: { totalAmount: true },
-        where: { totalAmount: { not: null } }
-      }),
-      this.model.groupBy({
-        by: ['status'],
-        _count: true
-      }),
-      this.model.groupBy({
-        by: ['paymentMethod'],
-        _count: true,
-        where: { paymentMethod: { not: null } }
-      })
-    ]);
-
-    return {
-      totalSessions,
-      activeSessions,
-      completedSessions,
-      cancelledSessions,
-      paidSessions,
-      unpaidSessions,
-      totalRevenue: revenueResult._sum.amountPaid || 0,
-      averageDuration: avgDurationResult._avg.duration || 0,
-      averageAmount: avgAmountResult._avg.totalAmount || 0,
-      byStatus: byStatus.reduce((acc, item) => {
-        acc[item.status] = item._count;
-        return acc;
-      }, {} as Record<string, number>),
-      byPaymentMethod: byPaymentMethod.reduce((acc, item) => {
-        acc[item.paymentMethod || 'unknown'] = item._count;
-        return acc;
-      }, {} as Record<string, number>)
-    };
-  }
-
-  /**
-   * Build where clause from search criteria
-   */
-  private buildWhereClause(criteria: SessionSearchCriteria): Prisma.ParkingSessionWhereInput {
-    const whereClause: Prisma.ParkingSessionWhereInput = {};
-
-    if (criteria.vehicleId) {
-      whereClause.vehicleId = criteria.vehicleId;
-    }
-    if (criteria.spotId) {
-      whereClause.spotId = criteria.spotId;
-    }
-    if (criteria.status) {
-      whereClause.status = criteria.status;
-    }
-    if (criteria.isPaid !== undefined) {
-      whereClause.isPaid = criteria.isPaid;
-    }
-    if (criteria.paymentMethod) {
-      whereClause.paymentMethod = criteria.paymentMethod;
-    }
-    if (criteria.startDateFrom || criteria.startDateTo) {
-      whereClause.startTime = {};
-      if (criteria.startDateFrom) {
-        whereClause.startTime.gte = criteria.startDateFrom;
-      }
-      if (criteria.startDateTo) {
-        whereClause.startTime.lte = criteria.startDateTo;
-      }
-    }
-
-    return whereClause;
-  }
-}
-
-// Export default instance for convenience
-export const sessionRepository = new SessionRepository();
-export default sessionRepository;
-=======
-   * @param garageId - Optional garage ID to filter statistics
+   * @param garageId - Optional garage ID to filter statistics (through spot relation)
    * @returns Session statistics
    */
   async getStats(garageId?: string): Promise<SessionStats> {
     return this.executeWithRetry(async () => {
-      const whereClause = garageId ? { garageId } : {};
+      let whereClause: any = {};
+      
+      if (garageId) {
+        whereClause = {
+          spot: {
+            floor: {
+              garageId
+            }
+          }
+        };
+      }
       
       // Get total count
       const totalCount = await this.count(whereClause);
 
-      // Count by status
-      const statusCounts = await this.prisma.$queryRaw<
-        Array<{ status: SessionStatus; count: bigint }>
-      >`
-        SELECT status, COUNT(*) as count
-        FROM parking_sessions
-        WHERE deletedAt IS NULL ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
-        GROUP BY status
-      `;
+      // Count by status - use Prisma aggregation instead of raw SQL
+      const statusCounts = await this.delegate.groupBy({
+        by: ['status'],
+        _count: {
+          status: true
+        },
+        ...(garageId ? {
+          where: {
+            spot: {
+              floor: {
+                garageId
+              }
+            }
+          }
+        } : {})
+      });
 
       // Calculate revenue and averages
-      const aggregates = await this.prisma.$queryRaw<
-        Array<{
-          totalRevenue: number | null;
-          avgDuration: number | null;
-          avgAmount: number | null;
-        }>
-      >`
-        SELECT 
-          SUM(totalAmount) as totalRevenue,
-          AVG(durationMinutes) as avgDuration,
-          AVG(totalAmount) as avgAmount
-        FROM parking_sessions
-        WHERE deletedAt IS NULL 
-          AND isPaid = 1 
-          ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
-      `;
+      const aggregates = await this.delegate.aggregate({
+        _sum: {
+          totalAmount: true
+        },
+        _avg: {
+          duration: true,
+          totalAmount: true
+        },
+        where: {
+          isPaid: true,
+          ...(garageId ? {
+            spot: {
+              floor: {
+                garageId
+              }
+            }
+          } : {})
+        }
+      });
 
       // Build result
       const stats: SessionStats = {
@@ -1173,15 +653,15 @@ export default sessionRepository;
         completed: 0,
         expired: 0,
         cancelled: 0,
-        abandoned: 0,
-        totalRevenue: aggregates[0]?.totalRevenue || 0,
-        averageDuration: aggregates[0]?.avgDuration || 0,
-        averageAmount: aggregates[0]?.avgAmount || 0
+        abandoned: 0, // Keep for interface compatibility, even though not in schema
+        totalRevenue: aggregates._sum.totalAmount || 0,
+        averageDuration: aggregates._avg.duration || 0,
+        averageAmount: aggregates._avg.totalAmount || 0
       };
 
       // Process status counts
-      statusCounts.forEach(({ status, count }) => {
-        const countNum = Number(count);
+      statusCounts.forEach(({ status, _count }) => {
+        const countNum = _count.status;
         switch (status) {
           case 'ACTIVE':
             stats.active = countNum;
@@ -1195,9 +675,7 @@ export default sessionRepository;
           case 'CANCELLED':
             stats.cancelled = countNum;
             break;
-          case 'ABANDONED':
-            stats.abandoned = countNum;
-            break;
+          // No ABANDONED status in schema - skipping
         }
       });
 
@@ -1222,15 +700,13 @@ export default sessionRepository;
       const result = await this.delegate.findMany({
         where: {
           status: 'ACTIVE',
-          expectedEndTime: {
+          endTime: {
             lt: now
-          },
-          deletedAt: null
+          }
         },
         include: {
           vehicle: true,
-          spot: true,
-          garage: true
+          spot: true
         },
         ...this.buildQueryOptions(options)
       });
@@ -1261,15 +737,13 @@ export default sessionRepository;
       const result = await this.delegate.findMany({
         where: {
           status: 'ACTIVE',
-          checkInTime: {
+          startTime: {
             lte: cutoffTime
-          },
-          deletedAt: null
+          }
         },
         include: {
           vehicle: true,
-          spot: true,
-          garage: true
+          spot: true
         },
         ...this.buildQueryOptions(options)
       });
@@ -1292,14 +766,14 @@ export default sessionRepository;
   async create(sessionData: any): Promise<any> {
     // Map legacy session data to Prisma format
     const prismaData: CreateSessionData = {
-      garageId: sessionData.garageId || 'default-garage',
       spotId: sessionData.spotId,
       vehicleId: sessionData.vehicleId,
       status: sessionData.status || 'ACTIVE',
-      rateType: sessionData.rateType || 'HOURLY',
-      checkInTime: sessionData.createdAt ? new Date(sessionData.createdAt) : new Date(),
-      notes: sessionData.notes,
-      metadata: sessionData.metadata ? JSON.stringify(sessionData.metadata) : undefined
+      startTime: sessionData.createdAt ? new Date(sessionData.createdAt) : new Date(),
+      hourlyRate: sessionData.hourlyRate || 5.0,
+      totalAmount: sessionData.totalAmount || 0.0,
+      isPaid: sessionData.isPaid || false,
+      notes: sessionData.notes
     };
 
     const session = await this.createSession(prismaData);
@@ -1311,20 +785,15 @@ export default sessionRepository;
       licensePlate: session.vehicle?.licensePlate,
       vehicleType: session.vehicle?.vehicleType,
       spotId: session.spotId,
-      garageId: session.garageId,
       status: session.status.toLowerCase(),
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString(),
-      endTime: session.checkOutTime?.toISOString(),
-      duration: session.durationMinutes,
+      endTime: session.endTime?.toISOString(),
+      duration: session.duration,
       cost: session.totalAmount,
-      rateType: session.rateType?.toLowerCase(),
-      endReason: session.endReason,
-      notes: session.notes,
-      metadata: session.metadata ? JSON.parse(session.metadata) : undefined
+      notes: session.notes
     };
   }
 }
 
 export default SessionRepository;
->>>>>>> origin/main

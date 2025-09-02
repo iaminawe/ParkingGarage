@@ -7,7 +7,7 @@
  * @module TransactionHelpers
  */
 
-import { Prisma } from '../generated/prisma';
+import { Prisma } from '@prisma/client';
 import {
   TransactionError,
   TransactionTimeoutError,

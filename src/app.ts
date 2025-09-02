@@ -1,40 +1,26 @@
-import { Application, Request, Response, NextFunction } from 'express';
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
-const rateLimit = require('express-rate-limit');
+import express, { Application, Request, Response } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
 
 import routes from './routes';
 import errorHandler from './middleware/errorHandler';
-import { env } from './config/environment';
-import { testDatabaseConnection } from './config/database';
-import authService from './services/authService';
-import { RATE_LIMITS } from './config/constants';
+import { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } from '../docs/swagger';
 
-const { createSwaggerMiddleware, getOpenApiSpec, downloadOpenApiSpec } = require('../docs/swagger.js');
-
-// Validate environment and test database connection on startup
-console.log('🔧 Validating environment and database connection...');
-testDatabaseConnection().catch(error => {
-  console.error('❌ Database connection failed during startup:', error);
-  process.exit(1);
-});
-
-// Start periodic session cleanup
-console.log('🧹 Starting periodic session cleanup...');
-import { AuthService } from './services/authService';
-const cleanupInterval = AuthService.startPeriodicCleanup(authService);
+// Load environment variables
+dotenv.config();
 
 const app: Application = express();
 
 // Security middleware
 app.use(helmet());
 
-// Rate limiting using constants
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: RATE_LIMITS.DEFAULT_WINDOW_MS,
-  max: RATE_LIMITS.DEFAULT_MAX_REQUESTS,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }
@@ -59,7 +45,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging middleware
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, res: Response, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });

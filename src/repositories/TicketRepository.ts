@@ -9,7 +9,7 @@
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
-import { Ticket, Prisma, TicketType, TicketStatus } from '../generated/prisma';
+import { Ticket, Prisma } from '@prisma/client';
 import type { 
   QueryOptions,
   PaginatedResult,
@@ -18,22 +18,28 @@ import type {
 import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
 
+
 /**
  * Ticket creation data interface
  */
 export interface CreateTicketData {
   garageId: string;
-  vehicleId: string;
-  sessionId?: string;
   ticketNumber?: string;
-  type: TicketType;
-  status?: TicketStatus;
-  description: string;
-  violationTime: Date;
-  location?: string;
-  fineAmount: number;
-  paymentDueDate?: Date;
-  issuedBy?: string;
+  vehiclePlate: string;
+  spotNumber?: string;
+  entryTime?: Date;
+  exitTime?: Date;
+  baseAmount?: number;
+  additionalFees?: number;
+  totalAmount?: number;
+  paidAmount?: number;
+  status?: string;
+  paymentStatus?: string;
+  lostTicketFee?: number;
+  isLostTicket?: boolean;
+  qrCode?: string;
+  barcodeData?: string;
+  notes?: string;
 }
 
 /**
@@ -41,18 +47,23 @@ export interface CreateTicketData {
  */
 export interface UpdateTicketData {
   garageId?: string;
-  vehicleId?: string;
-  sessionId?: string;
   ticketNumber?: string;
-  type?: TicketType;
-  status?: TicketStatus;
-  description?: string;
-  violationTime?: Date;
-  location?: string;
-  fineAmount?: number;
-  isPaid?: boolean;
-  paymentDueDate?: Date;
-  issuedBy?: string;
+  vehiclePlate?: string;
+  spotNumber?: string;
+  entryTime?: Date;
+  exitTime?: Date;
+  duration?: number;
+  baseAmount?: number;
+  additionalFees?: number;
+  totalAmount?: number;
+  paidAmount?: number;
+  status?: string;
+  paymentStatus?: string;
+  lostTicketFee?: number;
+  isLostTicket?: boolean;
+  qrCode?: string;
+  barcodeData?: string;
+  notes?: string;
 }
 
 /**
@@ -60,16 +71,14 @@ export interface UpdateTicketData {
  */
 export interface TicketSearchCriteria {
   garageId?: string;
-  vehicleId?: string;
-  sessionId?: string;
-  licensePlate?: string;
-  type?: TicketType;
-  status?: TicketStatus;
+  ticketNumber?: string;
+  vehiclePlate?: string;
+  spotNumber?: string;
+  status?: string;
+  paymentStatus?: string;
   startDate?: Date;
   endDate?: Date;
-  isPaid?: boolean;
-  isOverdue?: boolean;
-  issuedBy?: string;
+  isLostTicket?: boolean;
   minAmount?: number;
   maxAmount?: number;
 }
@@ -79,16 +88,15 @@ export interface TicketSearchCriteria {
  */
 export interface TicketStats {
   total: number;
-  issued: number;
+  active: number;
   paid: number;
-  disputed: number;
-  dismissed: number;
-  overdue: number;
-  totalFines: number;
+  lost: number;
+  cancelled: number;
+  totalAmount: number;
   totalPaid: number;
   totalOutstanding: number;
-  byType: Record<TicketType, number>;
-  byStatus: Record<TicketStatus, number>;
+  byStatus: Record<string, number>;
+  byPaymentStatus: Record<string, number>;
 }
 
 /**
@@ -150,73 +158,54 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
    * @returns Array of tickets matching the status
    */
   async findByStatus(
-    status: TicketStatus,
+    status: string,
     options?: QueryOptions
   ): Promise<Ticket[]> {
     return this.findMany({ status }, options);
   }
 
   /**
-   * Find tickets by type
-   * @param type - Ticket type to filter by
+   * Find tickets by payment status
+   * @param paymentStatus - Payment status to filter by
    * @param options - Query options
-   * @returns Array of tickets matching the type
+   * @returns Array of tickets matching the payment status
    */
-  async findByType(
-    type: TicketType,
+  async findByPaymentStatus(
+    paymentStatus: string,
     options?: QueryOptions
   ): Promise<Ticket[]> {
-    return this.findMany({ type }, options);
+    return this.findMany({ paymentStatus }, options);
   }
 
   /**
-   * Find tickets by vehicle ID
-   * @param vehicleId - Vehicle ID
+   * Find tickets by vehicle plate
+   * @param vehiclePlate - Vehicle license plate
    * @param options - Query options
    * @returns Array of tickets for the vehicle
    */
-  async findByVehicleId(
-    vehicleId: string,
-    options?: QueryOptions
-  ): Promise<Ticket[]> {
-    return this.findMany({ vehicleId }, options);
-  }
-
-  /**
-   * Find tickets by license plate
-   * @param licensePlate - Vehicle license plate
-   * @param options - Query options
-   * @returns Array of tickets for the vehicle
-   */
-  async findByLicensePlate(
-    licensePlate: string,
+  async findByVehiclePlate(
+    vehiclePlate: string,
     options?: QueryOptions
   ): Promise<Ticket[]> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findMany({
         where: {
-          vehicle: {
-            licensePlate: licensePlate.toUpperCase(),
-            deletedAt: null
-          },
-          deletedAt: null
+          vehiclePlate: vehiclePlate.toUpperCase()
         },
         include: {
           garage: true,
-          vehicle: true,
-          session: true,
-          payments: true
+          transactions: true
         },
         ...this.buildQueryOptions(options)
       });
       
-      this.logger.debug('Found tickets by license plate', {
-        licensePlate,
+      this.logger.debug('Found tickets by vehicle plate', {
+        vehiclePlate,
         count: result.length
       });
       
       return result;
-    }, `find tickets by license plate: ${licensePlate}`);
+    }, `find tickets by vehicle plate: ${vehiclePlate}`);
   }
 
   /**
@@ -238,43 +227,16 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
    * @returns Array of unpaid tickets
    */
   async findUnpaid(options?: QueryOptions): Promise<Ticket[]> {
-    return this.findMany({ isPaid: false }, options);
+    return this.findMany({ paymentStatus: 'UNPAID' }, options);
   }
 
   /**
-   * Find overdue tickets
+   * Find lost tickets
    * @param options - Query options
-   * @returns Array of overdue tickets
+   * @returns Array of lost tickets
    */
-  async findOverdue(options?: QueryOptions): Promise<Ticket[]> {
-    return this.executeWithRetry(async () => {
-      const now = new Date();
-      
-      const result = await this.delegate.findMany({
-        where: {
-          isPaid: false,
-          status: 'ISSUED',
-          paymentDueDate: {
-            lt: now
-          },
-          deletedAt: null
-        },
-        include: {
-          garage: true,
-          vehicle: true,
-          session: true,
-          payments: true
-        },
-        ...this.buildQueryOptions(options)
-      });
-      
-      this.logger.debug('Found overdue tickets', {
-        count: result.length,
-        currentDate: now
-      });
-      
-      return result;
-    }, 'find overdue tickets');
+  async findLostTickets(options?: QueryOptions): Promise<Ticket[]> {
+    return this.findMany({ isLostTicket: true }, options);
   }
 
   /**
@@ -297,83 +259,60 @@ export class TicketRepository extends PrismaAdapter<Ticket, CreateTicketData, Up
         whereClause.garageId = criteria.garageId;
       }
 
-      if (criteria.vehicleId) {
-        whereClause.vehicleId = criteria.vehicleId;
+      if (criteria.ticketNumber) {
+        whereClause.ticketNumber = criteria.ticketNumber;
       }
 
-      if (criteria.sessionId) {
-        whereClause.sessionId = criteria.sessionId;
+      if (criteria.vehiclePlate) {
+        whereClause.vehiclePlate = {
+          contains: criteria.vehiclePlate.toUpperCase(),
+          mode: 'insensitive'
+        };
       }
 
-      if (criteria.type) {
-        whereClause.type = criteria.type;
+      if (criteria.spotNumber) {
+        whereClause.spotNumber = criteria.spotNumber;
       }
 
       if (criteria.status) {
         whereClause.status = criteria.status;
       }
 
-      if (criteria.isPaid !== undefined) {
-        whereClause.isPaid = criteria.isPaid;
+      if (criteria.paymentStatus) {
+        whereClause.paymentStatus = criteria.paymentStatus;
       }
 
-      if (criteria.issuedBy) {
-        whereClause.issuedBy = {
-          contains: criteria.issuedBy,
-          mode: 'insensitive'
-        };
+      if (criteria.isLostTicket !== undefined) {
+        whereClause.isLostTicket = criteria.isLostTicket;
       }
 
-      // Date range search
+      // Date range search (using entryTime as the date field)
       if (criteria.startDate || criteria.endDate) {
-        whereClause.violationTime = {};
+        whereClause.entryTime = {};
         if (criteria.startDate) {
-          whereClause.violationTime.gte = criteria.startDate;
+          whereClause.entryTime.gte = criteria.startDate;
         }
         if (criteria.endDate) {
-          whereClause.violationTime.lte = criteria.endDate;
+          whereClause.entryTime.lte = criteria.endDate;
         }
       }
 
-      // Amount range search
+      // Amount range search (using totalAmount)
       if (criteria.minAmount || criteria.maxAmount) {
-        whereClause.fineAmount = {};
+        whereClause.totalAmount = {};
         if (criteria.minAmount) {
-          whereClause.fineAmount.gte = criteria.minAmount;
+          whereClause.totalAmount.gte = criteria.minAmount;
         }
         if (criteria.maxAmount) {
-          whereClause.fineAmount.lte = criteria.maxAmount;
+          whereClause.totalAmount.lte = criteria.maxAmount;
         }
-      }
-
-      // License plate search
-      if (criteria.licensePlate) {
-        whereClause.vehicle = {
-          licensePlate: {
-            contains: criteria.licensePlate.toUpperCase(),
-            mode: 'insensitive'
-          },
-          deletedAt: null
-        };
-      }
-
-      // Overdue filter
-      if (criteria.isOverdue) {
-        const now = new Date();
-        whereClause.AND = [
-          { isPaid: false },
-          { status: 'ISSUED' },
-          { paymentDueDate: { lt: now } }
-        ];
       }
 
       const result = await this.delegate.findMany({
         where: whereClause,
         include: {
           garage: true,
-          vehicle: true,
-          session: true,
-          payments: true
+          transactions: true
         },
         ...this.buildQueryOptions(options)
       });

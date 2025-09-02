@@ -7,7 +7,7 @@
  * @module ParkingService
  */
 
-import { Prisma } from '../generated/prisma';
+import { Prisma } from '@prisma/client';
 import { TransactionManager } from './TransactionManager';
 import { DatabaseService } from './DatabaseService';
 import { SpotRepository } from '../repositories/SpotRepository';
@@ -29,7 +29,7 @@ import {
   Session,
   Ticket,
   Payment
-} from '../generated/prisma';
+} from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import type { IAdapterLogger } from '../adapters/interfaces/BaseAdapter';
 

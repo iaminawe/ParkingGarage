@@ -10,7 +10,7 @@
 
 import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SpotRepository } from '../repositories/spotRepository';
-import { SessionsRepository } from '../repositories/sessionsRepository';
+import { SessionRepository } from '../repositories/SessionRepository';
 const BillingService = require('./billingService');
 
 interface CheckoutOptions {
@@ -41,13 +41,13 @@ interface CheckoutResult {
 export class CheckoutService {
   private vehicleRepository: VehicleRepository;
   private spotRepository: SpotRepository;
-  private sessionsRepository: SessionsRepository;
+  private sessionsRepository: SessionRepository;
   private billingService: any;
 
   constructor() {
     this.vehicleRepository = new VehicleRepository();
     this.spotRepository = new SpotRepository();
-    this.sessionsRepository = new SessionsRepository();
+    this.sessionsRepository = new SessionRepository();
     this.billingService = new BillingService();
   }
 

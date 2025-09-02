@@ -224,10 +224,8 @@ export function createOptimizedPrismaClient(config: DatabaseConfig = defaultData
     errorFormat: 'pretty',
   });
 
-  // Add performance monitoring middleware
-  if (config.enableMetrics) {
-    prisma.$use(performanceMonitor.createMiddleware());
-  }
+  // Note: Performance monitoring middleware disabled - $use deprecated in Prisma v5+
+  // TODO: Implement performance monitoring using $extends if needed
 
   // Setup query logging
   if (config.enableQueryLogging) {

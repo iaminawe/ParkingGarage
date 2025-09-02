@@ -18,25 +18,33 @@ import type {
 } from '../types/models';
 
 /**
+ * Spot input data interface for constructor
+ */
+export interface SpotInputData extends SpotData {
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
  * Represents a parking spot in the garage
  */
 export class Spot implements SpotRecord {
-  public id: string;
-  public floor: number;
-  public bay: number;
-  public spotNumber: number;
-  public type: VehicleType;
+  public readonly id: string;
+  public readonly floor: number;
+  public readonly bay: number;
+  public readonly spotNumber: number;
+  public readonly type: VehicleType;
   public status: SpotStatus;
   public features: SpotFeature[];
   public currentVehicle: string | null;
-  public createdAt: string;
+  public readonly createdAt: string;
   public updatedAt: string;
 
   /**
    * Create a new parking spot
    * @param spotData - The spot data
    */
-  constructor(spotData: SpotData) {
+  constructor(spotData: SpotInputData) {
     // Validate the spot data
     const validation = validateSpot(spotData);
     if (!validation.isValid) {
@@ -51,8 +59,8 @@ export class Spot implements SpotRecord {
     this.status = spotData.status;
     this.features = [...spotData.features]; // Create a copy of the array
     this.currentVehicle = spotData.currentVehicle;
-    this.createdAt = new Date().toISOString();
-    this.updatedAt = new Date().toISOString();
+    this.createdAt = spotData.createdAt || new Date().toISOString();
+    this.updatedAt = spotData.updatedAt || new Date().toISOString();
   }
 
   /**
@@ -64,7 +72,7 @@ export class Spot implements SpotRecord {
    * @param features - Optional features
    * @returns New spot instance
    */
-  static createSpot(
+  public static createSpot(
     floor: number, 
     bay: number, 
     spotNumber: number, 
@@ -89,7 +97,7 @@ export class Spot implements SpotRecord {
    * Check if the spot is available
    * @returns True if spot is available
    */
-  isAvailable(): boolean {
+  public isAvailable(): boolean {
     return this.status === 'available';
   }
 
@@ -97,16 +105,16 @@ export class Spot implements SpotRecord {
    * Check if the spot is occupied
    * @returns True if spot is occupied
    */
-  isOccupied(): boolean {
+  public isOccupied(): boolean {
     return this.status === 'occupied';
   }
 
   /**
    * Occupy the spot with a vehicle
    * @param licensePlate - License plate of the vehicle
-   * @throws If spot is already occupied
+   * @throws {Error} If spot is already occupied
    */
-  occupy(licensePlate: string): void {
+  public occupy(licensePlate: string): void {
     if (this.isOccupied()) {
       throw new Error(`Spot ${this.id} is already occupied by ${this.currentVehicle}`);
     }
@@ -118,9 +126,9 @@ export class Spot implements SpotRecord {
 
   /**
    * Vacate the spot
-   * @throws If spot is not occupied
+   * @throws {Error} If spot is not occupied
    */
-  vacate(): void {
+  public vacate(): void {
     if (!this.isOccupied()) {
       throw new Error(`Spot ${this.id} is not occupied`);
     }
@@ -135,16 +143,16 @@ export class Spot implements SpotRecord {
    * @param feature - Feature to check for
    * @returns True if spot has the feature
    */
-  hasFeature(feature: SpotFeature): boolean {
+  public hasFeature(feature: SpotFeature): boolean {
     return this.features.includes(feature);
   }
 
   /**
    * Add a feature to the spot
    * @param feature - Feature to add
-   * @throws If feature is invalid or already exists
+   * @throws {Error} If feature is invalid or already exists
    */
-  addFeature(feature: SpotFeature): void {
+  public addFeature(feature: SpotFeature): void {
     const validFeatures: SpotFeature[] = ['ev_charging', 'handicap'];
     
     if (!validFeatures.includes(feature)) {
@@ -162,9 +170,9 @@ export class Spot implements SpotRecord {
   /**
    * Remove a feature from the spot
    * @param feature - Feature to remove
-   * @throws If feature doesn't exist
+   * @throws {Error} If feature doesn't exist
    */
-  removeFeature(feature: SpotFeature): void {
+  public removeFeature(feature: SpotFeature): void {
     const index = this.features.indexOf(feature);
     
     if (index === -1) {
@@ -179,7 +187,7 @@ export class Spot implements SpotRecord {
    * Get a plain object representation of the spot
    * @returns Plain object with spot data
    */
-  toObject(): SpotRecord {
+  public toObject(): SpotRecord {
     return {
       id: this.id,
       floor: this.floor,
@@ -198,7 +206,7 @@ export class Spot implements SpotRecord {
    * Get JSON representation of the spot
    * @returns JSON string
    */
-  toJSON(): string {
+  public toJSON(): string {
     return JSON.stringify(this.toObject());
   }
 
@@ -207,11 +215,8 @@ export class Spot implements SpotRecord {
    * @param obj - Plain object with spot data
    * @returns New spot instance
    */
-  static fromObject(obj: Partial<SpotRecord> & SpotData): Spot {
-    const spot = new Spot(obj);
-    if (obj.createdAt) spot.createdAt = obj.createdAt;
-    if (obj.updatedAt) spot.updatedAt = obj.updatedAt;
-    return spot;
+  public static fromObject(obj: SpotInputData): Spot {
+    return new Spot(obj);
   }
 }
 

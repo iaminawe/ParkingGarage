@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "commonjs",
     "lib": ["ES2022"],
-    "strict": false,
+    "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
@@ -48,6 +48,7 @@
   "exclude": [
     "node_modules",
     "dist",
+    "src/generated/**",
     "**/*.spec.ts",
     "**/*.test.ts"
   ],

@@ -8,7 +8,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { Prisma } from '../generated/prisma';
+import { Prisma } from '@prisma/client';
 import { TransactionManager } from '../services/TransactionManager';
 import {
   ITransactionOptions,

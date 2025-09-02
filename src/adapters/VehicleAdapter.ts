@@ -7,7 +7,7 @@
  * @module VehicleAdapter
  */
 
-import { Vehicle, Prisma, PrismaClient, VehicleStatus, VehicleType } from '../generated/prisma';
+import { Vehicle, Prisma, PrismaClient, VehicleStatus, VehicleType } from '@prisma/client';
 import { PrismaAdapter } from './PrismaAdapter';
 import { IAdapterLogger } from './interfaces/BaseAdapter';
 import { RetryConfig } from '../utils/prisma-errors';
@@ -15,12 +15,12 @@ import { RetryConfig } from '../utils/prisma-errors';
 /**
  * Vehicle creation data type
  */
-export type VehicleCreateData = Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
+export type VehicleCreateData = Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Vehicle update data type
  */
-export type VehicleUpdateData = Partial<Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>>;
+export type VehicleUpdateData = Partial<Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'>>;
 
 /**
  * Vehicle adapter class extending PrismaAdapter
@@ -46,8 +46,7 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
       const client = tx || this.prisma;
       const result = await client.vehicle.findFirst({
         where: { 
-          licensePlate: licensePlate.toUpperCase(),
-          deletedAt: null
+          licensePlate: licensePlate.toUpperCase()
         }
       });
       
@@ -125,12 +124,12 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
           deletedAt: null
         },
         include: {
-          currentSpot: {
+          spot: {
             select: {
               id: true,
               spotNumber: true,
-              floor: true,
-              bay: true
+              level: true,
+              section: true
             }
           }
         },
@@ -374,8 +373,8 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
       ] = await Promise.all([
         client.vehicle.count({ where: { deletedAt: null } }),
         client.vehicle.count({ where: { status: VehicleStatus.ACTIVE, deletedAt: null } }),
-        client.vehicle.count({ where: { status: VehicleStatus.BLOCKED, deletedAt: null } }),
-        client.vehicle.count({ where: { status: VehicleStatus.BANNED, deletedAt: null } }),
+        client.vehicle.count({ where: { status: VehicleStatus.PARKED, deletedAt: null } }),
+        client.vehicle.count({ where: { status: VehicleStatus.DEPARTED, deletedAt: null } }),
         client.vehicle.count({ where: { status: VehicleStatus.INACTIVE, deletedAt: null } }),
         client.vehicle.count({ where: { currentSpotId: { not: null }, deletedAt: null } }),
         client.vehicle.groupBy({

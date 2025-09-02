@@ -7,7 +7,7 @@
  * @module DatabaseService
  */
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import type { IAdapterLogger, IConnectionManager } from '../adapters/interfaces/BaseAdapter';
 
@@ -211,16 +211,6 @@ export class DatabaseService implements IConnectionManager {
   }
 
   /**
-<<<<<<< HEAD
-   * Alias for getClient() for backward compatibility
-   */
-  getPrismaClient(): PrismaClient {
-    return this.getClient();
-  }
-
-  /**
-=======
->>>>>>> origin/main
    * Execute database operation with error handling and retry logic
    */
   async executeWithRetry<T>(

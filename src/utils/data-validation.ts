@@ -5,7 +5,7 @@
  * Ensures data consistency between MemoryStore and SQLite database.
  */
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 import { MemoryStore } from '../storage/memoryStore';
 
 export interface ValidationError {

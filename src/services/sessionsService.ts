@@ -48,12 +48,12 @@ export interface SessionAnalytics {
 }
 
 export class SessionsService {
-  private sessionsRepository: SessionsRepository;
+  private sessionsRepository: SessionRepository;
   private vehicleRepository: VehicleRepository;
   private spotRepository: SpotRepository;
 
   constructor() {
-    this.sessionsRepository = new SessionsRepository();
+    this.sessionsRepository = new SessionRepository();
     this.vehicleRepository = new VehicleRepository();
     this.spotRepository = new SpotRepository();
   }
