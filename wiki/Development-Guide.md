@@ -4,17 +4,20 @@
 
 ### Required Software
 - Node.js 18+ and npm 9+
-- PostgreSQL 14+
-- Redis 6+
-- Docker & Docker Compose
+- SQLite 3
+- Prisma CLI
 - Git
 - VS Code or preferred IDE
 
+### Optional Software
+- Redis 6+ (for caching - optional)
+- Docker & Docker Compose (for Redis)
+
 ### Recommended Tools
 - Postman or Insomnia (API testing)
-- pgAdmin or DBeaver (Database management)
-- Redis Commander (Redis GUI)
-- K9s (Kubernetes management)
+- SQLite Browser or DBeaver (Database management)
+- Redis Commander (Redis GUI, if using Redis)
+- Prisma Studio (Database GUI)
 
 ## Environment Setup
 
@@ -27,7 +30,9 @@ cd ParkingGarage
 ### 2. Install Dependencies
 ```bash
 npm install
-npm run install:all  # Install dependencies for all services
+
+# Install Prisma CLI globally (optional)
+npm install -g prisma
 ```
 
 ### 3. Environment Configuration
@@ -39,451 +44,541 @@ PORT=3000
 API_VERSION=v1
 
 # Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=parking_garage
-DB_USER=postgres
-DB_PASSWORD=your_password
+DATABASE_URL="file:./parking_garage.db"
 
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
+# Redis (Optional - for caching)
+REDIS_URL="redis://localhost:6379"
+CACHE_TTL=3600
 
-# JWT
+# Logging
+LOG_LEVEL=debug
+LOG_FILE=logs/app.log
+
+# Performance
+ENABLE_QUERY_OPTIMIZATION=true
+ENABLE_PERFORMANCE_MONITORING=true
+PERFORMANCE_THRESHOLD_MS=1000
+
+# Security
 JWT_SECRET=your-secret-key-change-in-production
 JWT_EXPIRY=7d
-REFRESH_TOKEN_EXPIRY=30d
+RATE_LIMIT_WINDOW=15
+RATE_LIMIT_MAX=100
 
-# Payment (Stripe)
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-
-# Email (SendGrid)
-SENDGRID_API_KEY=SG...
-FROM_EMAIL=noreply@parkinggarage.com
-
-# SMS (Twilio)
-TWILIO_ACCOUNT_SID=AC...
-TWILIO_AUTH_TOKEN=...
-TWILIO_PHONE_NUMBER=+1...
-
-# AWS (Optional)
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=us-east-1
-S3_BUCKET=parking-garage-assets
-
-# Monitoring
-SENTRY_DSN=
-LOG_LEVEL=debug
+# Development
+HOT_RELOAD=true
+DEBUG=app:*
 ```
 
 ### 4. Database Setup
 ```bash
-# Start PostgreSQL (Docker)
-docker-compose up -d postgres
+# Generate Prisma client
+npx prisma generate
 
-# Run migrations
-npm run db:migrate
+# Create and seed database
+npx prisma db push
 
-# Seed development data
+# Seed development data (optional)
 npm run db:seed
+
+# View database in Prisma Studio
+npx prisma studio
 ```
 
 ### 5. Start Development Server
 ```bash
-# Start all services
+# Start main application
 npm run dev
 
-# Or start specific services
-npm run dev:auth
-npm run dev:parking
-npm run dev:payment
+# Or start with different configurations
+npm run start:dev    # Development mode
+npm run start:debug  # Debug mode
+npm run start:test   # Test environment
+```
+
+### 6. Optional: Start Redis (for caching)
+```bash
+# Using Docker
+docker run -d --name redis-parking -p 6379:6379 redis:alpine
+
+# Using Docker Compose
+docker-compose up -d redis
 ```
 
 ## Project Structure
 
 ```
 ParkingGarage/
-├── src/
-│   ├── services/          # Microservices
-│   │   ├── auth/          # Authentication service
-│   │   ├── parking/       # Parking management
-│   │   ├── payment/       # Payment processing
-│   │   ├── reservation/   # Reservation system
-│   │   ├── analytics/     # Analytics service
-│   │   └── notification/  # Notifications
-│   ├── shared/            # Shared utilities
-│   │   ├── database/      # Database configurations
-│   │   ├── middleware/    # Common middleware
-│   │   ├── utils/         # Utility functions
-│   │   ├── validators/    # Input validators
-│   │   └── constants/     # Constants
-│   ├── gateway/           # API Gateway
-│   └── workers/           # Background jobs
-├── database/
-│   ├── migrations/        # Database migrations
-│   ├── seeds/            # Seed data
-│   └── schemas/          # SQL schemas
-├── tests/
-│   ├── unit/             # Unit tests
-│   ├── integration/      # Integration tests
-│   └── e2e/              # End-to-end tests
-├── scripts/              # Utility scripts
-├── docs/                 # Documentation
-├── .claude/              # CCPM configuration
-├── wiki/                 # GitHub wiki pages
-└── docker/               # Docker configurations
+├── src/                    # Source code
+│   ├── app.ts             # Express application setup
+│   ├── server.ts          # Server entry point
+│   ├── controllers/       # Request handlers
+│   │   ├── sessionsController.ts
+│   │   ├── vehicleController.ts
+│   │   ├── spotController.ts
+│   │   └── garageController.ts
+│   ├── routes/           # API route definitions
+│   │   ├── sessions.ts
+│   │   ├── vehicles.ts
+│   │   ├── spots.ts
+│   │   └── garage.ts
+│   ├── services/         # Business logic
+│   │   ├── sessionsService.ts
+│   │   ├── vehicleService.ts
+│   │   ├── spotService.ts
+│   │   ├── CacheService.ts
+│   │   └── QueryOptimizer.ts
+│   ├── repositories/     # Data access layer
+│   │   ├── sessionsRepository.ts
+│   │   ├── vehicleRepository.ts
+│   │   ├── spotRepository.ts
+│   │   └── garageRepository.ts
+│   ├── middleware/       # Express middleware
+│   │   ├── errorHandler.ts
+│   │   ├── performance.middleware.ts
+│   │   └── validation/
+│   ├── models/          # Data models and types
+│   │   ├── Vehicle.ts
+│   │   ├── spot.ts
+│   │   └── garage.ts
+│   ├── types/           # TypeScript definitions
+│   │   ├── api.ts
+│   │   ├── models.ts
+│   │   └── express.d.ts
+│   ├── utils/           # Utility functions
+│   │   ├── logger.ts
+│   │   ├── performanceMetrics.ts
+│   │   └── validators.ts
+│   └── config/          # Configuration
+│       └── database.config.ts
+├── prisma/              # Prisma configuration
+│   └── schema.prisma    # Database schema
+├── tests/               # Test suites
+│   ├── unit/           # Unit tests
+│   ├── integration/    # Integration tests
+│   ├── database/       # Database tests
+│   ├── performance/    # Performance tests
+│   ├── factories/      # Test data factories
+│   └── helpers/        # Test helpers
+├── docs/               # Documentation
+├── logs/               # Application logs
+└── .claude-flow/       # Claude Flow configuration
 ```
 
 ## Development Workflow
 
 ### 1. Feature Development
 
-#### Using CCPM (Recommended)
+#### Using TDD Approach
 ```bash
-# Start working on an issue
-/pm:issue-start 123
+# 1. Write failing test
+npm run test:watch
 
-# Create an epic for larger features
-/pm:epic-start "Payment Integration"
-
-# Check status
-/pm:status
+# 2. Implement feature
+# 3. Make test pass
+# 4. Refactor code
+# 5. Run full test suite
+npm test
 ```
 
-#### Using Claude Flow for Parallel Development
+#### Database Changes with Prisma
 ```bash
-# Initialize swarm for feature development
-npx claude-flow sparc tdd "implement user authentication"
+# 1. Modify schema.prisma
+# 2. Generate migration
+npx prisma db push
 
-# Run specific development mode
-npx claude-flow sparc run architect "design payment system"
+# 3. Generate new client
+npx prisma generate
+
+# 4. Update TypeScript types
+npm run build
 ```
 
 ### 2. Code Style Guidelines
 
-#### JavaScript/TypeScript
-```javascript
-// Use ES6+ features
-const processPayment = async ({ amount, currency, paymentMethod }) => {
+#### TypeScript/JavaScript
+```typescript
+// Use TypeScript interfaces for type safety
+interface CreateVehicleRequest {
+  licensePlate: string;
+  vehicleType: VehicleType;
+  ownerName?: string;
+  ownerEmail?: string;
+}
+
+// Use async/await for asynchronous operations
+const createVehicle = async (data: CreateVehicleRequest): Promise<Vehicle> => {
   try {
     // Validate input
-    validatePaymentInput({ amount, currency });
+    const validatedData = await validateVehicleData(data);
     
-    // Process payment
-    const result = await stripeClient.charges.create({
-      amount: amount * 100, // Convert to cents
-      currency,
-      source: paymentMethod,
-    });
+    // Check for duplicates
+    const existing = await vehicleRepository.findByLicensePlate(data.licensePlate);
+    if (existing) {
+      throw new ValidationError('Vehicle already registered');
+    }
     
-    // Log transaction
-    await logTransaction(result);
+    // Create vehicle
+    const vehicle = await vehicleRepository.create(validatedData);
     
-    return {
-      success: true,
-      transactionId: result.id,
-    };
+    // Log creation
+    logger.info('Vehicle created', { vehicleId: vehicle.id, licensePlate: vehicle.licensePlate });
+    
+    return vehicle;
   } catch (error) {
-    logger.error('Payment processing failed:', error);
-    throw new PaymentError(error.message);
+    logger.error('Vehicle creation failed', { error: error.message, data });
+    throw error;
   }
 };
 ```
 
-#### SQL Naming Conventions
-```sql
--- Tables: plural, snake_case
-CREATE TABLE parking_spots (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  spot_number VARCHAR(10) NOT NULL,
-  level_id UUID REFERENCES levels(id),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes: idx_table_columns
-CREATE INDEX idx_parking_spots_level_id ON parking_spots(level_id);
-
--- Foreign keys: fk_table_reference
-ALTER TABLE parking_spots 
-  ADD CONSTRAINT fk_parking_spots_level 
-  FOREIGN KEY (level_id) REFERENCES levels(id);
+#### Prisma Schema Conventions
+```prisma
+// Use descriptive model names
+model Vehicle {
+  id                String      @id @default(cuid())
+  licensePlate      String      @unique
+  vehicleType       VehicleType @default(STANDARD)
+  
+  // Relations use descriptive names
+  sessions          ParkingSession[]
+  spot              ParkingSpot?    @relation(fields: [spotId], references: [id])
+  
+  // Performance indexes for common queries
+  @@index([licensePlate])
+  @@index([spotId])
+  @@index([vehicleType, checkInTime])
+  
+  // Use snake_case for database table names
+  @@map("vehicles")
+}
 ```
 
 ### 3. API Development
 
-#### Route Structure
-```javascript
-// routes/spots.js
-const express = require('express');
-const router = express.Router();
-const { authenticate, authorize } = require('../middleware/auth');
-const { validateSpotInput } = require('../validators/spot');
-const spotController = require('../controllers/spotController');
-
-// Public routes
-router.get('/', spotController.getAllSpots);
-router.get('/:id', spotController.getSpotById);
-
-// Protected routes
-router.use(authenticate);
-router.post('/', authorize('admin'), validateSpotInput, spotController.createSpot);
-router.put('/:id', authorize('admin'), validateSpotInput, spotController.updateSpot);
-router.delete('/:id', authorize('admin'), spotController.deleteSpot);
-
-module.exports = router;
-```
-
 #### Controller Pattern
-```javascript
-// controllers/spotController.js
-const spotService = require('../services/spotService');
-const { successResponse, errorResponse } = require('../utils/response');
+```typescript
+// controllers/vehicleController.ts
+import { Request, Response, NextFunction } from 'express';
+import { vehicleService } from '../services';
+import { CreateVehicleRequest } from '../types';
 
-exports.getAllSpots = async (req, res) => {
+export const createVehicle = async (
+  req: Request<{}, {}, CreateVehicleRequest>,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { level, zone, status } = req.query;
-    const spots = await spotService.findSpots({ level, zone, status });
+    const vehicle = await vehicleService.createVehicle(req.body);
     
-    return successResponse(res, {
-      spots,
-      total: spots.length,
+    res.status(201).json({
+      success: true,
+      data: { vehicle },
+      message: 'Vehicle registered successfully'
     });
   } catch (error) {
-    return errorResponse(res, error);
+    next(error); // Handled by error middleware
   }
 };
 ```
 
+#### Service Pattern
+```typescript
+// services/vehicleService.ts
+import { prisma } from '../config/database';
+import { CacheService } from './CacheService';
+import { QueryOptimizer } from './QueryOptimizer';
+
+class VehicleService {
+  private cache = new CacheService();
+  private optimizer = new QueryOptimizer();
+
+  async findByLicensePlate(licensePlate: string): Promise<Vehicle | null> {
+    // Try cache first
+    const cached = await this.cache.get(`vehicle:${licensePlate}`);
+    if (cached) return cached;
+
+    // Database query with optimization
+    const vehicle = await this.optimizer.optimizeQuery(() =>
+      prisma.vehicle.findUnique({
+        where: { licensePlate },
+        include: {
+          sessions: {
+            where: { status: 'ACTIVE' },
+            take: 1
+          }
+        }
+      })
+    );
+
+    // Cache result
+    if (vehicle) {
+      await this.cache.set(`vehicle:${licensePlate}`, vehicle, 3600);
+    }
+
+    return vehicle;
+  }
+}
+```
+
 ### 4. Database Development
 
-#### Migration Example
-```javascript
-// migrations/001_create_parking_spots.js
-exports.up = async (knex) => {
-  await knex.schema.createTable('parking_spots', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-    table.string('spot_number', 10).notNullable();
-    table.uuid('level_id').references('id').inTable('levels');
-    table.enum('type', ['regular', 'handicap', 'ev', 'premium']).defaultTo('regular');
-    table.enum('status', ['available', 'occupied', 'reserved', 'maintenance']).defaultTo('available');
-    table.decimal('hourly_rate', 10, 2);
-    table.decimal('daily_rate', 10, 2);
-    table.timestamps(true, true);
-    
-    table.index(['level_id', 'status']);
-    table.unique(['level_id', 'spot_number']);
-  });
-};
+#### Repository Pattern
+```typescript
+// repositories/vehicleRepository.ts
+import { prisma } from '../config/database';
+import { Prisma, Vehicle } from '@prisma/client';
 
-exports.down = async (knex) => {
-  await knex.schema.dropTable('parking_spots');
-};
+export class VehicleRepository {
+  async create(data: Prisma.VehicleCreateInput): Promise<Vehicle> {
+    return prisma.vehicle.create({
+      data,
+      include: {
+        spot: true,
+        sessions: {
+          where: { status: 'ACTIVE' },
+          take: 1
+        }
+      }
+    });
+  }
+
+  async findWithActiveSession(licensePlate: string): Promise<Vehicle | null> {
+    return prisma.vehicle.findUnique({
+      where: { licensePlate },
+      include: {
+        sessions: {
+          where: { status: 'ACTIVE' },
+          include: { spot: true }
+        }
+      }
+    });
+  }
+
+  async updatePaymentStatus(id: string, isPaid: boolean): Promise<Vehicle> {
+    return prisma.vehicle.update({
+      where: { id },
+      data: { isPaid, updatedAt: new Date() }
+    });
+  }
+}
 ```
 
 ### 5. Testing
 
 #### Unit Test Example
-```javascript
-// tests/unit/services/spotService.test.js
-const spotService = require('../../../src/services/spotService');
-const spotRepository = require('../../../src/repositories/spotRepository');
+```typescript
+// tests/unit/services/vehicleService.test.ts
+import { VehicleService } from '../../../src/services/vehicleService';
+import { vehicleRepository } from '../../../src/repositories';
+import { VehicleFactory } from '../../factories';
 
-jest.mock('../../../src/repositories/spotRepository');
+jest.mock('../../../src/repositories');
 
-describe('SpotService', () => {
-  describe('findAvailableSpots', () => {
-    it('should return available spots for given criteria', async () => {
+describe('VehicleService', () => {
+  let vehicleService: VehicleService;
+  
+  beforeEach(() => {
+    vehicleService = new VehicleService();
+    jest.clearAllMocks();
+  });
+
+  describe('createVehicle', () => {
+    it('should create vehicle with valid data', async () => {
       // Arrange
-      const mockSpots = [
-        { id: '1', status: 'available', level: 1 },
-        { id: '2', status: 'available', level: 1 },
-      ];
-      spotRepository.findByStatus.mockResolvedValue(mockSpots);
+      const vehicleData = VehicleFactory.build();
+      const expectedVehicle = VehicleFactory.build({ ...vehicleData, id: 'test-id' });
+      
+      (vehicleRepository.create as jest.Mock).mockResolvedValue(expectedVehicle);
       
       // Act
-      const result = await spotService.findAvailableSpots({ level: 1 });
+      const result = await vehicleService.createVehicle(vehicleData);
       
       // Assert
-      expect(result).toHaveLength(2);
-      expect(spotRepository.findByStatus).toHaveBeenCalledWith('available', { level: 1 });
+      expect(result).toEqual(expectedVehicle);
+      expect(vehicleRepository.create).toHaveBeenCalledWith(vehicleData);
     });
   });
 });
 ```
 
 #### Integration Test Example
-```javascript
-// tests/integration/api/spots.test.js
-const request = require('supertest');
-const app = require('../../../src/app');
-const { setupDatabase, teardownDatabase } = require('../../helpers/database');
+```typescript
+// tests/integration/api-database-integration.test.ts
+import request from 'supertest';
+import { app } from '../../src/app';
+import { prisma } from '../../src/config/database';
+import { VehicleFactory } from '../factories';
 
-describe('Spots API', () => {
-  beforeAll(async () => {
-    await setupDatabase();
+describe('Vehicle API Integration', () => {
+  beforeEach(async () => {
+    // Clean database
+    await prisma.vehicle.deleteMany();
+    await prisma.parkingSpot.deleteMany();
   });
-  
-  afterAll(async () => {
-    await teardownDatabase();
-  });
-  
-  describe('GET /api/v1/spots', () => {
-    it('should return all spots', async () => {
-      const response = await request(app)
-        .get('/api/v1/spots')
-        .expect(200);
+
+  describe('POST /api/vehicles', () => {
+    it('should create vehicle and return 201', async () => {
+      // Arrange
+      const vehicleData = VehicleFactory.build();
       
+      // Act
+      const response = await request(app)
+        .post('/api/vehicles')
+        .send(vehicleData)
+        .expect(201);
+      
+      // Assert
       expect(response.body.success).toBe(true);
-      expect(response.body.data.spots).toBeDefined();
-      expect(Array.isArray(response.body.data.spots)).toBe(true);
+      expect(response.body.data.vehicle).toMatchObject({
+        licensePlate: vehicleData.licensePlate,
+        vehicleType: vehicleData.vehicleType
+      });
+      
+      // Verify in database
+      const dbVehicle = await prisma.vehicle.findUnique({
+        where: { licensePlate: vehicleData.licensePlate }
+      });
+      expect(dbVehicle).toBeTruthy();
     });
   });
 });
 ```
 
-### 6. Debugging
+### 6. Performance Optimization
 
-#### VS Code Launch Configuration
+#### Using CacheService
+```typescript
+// Implement caching in services
+const getCachedGarageStats = async (): Promise<GarageStats> => {
+  const cacheKey = 'garage:stats';
+  
+  let stats = await cacheService.get(cacheKey);
+  if (!stats) {
+    stats = await calculateGarageStats();
+    await cacheService.set(cacheKey, stats, 300); // 5 minutes TTL
+  }
+  
+  return stats;
+};
+```
+
+#### Using QueryOptimizer
+```typescript
+// Optimize database queries
+const getVehicleHistory = async (licensePlate: string) => {
+  return queryOptimizer.optimizeQuery(
+    () => prisma.vehicle.findUnique({
+      where: { licensePlate },
+      include: {
+        sessions: {
+          orderBy: { startTime: 'desc' },
+          take: 10,
+          include: { spot: true }
+        }
+      }
+    }),
+    { operationName: 'getVehicleHistory' }
+  );
+};
+```
+
+## Common Development Tasks
+
+### Adding a New API Endpoint
+1. **Define route** in appropriate route file
+2. **Create controller method** with proper typing
+3. **Implement service logic** with error handling
+4. **Add repository methods** if needed
+5. **Write unit and integration tests**
+6. **Update API documentation**
+
+### Adding Database Fields
+1. **Update Prisma schema** in `prisma/schema.prisma`
+2. **Run database migration**: `npx prisma db push`
+3. **Regenerate Prisma client**: `npx prisma generate`
+4. **Update TypeScript types** and interfaces
+5. **Update repository methods** as needed
+6. **Write tests** for new functionality
+
+### Performance Optimization
+1. **Identify bottlenecks** using performance middleware
+2. **Add database indexes** for slow queries
+3. **Implement caching** for expensive operations
+4. **Optimize Prisma queries** with select/include
+5. **Monitor with performance metrics**
+
+## Debugging
+
+### VS Code Configuration
 ```json
+// .vscode/launch.json
 {
   "version": "0.2.0",
   "configurations": [
     {
       "type": "node",
       "request": "launch",
-      "name": "Debug Auth Service",
-      "program": "${workspaceFolder}/src/services/auth/index.js",
+      "name": "Debug App",
+      "program": "${workspaceFolder}/src/server.ts",
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "envFile": "${workspaceFolder}/.env",
-      "console": "integratedTerminal"
-    },
-    {
-      "type": "node",
-      "request": "attach",
-      "name": "Attach to Process",
-      "port": 9229,
-      "restart": true
+      "console": "integratedTerminal",
+      "restart": true,
+      "runtimeArgs": ["-r", "ts-node/register"]
     }
   ]
 }
 ```
 
-#### Debug Commands
+### Debug Commands
 ```bash
 # Start with debugging
-npm run dev:debug
+npm run start:debug
 
-# Inspect database
-npm run db:console
+# View database
+npx prisma studio
 
 # Check logs
-npm run logs:auth
-npm run logs:parking
+tail -f logs/app.log
+
+# Performance monitoring
+npm run perf:monitor
 ```
 
-## Common Development Tasks
+## Testing Commands
 
-### Adding a New Endpoint
-1. Define route in `routes/`
-2. Create controller method
-3. Implement service logic
-4. Add repository methods
-5. Write tests
-6. Update API documentation
+```bash
+# Run all tests
+npm test
 
-### Database Changes
-1. Create migration file
-2. Run migration locally
-3. Update models
-4. Update seed data if needed
-5. Test rollback
+# Run specific test suites
+npm run test:unit
+npm run test:integration
+npm run test:database
+npm run test:performance
 
-### Adding a New Service
-1. Create service directory
-2. Setup Express app
-3. Configure database connection
-4. Add to docker-compose
-5. Update gateway routing
-6. Add monitoring
+# Run tests in watch mode
+npm run test:watch
 
-## Performance Guidelines
+# Generate coverage report
+npm run test:coverage
 
-### Database Optimization
-- Use indexes for frequently queried columns
-- Implement pagination for list endpoints
-- Use database views for complex queries
-- Enable query caching
-- Monitor slow queries
-
-### API Optimization
-- Implement response caching
-- Use compression middleware
-- Optimize payload size
-- Implement field filtering
-- Use batch operations
-
-### Code Optimization
-- Avoid N+1 queries
-- Use async/await properly
-- Implement connection pooling
-- Cache expensive computations
-- Profile and optimize hot paths
-
-## Security Best Practices
-
-### Input Validation
-```javascript
-const Joi = require('joi');
-
-const spotSchema = Joi.object({
-  spotNumber: Joi.string().alphanum().max(10).required(),
-  level: Joi.number().integer().min(1).max(10).required(),
-  type: Joi.string().valid('regular', 'handicap', 'ev', 'premium').required(),
-  hourlyRate: Joi.number().positive().max(100).required(),
-});
-
-const validateSpotInput = (req, res, next) => {
-  const { error } = spotSchema.validate(req.body);
-  if (error) {
-    return res.status(400).json({ error: error.details[0].message });
-  }
-  next();
-};
+# Run tests with specific pattern
+npm test -- --testNamePattern="Vehicle"
 ```
-
-### Authentication
-- Use secure JWT secrets
-- Implement token refresh
-- Add rate limiting
-- Log authentication attempts
-- Implement account lockout
-
-### Data Protection
-- Sanitize user input
-- Use parameterized queries
-- Encrypt sensitive data
-- Implement CORS properly
-- Use HTTPS in production
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### Database Connection Failed
+#### Prisma Client Out of Sync
 ```bash
-# Check PostgreSQL status
-docker-compose ps postgres
+# Regenerate client
+npx prisma generate
 
-# Check connection string
-echo $DB_HOST
-echo $DB_PORT
-
-# Test connection
-psql -h localhost -U postgres -d parking_garage
+# Reset database (development only)
+npx prisma db push --force-reset
 ```
 
 #### Port Already in Use
@@ -491,43 +586,49 @@ psql -h localhost -U postgres -d parking_garage
 # Find process using port
 lsof -i :3000
 
-# Kill process
-kill -9 <PID>
-
-# Or change port in .env
+# Change port in .env
 PORT=3001
 ```
 
-#### Migration Failed
+#### Database Lock Issues
 ```bash
-# Rollback migration
-npm run db:rollback
+# Check for active connections
+npx prisma studio
 
-# Check migration status
-npm run db:status
-
-# Run specific migration
-npm run db:migrate:up 001_create_users.js
+# Restart development server
+npm run dev
 ```
 
-## Resources
+#### Performance Issues
+```bash
+# Check slow queries
+tail -f logs/app.log | grep "SLOW_QUERY"
 
-### Documentation
-- [API Documentation](API-Documentation.md)
-- [Architecture Guide](Architecture.md)
-- [Testing Strategy](Testing-Strategy.md)
+# Monitor performance
+npm run perf:monitor
 
-### External Resources
-- [Node.js Best Practices](https://github.com/goldbergyoni/nodebestpractices)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-- [Docker Documentation](https://docs.docker.com/)
+# Clear cache
+npm run cache:clear
+```
 
-### Support Channels
-- GitHub Issues: Bug reports and feature requests
-- GitHub Discussions: Questions and discussions
-- Slack: Real-time team communication
+## Environment Variables Reference
+
+```env
+# Required
+NODE_ENV=development|production|test
+PORT=3000
+DATABASE_URL="file:./parking_garage.db"
+
+# Optional
+REDIS_URL="redis://localhost:6379"
+LOG_LEVEL=debug|info|warn|error
+CACHE_TTL=3600
+ENABLE_QUERY_OPTIMIZATION=true
+ENABLE_PERFORMANCE_MONITORING=true
+```
 
 ---
 
+*For API documentation, see [API Documentation](API-Documentation.md)*
 *For deployment instructions, see [Deployment Guide](Deployment-Guide.md)*
-*For contribution guidelines, see [Contributing](Contributing.md)*
+*For performance optimization, see [Performance Guide](Performance-Guide.md)*

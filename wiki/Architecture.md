@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Parking Garage Management System follows a microservices architecture pattern with event-driven communication, ensuring scalability, reliability, and maintainability.
+The Parking Garage Management System follows a **monolithic architecture** with a modular design, built using Node.js/TypeScript, Express.js, and SQLite with Prisma ORM. The system emphasizes performance optimization, caching, and comprehensive testing for reliability and maintainability.
 
 ## Architecture Diagram
 
@@ -16,397 +16,343 @@ The Parking Garage Management System follows a microservices architecture patter
        └───────────────┴──────────────┴──────────────┘
                               │
                     ┌─────────▼─────────┐
-                    │   API Gateway     │
-                    │   (Kong/Nginx)    │
+                    │   Express Server  │
+                    │  (Node.js + TS)   │
                     └─────────┬─────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
 ┌───────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
-│  Auth Service  │  │ Parking Service │  │Payment Service  │
-└────────────────┘  └─────────────────┘  └─────────────────┘
-        │                     │                     │
-┌───────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
-│Analytics Service│ │Reservation Service│ │Notification Svc │
-└────────────────┘  └─────────────────┘  └─────────────────┘
+│   Controllers  │  │   Middleware    │  │     Routes      │
+│ (API Handlers) │  │ (Performance/   │  │   (REST API)    │
+│                │  │  Validation)    │  │                 │
+└───────┬────────┘  └────────┬────────┘  └────────┬────────┘
         │                     │                     │
         └─────────────────────┼─────────────────────┘
                               │
                     ┌─────────▼─────────┐
-                    │   Message Queue   │
-                    │  (RabbitMQ/Kafka) │
+                    │     Services      │
+                    │  (Business Logic) │
                     └─────────┬─────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
 ┌───────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
-│   PostgreSQL   │  │     Redis       │  │   MongoDB      │
-│   (Primary)    │  │    (Cache)      │  │  (Analytics)   │
-└────────────────┘  └─────────────────┘  └─────────────────┘
+│  Repositories  │  │  Cache Service  │  │ Query Optimizer │
+│ (Data Access)  │  │    (Redis)      │  │  (Performance)  │
+└───────┬────────┘  └────────┬────────┘  └────────┬────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │   SQLite + Prisma │
+                    │  (Primary Database) │
+                    └───────────────────┘
 ```
 
 ## Core Components
 
-### 1. API Gateway
-**Technology**: Kong or Nginx
-**Responsibilities**:
-- Request routing and load balancing
-- Authentication and authorization
-- Rate limiting and throttling
-- Request/response transformation
-- SSL termination
-- API versioning
+### 1. Application Layer
 
-### 2. Microservices
-
-#### Auth Service
-**Technology**: Node.js + Express
-**Database**: PostgreSQL
-**Responsibilities**:
-- User registration and authentication
-- JWT token generation and validation
-- OAuth2 integration
-- Role-based access control (RBAC)
-- Session management
-
-#### Parking Service
-**Technology**: Node.js + Fastify
-**Database**: PostgreSQL + Redis
-**Responsibilities**:
-- Spot management and availability
-- Real-time occupancy tracking
-- IoT sensor integration
-- License plate recognition
-- Entry/exit management
-
-#### Payment Service
-**Technology**: Node.js + Express
-**Database**: PostgreSQL
-**Responsibilities**:
-- Payment processing (Stripe/PayPal)
-- Billing and invoicing
-- Refund management
-- Payment method storage (PCI compliant)
-- Transaction history
-
-#### Reservation Service
-**Technology**: Node.js + Express
-**Database**: PostgreSQL
-**Responsibilities**:
-- Advance booking management
-- Availability checking
-- Reservation modifications
-- Cancellation handling
-- Waitlist management
-
-#### Analytics Service
-**Technology**: Python + FastAPI
-**Database**: MongoDB + ClickHouse
-**Responsibilities**:
-- Data aggregation and analysis
-- Report generation
-- Predictive analytics
-- Business intelligence
-- Custom dashboards
-
-#### Notification Service
-**Technology**: Node.js + Bull
-**Database**: Redis
-**Responsibilities**:
-- Email notifications
-- SMS alerts
-- Push notifications
-- In-app messaging
-- Notification preferences
-
-### 3. Data Layer
-
-#### PostgreSQL (Primary Database)
-- User accounts and authentication
-- Parking spots and facilities
-- Reservations and sessions
-- Payment transactions
-- Audit logs
-
-**Schema Design**:
-```sql
--- Core tables
-users
-facilities
-levels
-zones
-spots
-reservations
-parking_sessions
-payments
-vehicles
-audit_logs
-
--- Relationships
-user_vehicles
-user_payment_methods
-facility_managers
-spot_features
-reservation_history
+**Technology**: Node.js + TypeScript + Express.js
+**Structure**:
+```
+src/
+├── app.ts                  # Express app configuration
+├── server.ts              # Server entry point
+├── controllers/           # Request handlers
+├── routes/               # API route definitions
+├── middleware/           # Custom middleware
+├── services/             # Business logic
+├── repositories/         # Data access layer
+├── models/              # Data models
+├── types/               # TypeScript definitions
+├── utils/               # Utility functions
+└── config/              # Configuration
 ```
 
-#### Redis (Caching & Sessions)
-- Session storage
-- Real-time spot availability
+### 2. API Layer (REST Endpoints)
+
+#### Core Endpoints
+- **Vehicle Management**
+  - `GET/POST /api/vehicles` - Vehicle registration and lookup
+  - `PUT /api/vehicles/:id` - Update vehicle information
+  - `DELETE /api/vehicles/:id` - Remove vehicle
+
+- **Parking Sessions**
+  - `GET/POST /api/sessions` - Session management
+  - `PUT /api/sessions/:id` - Update session status
+  - `DELETE /api/sessions/:id` - End/cancel session
+
+- **Spot Management**
+  - `GET /api/spots` - List available spots
+  - `GET /api/spots/:id` - Get spot details
+  - `PUT /api/spots/:id/status` - Update spot status
+
+- **Garage Operations**
+  - `GET /api/garage` - Garage information and statistics
+  - `GET /api/garage/stats` - Real-time garage statistics
+
+### 3. Service Layer (Business Logic)
+
+#### Core Services
+- **SessionsService**: Parking session management, duration calculation
+- **VehicleService**: Vehicle registration, lookup, and management
+- **SpotService**: Spot availability, assignment, status management
+- **GarageService**: Garage statistics, capacity management
+- **CacheService**: Redis-based caching for performance
+- **QueryOptimizer**: Database query optimization and performance tuning
+
+### 4. Data Layer
+
+#### SQLite Database with Prisma ORM
+**Primary Database**: SQLite (file-based, high performance)
+**ORM**: Prisma Client with TypeScript support
+
+**Core Models**:
+```typescript
+// Vehicle Model
+Vehicle {
+  id: string
+  licensePlate: string (unique)
+  vehicleType: VehicleType
+  rateType: RateType
+  spotId?: string
+  owner information
+  payment details
+  timestamps
+}
+
+// ParkingSpot Model
+ParkingSpot {
+  id: string
+  spotNumber: string (unique)
+  level: number
+  section?: string
+  spotType: SpotType
+  status: SpotStatus
+  dimensions
+  timestamps
+}
+
+// ParkingSession Model
+ParkingSession {
+  id: string
+  vehicleId: string
+  spotId: string
+  startTime: DateTime
+  endTime?: DateTime
+  duration?: number
+  payment details
+  status: SessionStatus
+}
+
+// Garage Model
+Garage {
+  id: string
+  name: string
+  address information
+  capacity details
+  operating hours
+  rates
+}
+```
+
+#### Performance Optimizations
+- **Indexed Fields**: All frequently queried fields have database indexes
+- **Composite Indexes**: Multi-column indexes for complex queries
+- **Connection Pooling**: Efficient database connection management
+- **Query Caching**: Redis-based query result caching
+
+### 5. Caching Layer
+
+**Technology**: Redis (optional, with fallback to in-memory)
+**CacheService Features**:
+- TTL-based expiration
+- Key pattern management
+- Automatic cache invalidation
+- Performance metrics tracking
+- Graceful degradation when Redis unavailable
+
+**Cached Data**:
+- Spot availability status
+- Garage statistics
+- Recent vehicle lookups
+- Session calculations
 - API response caching
-- Rate limiting counters
-- Temporary reservation locks
 
-#### MongoDB (Analytics & Logs)
-- Event streaming data
-- Aggregated analytics
-- System logs
-- User behavior tracking
-- Historical patterns
+### 6. Performance Layer
 
-### 4. Message Queue
+#### Performance Middleware
+- Request/response time tracking
+- Database query performance monitoring
+- Memory usage tracking
+- Error rate monitoring
+- Automated performance alerts
 
-**Technology**: RabbitMQ or Apache Kafka
-**Purpose**: Asynchronous communication between services
+#### Query Optimizer
+- Automatic query plan analysis
+- Index usage optimization
+- Slow query detection
+- Performance recommendations
+- Real-time optimization
 
-**Event Types**:
-- `spot.status.changed`
-- `reservation.created`
-- `payment.processed`
-- `session.started`
-- `session.ended`
-- `alert.triggered`
+### 7. Validation & Security
 
-### 5. External Integrations
+#### Input Validation
+- TypeScript type checking
+- Joi schema validation
+- SQL injection prevention
+- XSS protection
+- Rate limiting
 
-#### Payment Gateways
-- Stripe API
-- PayPal API
-- Square API
-- Local payment providers
+#### Error Handling
+- Centralized error handling middleware
+- Structured error responses
+- Logging integration
+- Performance impact tracking
 
-#### IoT Platform
-- Sensor data ingestion
-- Device management
-- Real-time monitoring
-- Firmware updates
+## Database Schema Design
 
-#### Third-party Services
-- SMS (Twilio)
-- Email (SendGrid)
-- Maps (Google Maps API)
-- Weather API
-- Traffic API
+### Relationships
+```
+Vehicle (1) ──────── (M) ParkingSession
+   │                        │
+   │                        │
+   └── (M) ────────── (1) ParkingSpot
 
-## Security Architecture
-
-### Authentication & Authorization
-- JWT tokens with refresh mechanism
-- OAuth2 for social login
-- Multi-factor authentication (MFA)
-- API key management
-- Role-based permissions
-
-### Data Security
-- Encryption at rest (AES-256)
-- Encryption in transit (TLS 1.3)
-- PCI DSS compliance for payments
-- GDPR compliance for user data
-- Regular security audits
-
-### Network Security
-- VPC with private subnets
-- Web Application Firewall (WAF)
-- DDoS protection
-- IP whitelisting for admin access
-- VPN for infrastructure access
-
-## Scalability Strategy
-
-### Horizontal Scaling
-- Microservices in Kubernetes
-- Auto-scaling based on metrics
-- Load balancing across instances
-- Database read replicas
-- CDN for static assets
-
-### Vertical Scaling
-- Resource monitoring
-- Performance profiling
-- Database optimization
-- Query optimization
-- Caching strategies
-
-### Performance Optimization
-- Database indexing
-- Query optimization
-- Response caching
-- Connection pooling
-- Lazy loading
-
-## Deployment Architecture
-
-### Container Orchestration
-**Platform**: Kubernetes
-```yaml
-Deployments:
-- api-gateway
-- auth-service
-- parking-service
-- payment-service
-- reservation-service
-- analytics-service
-- notification-service
-
-Services:
-- LoadBalancer for API Gateway
-- ClusterIP for internal services
-- NodePort for monitoring
-
-ConfigMaps:
-- Application configuration
-- Environment variables
-
-Secrets:
-- Database credentials
-- API keys
-- JWT secrets
+Garage (1) ────── Configuration ────── (M) ParkingSpot
 ```
 
-### CI/CD Pipeline
-```
-GitHub → GitHub Actions → Build → Test → Docker Registry → Deploy → Kubernetes
-```
+### Performance Indexes
+```sql
+-- Single column indexes
+vehicles(licensePlate, spotId, vehicleType, checkInTime, isPaid)
+parking_spots(spotNumber, status, spotType, level)
+parking_sessions(vehicleId, spotId, startTime, status, isPaid)
 
-**Stages**:
-1. Code commit triggers pipeline
-2. Run unit tests
-3. Run integration tests
-4. Build Docker images
-5. Push to registry
-6. Deploy to staging
-7. Run smoke tests
-8. Deploy to production
-9. Health checks
-
-### Infrastructure as Code
-**Technology**: Terraform
-```hcl
-- VPC and networking
-- Kubernetes cluster
-- RDS instances
-- ElastiCache clusters
-- S3 buckets
-- CloudFront distribution
+-- Composite indexes for complex queries
+vehicles(spotId, isPaid)
+vehicles(vehicleType, checkInTime)
+parking_spots(status, spotType)
+parking_sessions(startTime, endTime)
 ```
 
-## Monitoring & Observability
+## Technology Stack
 
-### Metrics Collection
-**Technology**: Prometheus + Grafana
-- System metrics (CPU, memory, disk)
-- Application metrics (requests, latency)
-- Business metrics (bookings, revenue)
-- Custom metrics
+### Core Technologies
+- **Runtime**: Node.js 18+
+- **Language**: TypeScript + JavaScript (mixed)
+- **Framework**: Express.js
+- **Database**: SQLite 3
+- **ORM**: Prisma Client
+- **Caching**: Redis (optional)
+- **Testing**: Jest
+- **Validation**: Joi + TypeScript
 
-### Logging
-**Technology**: ELK Stack (Elasticsearch, Logstash, Kibana)
-- Centralized logging
-- Log aggregation
-- Search and analysis
-- Alert generation
+### Performance & Monitoring
+- **Cache**: Redis with fallback to memory
+- **Logging**: Custom logger with multiple levels
+- **Metrics**: Performance metrics collection
+- **Health Checks**: Database connectivity monitoring
 
-### Distributed Tracing
-**Technology**: Jaeger
-- Request tracing
-- Performance bottlenecks
-- Service dependencies
-- Error tracking
+## Scalability Considerations
 
-### Health Checks
-- Liveness probes
-- Readiness probes
-- Startup probes
-- Dependency checks
+### Current Architecture Benefits
+- **Simplicity**: Single deployable unit
+- **Performance**: In-process communication, no network overhead
+- **Consistency**: ACID transactions across all operations
+- **Development Speed**: Simplified testing and debugging
 
-## Disaster Recovery
+### Performance Optimizations
+- **Database**: Comprehensive indexing strategy
+- **Caching**: Multi-layer caching (Redis + in-memory)
+- **Queries**: Optimized Prisma queries with includes/selects
+- **Connection Pooling**: Efficient database connections
 
-### Backup Strategy
-- Automated daily backups
-- Point-in-time recovery
-- Cross-region replication
-- Backup testing
-- 30-day retention
-
-### High Availability
-- Multi-AZ deployment
-- Failover mechanisms
-- Load balancing
-- Health monitoring
-- Auto-recovery
-
-### Business Continuity
-- RTO: 1 hour
-- RPO: 15 minutes
-- Incident response plan
-- Communication protocols
-- Regular drills
+### Future Scaling Options
+- **Horizontal**: Load balancer + multiple app instances
+- **Database**: Read replicas or sharding when needed
+- **Microservices**: Can extract services when domain complexity grows
+- **Caching**: CDN for static assets, distributed caching
 
 ## Development Practices
 
 ### Code Organization
-```
-src/
-├── services/
-│   ├── auth/
-│   ├── parking/
-│   ├── payment/
-│   └── ...
-├── shared/
-│   ├── utils/
-│   ├── middleware/
-│   └── constants/
-├── database/
-│   ├── migrations/
-│   ├── seeds/
-│   └── models/
-└── tests/
-    ├── unit/
-    ├── integration/
-    └── e2e/
-```
+```typescript
+// Layered architecture with clear separation
+Controllers → Services → Repositories → Database
 
-### API Design Principles
-- RESTful conventions
-- Consistent naming
-- Versioning strategy
-- Error handling
-- Documentation
+// TypeScript interfaces for type safety
+interface Vehicle {
+  id: string;
+  licensePlate: string;
+  vehicleType: VehicleType;
+  // ... rest of properties
+}
+
+// Comprehensive error handling
+try {
+  const result = await service.operation();
+  return res.json(result);
+} catch (error) {
+  next(error); // Handled by error middleware
+}
+```
 
 ### Testing Strategy
-- Unit tests (>80% coverage)
-- Integration tests
-- End-to-end tests
-- Load testing
-- Security testing
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: API endpoint testing
+- **Database Tests**: Repository and Prisma operations
+- **Performance Tests**: Load and stress testing
+- **Coverage**: Comprehensive test coverage tracking
 
-## Future Considerations
+### API Design
+- **RESTful**: Standard HTTP methods and status codes
+- **Consistent**: Uniform response formats
+- **Validated**: Input validation on all endpoints
+- **Documented**: TypeScript interfaces serve as documentation
 
-### Planned Enhancements
-- GraphQL API layer
-- WebSocket for real-time updates
-- Machine learning for predictions
-- Blockchain for payments
-- IoT edge computing
+## Deployment Architecture
 
-### Scalability Roadmap
-- Global distribution
-- Multi-region deployment
-- Edge caching
-- Database sharding
-- Event sourcing
+### Single Application Deployment
+```yaml
+Application Structure:
+- Single Node.js process
+- SQLite database file
+- Optional Redis container
+- Static asset serving
+- PM2 process management
+
+Environment:
+- Development: Local SQLite + optional Redis
+- Staging: SQLite + Redis
+- Production: SQLite + Redis + monitoring
+```
+
+### Infrastructure Requirements
+- **Server**: Node.js runtime environment
+- **Database**: SQLite file storage
+- **Cache**: Redis instance (optional)
+- **Process Manager**: PM2 or similar
+- **Reverse Proxy**: Nginx (for production)
+
+## Monitoring & Maintenance
+
+### Health Monitoring
+- **Database**: Connection health, query performance
+- **Cache**: Redis connectivity and performance
+- **Application**: Memory usage, CPU utilization
+- **API**: Response times, error rates
+
+### Backup Strategy
+- **SQLite**: File-based backup with versioning
+- **Configuration**: Version-controlled settings
+- **Logs**: Centralized log aggregation
+- **Monitoring**: Performance metrics retention
 
 ---
 
 *For implementation details, see [Development Guide](Development-Guide.md)*
 *For deployment procedures, see [Deployment Guide](Deployment-Guide.md)*
+*For performance optimization, see [Performance Guide](Performance-Guide.md)*
