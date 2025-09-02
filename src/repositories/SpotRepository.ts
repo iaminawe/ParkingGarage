@@ -646,7 +646,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
   /**
    * Override findAll to handle ParkingSpot specific logic (no soft deletes)
    */
-  async findAll(
+  override async findAll(
     options?: QueryOptions,
     tx?: any
   ): Promise<PaginatedResult<ParkingSpot>> {
@@ -679,14 +679,12 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
 
       return {
         data,
-        meta: {
-          totalCount,
-          totalPages,
-          currentPage,
-          pageSize: take,
-          hasNextPage: currentPage < totalPages,
-          hasPreviousPage: currentPage > 1,
-        },
+        totalCount,
+        hasNextPage: currentPage < totalPages,
+        hasPrevPage: currentPage > 1,
+        currentPage,
+        totalPages,
+        pageSize: take
       };
     }, 'find all parking spots');
   }

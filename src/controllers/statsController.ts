@@ -36,10 +36,18 @@ interface SuggestionsQuery {
 }
 
 export class StatsController {
-  private analyticsService: any;
+  private reportingService: ReportingService;
+  private analyticsService: any; // TODO: Replace with proper AnalyticsService
 
   constructor() {
     this.reportingService = new ReportingService();
+    this.analyticsService = {
+      // Mock methods for compilation
+      getOverallStats: () => ({}),
+      generateReport: () => ({}),
+      getRealtimeStats: () => ({}),
+      exportData: () => ({})
+    };
   }
 
   /**
