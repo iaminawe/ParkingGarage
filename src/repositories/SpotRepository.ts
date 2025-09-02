@@ -52,12 +52,15 @@ interface SpotSearchCriteria {
  */
 export class SpotRepository extends PrismaAdapter<ParkingSpot, SpotCreateData, SpotUpdateData> {
   protected model: PrismaClient['parkingSpot'];
+  protected readonly modelName = 'parkingSpot';
+  protected readonly delegate: PrismaClient['parkingSpot'];
 
   constructor(databaseService?: DatabaseService) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prisma = dbService.getPrismaClient();
     super(prisma);
     this.model = prisma.parkingSpot;
+    this.delegate = prisma.parkingSpot;
   }
 
   /**

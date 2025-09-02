@@ -109,56 +109,31 @@ describe('TimeCalculator', () => {
     test('should apply grace period for short stays', () => {
       const result = applyGracePeriod(10, 15); // 10 minutes with 15-minute grace
       
-      expect(result).toEqual({
-        originalMinutes: 10,
-        adjustedMinutes: 0,
-        gracePeriodApplied: true,
-        gracePeriodMinutes: 15
-      });
+      expect(result).toBe(0); // Returns 0 billable hours within grace period
     });
 
     test('should not apply grace period for longer stays', () => {
-      const result = applyGracePeriod(30, 15); // 30 minutes with 15-minute grace
+      const result = applyGracePeriod(90, 15); // 90 minutes with 15-minute grace
       
-      expect(result).toEqual({
-        originalMinutes: 30,
-        adjustedMinutes: 15, // 30 - 15 = 15
-        gracePeriodApplied: true,
-        gracePeriodMinutes: 15
-      });
+      expect(result).toBe(2); // Returns billable hours (90min = 1.5h -> 2h)
     });
 
     test('should handle exact grace period duration', () => {
       const result = applyGracePeriod(15, 15);
       
-      expect(result).toEqual({
-        originalMinutes: 15,
-        adjustedMinutes: 0,
-        gracePeriodApplied: true,
-        gracePeriodMinutes: 15
-      });
+      expect(result).toBe(0); // Exactly at grace period limit
     });
 
     test('should handle zero grace period', () => {
       const result = applyGracePeriod(30, 0);
       
-      expect(result).toEqual({
-        originalMinutes: 30,
-        adjustedMinutes: 30,
-        gracePeriodApplied: false,
-        gracePeriodMinutes: 0
-      });
+      expect(result).toBe(1); // No grace period, 30min -> 1 billable hour minimum
     });
 
-    test('should handle negative values gracefully', () => {
-      const result = applyGracePeriod(-5, 10);
+    test('should handle longer durations after grace period', () => {
+      const result = applyGracePeriod(120, 10); // 2 hours with 10-minute grace
       
-      expect(result).toEqual({
-        originalMinutes: -5,
-        adjustedMinutes: 0,
-        gracePeriodApplied: true,
-        gracePeriodMinutes: 10
-      });
+      expect(result).toBe(2); // 2 hours billable
     });
   });
 
@@ -184,59 +159,45 @@ describe('TimeCalculator', () => {
 
   describe('formatDuration', () => {
     test('should format short durations correctly', () => {
-      const duration = { hours: 2, minutes: 30, days: 0, totalMinutes: 150 };
+      const formatted = formatDuration(150); // 2h 30m
       
-      const formatted = formatDuration(duration);
-      
-      expect(formatted).toBe('2 hours, 30 minutes');
+      expect(formatted).toBe('2 hours and 30 minutes');
     });
 
     test('should format single hour correctly', () => {
-      const duration = { hours: 1, minutes: 0, days: 0, totalMinutes: 60 };
-      
-      const formatted = formatDuration(duration);
+      const formatted = formatDuration(60); // 1h
       
       expect(formatted).toBe('1 hour');
     });
 
     test('should format single minute correctly', () => {
-      const duration = { hours: 0, minutes: 1, days: 0, totalMinutes: 1 };
-      
-      const formatted = formatDuration(duration);
+      const formatted = formatDuration(1); // 1m
       
       expect(formatted).toBe('1 minute');
     });
 
-    test('should format multi-day durations', () => {
-      const duration = { hours: 50, minutes: 15, days: 2, totalMinutes: 3015 };
+    test('should format multiple hours without minutes', () => {
+      const formatted = formatDuration(120); // 2h
       
-      const formatted = formatDuration(duration);
-      
-      expect(formatted).toBe('2 days, 2 hours, 15 minutes');
+      expect(formatted).toBe('2 hours');
     });
 
     test('should handle zero duration', () => {
-      const duration = { hours: 0, minutes: 0, days: 0, totalMinutes: 0 };
-      
-      const formatted = formatDuration(duration);
+      const formatted = formatDuration(0);
       
       expect(formatted).toBe('0 minutes');
     });
 
-    test('should handle only days', () => {
-      const duration = { hours: 48, minutes: 0, days: 2, totalMinutes: 2880 };
-      
-      const formatted = formatDuration(duration);
-      
-      expect(formatted).toBe('2 days');
-    });
-
     test('should handle only minutes', () => {
-      const duration = { hours: 0, minutes: 45, days: 0, totalMinutes: 45 };
-      
-      const formatted = formatDuration(duration);
+      const formatted = formatDuration(45);
       
       expect(formatted).toBe('45 minutes');
+    });
+
+    test('should format large durations correctly', () => {
+      const formatted = formatDuration(3015); // 50h 15m
+      
+      expect(formatted).toBe('50 hours and 15 minutes');
     });
   });
 

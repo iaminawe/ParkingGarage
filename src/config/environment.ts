@@ -194,6 +194,11 @@ export class EnvironmentValidator {
       LOG_LEVEL: 'info',
       RATE_LIMIT_WINDOW_MS: 900000,
       RATE_LIMIT_MAX_REQUESTS: 100,
+      EMAIL_PROVIDER: 'smtp',
+      FRONTEND_URL: 'http://localhost:3000',
+      API_URL: 'http://localhost:3001',
+      EMAIL_RATE_LIMIT_PER_HOUR: 100,
+      EMAIL_RATE_LIMIT_PER_RECIPIENT_HOUR: 5,
       ENABLE_METRICS: false,
     };
   }

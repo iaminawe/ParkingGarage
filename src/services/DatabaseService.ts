@@ -211,6 +211,13 @@ export class DatabaseService implements IConnectionManager {
   }
 
   /**
+   * Alias for getClient() for backward compatibility
+   */
+  getPrismaClient(): PrismaClient {
+    return this.getClient();
+  }
+
+  /**
    * Execute database operation with error handling and retry logic
    */
   async executeWithRetry<T>(

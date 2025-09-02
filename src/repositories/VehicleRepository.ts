@@ -67,12 +67,15 @@ interface VehicleSearchCriteria {
  */
 export class VehicleRepository extends PrismaAdapter<Vehicle, VehicleCreateData, VehicleUpdateData> {
   protected model: PrismaClient['vehicle'];
+  protected readonly modelName = 'vehicle';
+  protected readonly delegate: PrismaClient['vehicle'];
 
   constructor(databaseService?: DatabaseService) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prisma = dbService.getPrismaClient();
     super(prisma);
     this.model = prisma.vehicle;
+    this.delegate = prisma.vehicle;
   }
 
   /**

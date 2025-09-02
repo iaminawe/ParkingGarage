@@ -56,12 +56,15 @@ interface SessionSearchCriteria {
  */
 export class SessionRepository extends PrismaAdapter<ParkingSession, SessionCreateData, SessionUpdateData> {
   protected model: PrismaClient['parkingSession'];
+  protected readonly modelName = 'parkingSession';
+  protected readonly delegate: PrismaClient['parkingSession'];
 
   constructor(databaseService?: DatabaseService) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prisma = dbService.getPrismaClient();
     super(prisma);
     this.model = prisma.parkingSession;
+    this.delegate = prisma.parkingSession;
   }
 
   /**

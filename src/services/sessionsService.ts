@@ -7,9 +7,9 @@
  * @module SessionsService
  */
 
-import { SessionsRepository } from '../repositories/sessionsRepository';
+import { SessionRepository } from '../repositories/SessionRepository';
 import { VehicleRepository } from '../repositories/VehicleRepository';
-import { SpotRepository } from '../repositories/spotRepository';
+import { SpotRepository } from '../repositories/SpotRepository';
 import { ParkingSession, PaginatedResponse, Vehicle, ParkingSpot } from '../types/api';
 
 export interface SessionFilters {
