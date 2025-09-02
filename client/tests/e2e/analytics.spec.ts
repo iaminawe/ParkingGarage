@@ -188,7 +188,7 @@ test.describe('Analytics Page E2E Tests', () => {
       await garageSelect.selectOption(['1'])
       
       // Verify selection by checking the select element's value
-      await expect(garageSelect).toHaveValue(['1'])
+      await expect(garageSelect).toHaveValue('1')
     })
   })
 

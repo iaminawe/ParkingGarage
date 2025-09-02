@@ -8,7 +8,7 @@
  * @module SpotRepository
  */
 
-import { MemoryStore } from '../storage/memoryStore';
+import MemoryStore = require('../storage/memoryStore');
 import { 
   SpotData, 
   SpotRecord, 

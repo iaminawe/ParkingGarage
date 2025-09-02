@@ -7,7 +7,7 @@
  * @module SessionsRepository
  */
 
-import { MemoryStore } from '../storage/memoryStore';
+import MemoryStore = require('../storage/memoryStore');
 import { ParkingSession } from '../types/api';
 
 export interface StoredSession {

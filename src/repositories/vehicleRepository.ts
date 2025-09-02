@@ -8,7 +8,7 @@
  * @module VehicleRepository
  */
 
-import { MemoryStore } from '../storage/memoryStore';
+import MemoryStore = require('../storage/memoryStore');
 import { 
   VehicleData, 
   VehicleRecord, 
