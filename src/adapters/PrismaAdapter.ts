@@ -145,8 +145,8 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async create(data: CreateData, tx?: Prisma.TransactionClient): Promise<T> {
     return this.executeWithRetry(async () => {
-      const client = tx || this.prisma;
-      const result = await client[this.modelName].create({
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const result = await delegate.create({
         data: this.addAuditFields(data, 'create')
       });
       
@@ -567,7 +567,244 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     if (options.include) queryOptions.include = options.include;
     if (options.select) queryOptions.select = options.select;
     
+    // Add support for distinct
+    if (options.distinct) queryOptions.distinct = options.distinct;
+    
     return queryOptions;
+  }
+
+  /**
+   * Find records with relations (complex queries)
+   * @param filter - Filter criteria
+   * @param include - Relations to include
+   * @param options - Query options
+   * @param tx - Optional transaction client
+   * @returns Array of records with relations
+   */
+  async findWithRelations(
+    filter: Record<string, unknown>,
+    include: Record<string, boolean | Record<string, unknown>>,
+    options?: QueryOptions,
+    tx?: Prisma.TransactionClient
+  ): Promise<T[]> {
+    return this.executeWithRetry(async () => {
+      const client = tx || this.prisma;
+      const where = {
+        ...filter,
+        deletedAt: null
+      };
+
+      const result = await client[this.modelName].findMany({
+        where,
+        include,
+        ...this.buildQueryOptions(options)
+      });
+      
+      this.logger.debug(`Found ${this.modelName} with relations`, {
+        count: result.length,
+        filter,
+        include,
+        model: this.modelName
+      });
+      
+      return result as T[];
+    }, `find ${this.modelName} with relations`);
+  }
+
+  /**
+   * Perform aggregation queries (sum, avg, count, min, max)
+   * @param aggregations - Aggregation operations
+   * @param filter - Filter criteria
+   * @param tx - Optional transaction client
+   * @returns Aggregation results
+   */
+  async aggregate(
+    aggregations: Record<string, any>,
+    filter?: Record<string, unknown>,
+    tx?: Prisma.TransactionClient
+  ): Promise<any> {
+    return this.executeWithRetry(async () => {
+      const client = tx || this.prisma;
+      const where = {
+        ...filter,
+        deletedAt: null
+      };
+
+      const result = await client[this.modelName].aggregate({
+        where,
+        ...aggregations
+      });
+      
+      this.logger.debug(`Aggregated ${this.modelName}`, {
+        aggregations,
+        filter,
+        result,
+        model: this.modelName
+      });
+      
+      return result;
+    }, `aggregate ${this.modelName}`);
+  }
+
+  /**
+   * Find records with cursor-based pagination
+   * @param cursor - Cursor for pagination
+   * @param take - Number of records to take
+   * @param filter - Filter criteria
+   * @param options - Query options
+   * @param tx - Optional transaction client
+   * @returns Paginated results with cursor info
+   */
+  async findWithCursor(
+    cursor: Record<string, unknown> | null,
+    take: number = 10,
+    filter?: Record<string, unknown>,
+    options?: QueryOptions,
+    tx?: Prisma.TransactionClient
+  ): Promise<{ data: T[]; nextCursor: Record<string, unknown> | null; hasNextPage: boolean }> {
+    return this.executeWithRetry(async () => {
+      const client = tx || this.prisma;
+      const where = {
+        ...filter,
+        deletedAt: null
+      };
+
+      const queryOptions: any = {
+        where,
+        take: take + 1, // Take one extra to check if there's a next page
+        ...this.buildQueryOptions(options)
+      };
+
+      if (cursor) {
+        queryOptions.cursor = cursor;
+        queryOptions.skip = 1; // Skip the cursor record
+      }
+
+      const result = await client[this.modelName].findMany(queryOptions);
+      
+      const hasNextPage = result.length > take;
+      const data = hasNextPage ? result.slice(0, take) : result;
+      const nextCursor = hasNextPage ? { id: result[take].id } : null;
+      
+      this.logger.debug(`Found ${this.modelName} with cursor pagination`, {
+        take,
+        hasNextPage,
+        dataCount: data.length,
+        filter,
+        model: this.modelName
+      });
+      
+      return {
+        data: data as T[],
+        nextCursor,
+        hasNextPage
+      };
+    }, `find ${this.modelName} with cursor`);
+  }
+
+  /**
+   * Upsert record (update if exists, create if not)
+   * @param where - Unique identifier
+   * @param create - Data for creation
+   * @param update - Data for update
+   * @param tx - Optional transaction client
+   * @returns Upserted record
+   */
+  async upsert(
+    where: Record<string, unknown>,
+    create: CreateData,
+    update: UpdateData,
+    tx?: Prisma.TransactionClient
+  ): Promise<T> {
+    return this.executeWithRetry(async () => {
+      const client = tx || this.prisma;
+      const result = await client[this.modelName].upsert({
+        where,
+        create: this.addAuditFields(create, 'create'),
+        update: this.addAuditFields(update, 'update')
+      });
+      
+      this.logger.info(`Upserted ${this.modelName}`, {
+        where,
+        id: result.id,
+        model: this.modelName
+      });
+      
+      return result as T;
+    }, `upsert ${this.modelName}`);
+  }
+
+  /**
+   * Soft delete many records by filter
+   * @param filter - Filter criteria for records to soft delete
+   * @param tx - Optional transaction client
+   * @returns Batch payload with count
+   */
+  async softDeleteMany(
+    filter: Record<string, unknown>,
+    tx?: Prisma.TransactionClient
+  ): Promise<Prisma.BatchPayload> {
+    return this.executeWithRetry(async () => {
+      const client = tx || this.prisma;
+      const where = {
+        ...filter,
+        deletedAt: null // Only soft-delete non-deleted records
+      };
+
+      const result = await client[this.modelName].updateMany({
+        where,
+        data: {
+          deletedAt: new Date(),
+          updatedAt: new Date()
+        }
+      });
+      
+      this.logger.info(`Bulk soft deleted ${this.modelName}`, {
+        count: result.count,
+        filter,
+        model: this.modelName
+      });
+      
+      return result;
+    }, `soft delete many ${this.modelName}`);
+  }
+
+  /**
+   * Group records by specified fields
+   * @param by - Fields to group by
+   * @param filter - Filter criteria
+   * @param aggregations - Aggregation operations
+   * @param tx - Optional transaction client
+   * @returns Grouped results
+   */
+  async groupBy(
+    by: string[],
+    filter?: Record<string, unknown>,
+    aggregations?: Record<string, any>,
+    tx?: Prisma.TransactionClient
+  ): Promise<any[]> {
+    return this.executeWithRetry(async () => {
+      const client = tx || this.prisma;
+      const where = {
+        ...filter,
+        deletedAt: null
+      };
+
+      const result = await client[this.modelName].groupBy({
+        by,
+        where,
+        ...aggregations
+      });
+      
+      this.logger.debug(`Grouped ${this.modelName}`, {
+        by,
+        filter,
+        resultCount: result.length,
+        model: this.modelName
+      });
+      
+      return result;
+    }, `group by ${this.modelName}`);
   }
 
   /**

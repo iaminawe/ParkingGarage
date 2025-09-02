@@ -31,6 +31,8 @@ export interface SortOptions {
 export interface QueryOptions extends PaginationOptions, SortOptions {
   include?: Record<string, boolean | Record<string, unknown>>;
   select?: Record<string, boolean>;
+  distinct?: string[];
+  where?: Record<string, unknown>;
 }
 
 /**
