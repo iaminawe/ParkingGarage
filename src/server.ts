@@ -1,5 +1,13 @@
-import app from './app';
 import { Server } from 'http';
+import dotenv from 'dotenv';
+
+// Load environment variables first
+dotenv.config();
+
+import { DatabaseService } from './services/DatabaseService';
+
+// Initialize database service before any imports that might use it
+const dbService = DatabaseService.getInstance();
 
 // Use require for seedData as it may not be fully TypeScript migrated yet
 const seedData = require('./utils/seedData');
@@ -13,6 +21,13 @@ const HOST: string = process.env.HOST || '0.0.0.0';
  */
 async function startServer(): Promise<Server> {
   try {
+    // Initialize database service first with simplified configuration
+    await dbService.initialize();
+    console.log('✅ Database service initialized');
+    
+    // Now we can safely import app after database is ready
+    const app = (await import('./app')).default;
+    
     // Initialize seed data in development/test environments
     if (process.env.NODE_ENV !== 'production') {
       await seedData.initialize();

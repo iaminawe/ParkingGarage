@@ -58,7 +58,6 @@
   "license": "MIT",
   "dependencies": {
     "@playwright/test": "^1.55.0",
-    "@prisma/client": "^6.15.0",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@sentry/node": "^10.8.0",
@@ -100,7 +99,7 @@
     "@babel/preset-typescript": "^7.27.1",
     "@eslint/js": "^8.45.0",
     "@faker-js/faker": "^8.4.1",
-    "@prisma/client": "^5.20.0",
+    "@prisma/client": "^6.15.0",
     "@stryker-mutator/core": "^9.1.1",
     "@stryker-mutator/html-reporter": "^3.1.0",
     "@stryker-mutator/jest-runner": "^9.1.1",

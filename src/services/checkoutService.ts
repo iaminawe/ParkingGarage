@@ -9,7 +9,7 @@
  */
 
 import { VehicleRepository } from '../repositories/VehicleRepository';
-import { SpotRepository } from '../repositories/spotRepository';
+import { SpotRepository } from '../repositories/SpotRepository';
 import { SessionRepository } from '../repositories/SessionRepository';
 const BillingService = require('./billingService');
 

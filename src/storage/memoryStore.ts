@@ -56,7 +56,7 @@ export class MemoryStore {
   private constructor() {
     this.spots = new Map<string, SpotRecord>();
     this.vehicles = new Map<string, VehicleRecord>();
-    this.garageConfig = new Map<string, GarageRecord>();
+    this.garageConfig = new Map<string, Garage>();
     this.spotsByFloorBay = new Map<string, Set<string>>();
     this.occupiedSpots = new Set<string>();
   }

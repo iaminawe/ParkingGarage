@@ -85,7 +85,7 @@ router.get(
 router.get(
   '/:id',
   validateSessionId,
-  async (req: Request<{ id: any }>, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     await sessionsController.getSessionById(req, res);
   }
 );
@@ -103,7 +103,7 @@ router.post(
   validateSessionId,
   sanitizeSessionRequest,
   validateEndSessionRequest,
-  async (req: Request<{ id: any }>, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     await sessionsController.endSession(req, res);
   }
 );
@@ -121,7 +121,7 @@ router.post(
   validateSessionId,
   sanitizeSessionRequest,
   validateCancelSessionRequest,
-  async (req: Request<{ id: any }>, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     await sessionsController.cancelSession(req, res);
   }
 );
@@ -140,7 +140,7 @@ router.post(
   sanitizeSessionRequest,
   validateSessionRequestBody,
   validateExtendSessionRequest,
-  async (req: Request<{ id: any }>, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
     await sessionsController.extendSession(req, res);
   }
 );

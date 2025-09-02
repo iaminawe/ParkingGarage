@@ -9,9 +9,9 @@
  */
 
 import { VehicleRepository } from '../repositories/VehicleRepository';
-import { SpotRepository } from '../repositories/spotRepository';
+import { SpotRepository } from '../repositories/SpotRepository';
 import { SessionRepository } from '../repositories/SessionRepository';
-const SpotAssignmentService = require('./spotAssignmentService');
+import { SpotService } from './spotService';
 
 interface CheckinOptions {
   rateType?: any;
@@ -38,13 +38,13 @@ export class CheckinService {
   private vehicleRepository: VehicleRepository;
   private spotRepository: SpotRepository;
   private sessionsRepository: SessionRepository;
-  private spotAssignmentService: any;
+  private spotService: any;
 
   constructor() {
     this.vehicleRepository = new VehicleRepository();
     this.spotRepository = new SpotRepository();
     this.sessionsRepository = new SessionRepository();
-    this.spotAssignmentService = new SpotAssignmentService();
+    this.spotService = new SpotService();
   }
 
   /**
@@ -111,7 +111,7 @@ export class CheckinService {
       await this.checkForDuplicateVehicle(licensePlate);
 
       // Find available spot without reserving
-      const availableSpot = await this.spotAssignmentService.findBestSpot(vehicleType);
+      const availableSpot = await this.spotService.findBestSpot(vehicleType);
 
       if (!availableSpot) {
         throw new Error(`No available spots for vehicle type: ${vehicleType}`);
@@ -217,7 +217,7 @@ export class CheckinService {
 
   private async findAndReserveSpot(vehicleType: any): Promise<any> {
     try {
-      const assignedSpot = await this.spotAssignmentService.findBestSpot(vehicleType);
+      const assignedSpot = await this.spotService.findBestSpot(vehicleType);
 
       if (!assignedSpot) {
         const stats = await this.spotRepository.getAvailabilityStats();

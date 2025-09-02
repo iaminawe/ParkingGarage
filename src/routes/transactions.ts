@@ -58,7 +58,8 @@ router.get(
   authenticate,
   managerOrAdmin,
   transactionOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
       const {
         page = '1',
@@ -76,9 +77,9 @@ router.get(
         minAmount,
         maxAmount,
         description,
-      } = req.query;
+      } = authReq.query;
 
-      const currentUser = req.user;
+      const currentUser = authReq.user;
 
       // Build filters
       const filters: TransactionFilters = {};
@@ -131,7 +132,7 @@ router.get(
 
       logger.info('Transactions list retrieved successfully', {
         count: result.data?.data.length,
-        totalItems: result.data?.totalCount,
+        totalItems: result.data?.totalItems,
         page: parseInt(page as string),
         userId: currentUser.id,
       });
@@ -157,12 +158,13 @@ router.get(
   authenticate,
   managerOrAdmin,
   transactionOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const currentUser = authReq.user;
 
-      const result = await transactionService.getTransactionById(id);
+      const result = await transactionService.getTransactionById(id!);
 
       if (!result.success) {
         const statusCode =
@@ -181,7 +183,7 @@ router.get(
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to retrieve transaction', error as Error, {
-        transactionId: req.params.id,
+        transactionId: authReq.params.id,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -201,10 +203,11 @@ router.post(
   authenticate,
   managerOrAdmin,
   sensitiveTransactionLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const transactionData: CreateTransactionRequest = req.body;
-      const currentUser = req.user;
+      const transactionData: CreateTransactionRequest = authReq.body;
+      const currentUser = authReq.user;
 
       // Input validation
       if (!transactionData.garageId) {
@@ -267,11 +270,12 @@ router.put(
   authenticate,
   managerOrAdmin,
   sensitiveTransactionLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const { status } = req.body;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const { status } = authReq.body;
+      const currentUser = authReq.user;
 
       // Input validation
       if (!status) {
@@ -292,7 +296,7 @@ router.put(
         return;
       }
 
-      const result = await transactionService.updateTransactionStatus(id, status);
+      const result = await transactionService.updateTransactionStatus(id!, status);
 
       if (!result.success) {
         const statusCode =
@@ -312,7 +316,7 @@ router.put(
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to update transaction status', error as Error, {
-        transactionId: req.params.id,
+        transactionId: authReq.params.id,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -332,13 +336,14 @@ router.put(
   authenticate,
   managerOrAdmin,
   sensitiveTransactionLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const processData: ProcessTransactionRequest = req.body;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const processData: ProcessTransactionRequest = authReq.body;
+      const currentUser = authReq.user;
 
-      const result = await transactionService.processTransaction(id, processData);
+      const result = await transactionService.processTransaction(id!, processData);
 
       if (!result.success) {
         const statusCode =
@@ -358,7 +363,7 @@ router.put(
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to process transaction', error as Error, {
-        transactionId: req.params.id,
+        transactionId: authReq.params.id,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -378,11 +383,12 @@ router.put(
   authenticate,
   managerOrAdmin,
   sensitiveTransactionLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const { reason } = req.body;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const { reason } = authReq.body;
+      const currentUser = authReq.user;
 
       if (!reason || reason.trim().length === 0) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -392,7 +398,7 @@ router.put(
         return;
       }
 
-      const result = await transactionService.failTransaction(id, reason);
+      const result = await transactionService.failTransaction(id!, reason);
 
       if (!result.success) {
         const statusCode =
@@ -411,7 +417,7 @@ router.put(
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
-      logger.error('Failed to fail transaction', error as Error, { transactionId: req.params.id });
+      logger.error('Failed to fail transaction', error as Error, { transactionId: authReq.params.id });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
@@ -430,11 +436,12 @@ router.put(
   authenticate,
   authorize([USER_ROLES.ADMIN]),
   sensitiveTransactionLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const { reason } = req.body;
-      const currentUser = req.user;
+      const { id } = authReq.params;
+      const { reason } = authReq.body;
+      const currentUser = authReq.user;
 
       if (!reason || reason.trim().length === 0) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -444,7 +451,7 @@ router.put(
         return;
       }
 
-      const result = await transactionService.cancelTransaction(id, reason);
+      const result = await transactionService.cancelTransaction(id!, reason);
 
       if (!result.success) {
         const statusCode =
@@ -464,7 +471,7 @@ router.put(
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to cancel transaction', error as Error, {
-        transactionId: req.params.id,
+        transactionId: authReq.params.id,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -484,11 +491,12 @@ router.get(
   authenticate,
   managerOrAdmin,
   transactionOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { garageId } = req.params;
+      const { garageId } = authReq.params;
       const { page = '1', limit = '20' } = req.query;
-      const currentUser = req.user;
+      const currentUser = authReq.user;
 
       const result = await transactionService.getTransactionsByGarage(
         garageId,
@@ -504,7 +512,7 @@ router.get(
       logger.info('Garage transactions retrieved successfully', {
         garageId,
         count: result.data?.data.length,
-        totalItems: result.data?.totalCount,
+        totalItems: result.data?.totalItems,
         requestedBy: currentUser.id,
       });
 
@@ -531,11 +539,12 @@ router.get(
   authenticate,
   managerOrAdmin,
   transactionOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
       const { status } = req.params;
       const { page = '1', limit = '20' } = req.query;
-      const currentUser = req.user;
+      const currentUser = authReq.user;
 
       // Validate status
       const validStatuses = ['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'];
@@ -561,7 +570,7 @@ router.get(
       logger.info('Status transactions retrieved successfully', {
         status,
         count: result.data?.data.length,
-        totalItems: result.data?.totalCount,
+        totalItems: result.data?.totalItems,
         requestedBy: currentUser.id,
       });
 

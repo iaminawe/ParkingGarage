@@ -9,7 +9,7 @@
  */
 
 import { GarageRepository } from '../repositories/garageRepository';
-import { SpotRepository } from '../repositories/spotRepository';
+import { SpotRepository } from '../repositories/SpotRepository';
 import {
   GarageConfig,
   FloorConfig,

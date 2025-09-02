@@ -320,7 +320,7 @@ router.put('/:id/process', authenticate, managerOrAdmin, sensitivePaymentLimiter
       return;
     }
 
-    const payment = await paymentRepository.processPayment(id, transactionId, gatewayResponse);
+    const payment = await paymentRepository.processPayment(id!, transactionId, gatewayResponse);
 
     logger.info('Payment processed successfully', {
       paymentId: id,
@@ -385,7 +385,7 @@ router.post(
         return;
       }
 
-      const payment = await paymentRepository.refundPayment(id, refundAmount, refundReason);
+      const payment = await paymentRepository.refundPayment(id!, refundAmount, refundReason);
 
       logger.info('Payment refunded successfully', {
         paymentId: id,
@@ -507,7 +507,7 @@ router.get(
         orderBy: { paymentDate: 'desc' as const },
       };
 
-      const payments = await paymentRepository.findByLicensePlate(licensePlate, options);
+      const payments = await paymentRepository.findByLicensePlate(licensePlate!, options);
       const totalItems = payments.length; // Simplified pagination
       const totalPages = Math.ceil(totalItems / parseInt(limit as string));
 
@@ -563,7 +563,7 @@ router.get('/session/:sessionId', authenticate, paymentOperationsLimiter, (async
       orderBy: { paymentDate: 'desc' as const },
     };
 
-    const payments = await paymentRepository.findBySessionId(sessionId, options);
+    const payments = await paymentRepository.findBySessionId(sessionId!, options);
 
     // Check if user can access these payments
     const canAccess =
@@ -633,7 +633,7 @@ router.put('/:id/fail', authenticate, managerOrAdmin, sensitivePaymentLimiter, (
       return;
     }
 
-    const payment = await paymentRepository.failPayment(id, reason);
+    const payment = await paymentRepository.failPayment(id!, reason);
 
     logger.info('Payment failed', {
       paymentId: id,

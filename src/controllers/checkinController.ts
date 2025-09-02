@@ -10,7 +10,7 @@
 
 import { Request, Response } from 'express';
 import { CheckinService } from '../services/checkinService';
-const SpotAssignmentService = require('../services/spotAssignmentService');
+import { SpotService } from '../services/spotService';
 import { CheckInRequest, CheckInResponse, ApiResponse } from '../types/api';
 import { VehicleType } from '../types/models';
 
@@ -19,11 +19,11 @@ import { VehicleType } from '../types/models';
  */
 export class CheckinController {
   private checkinService: any;
-  private spotAssignmentService: any;
+  private spotService: any;
 
   constructor() {
     this.checkinService = new CheckinService();
-    this.spotAssignmentService = new SpotAssignmentService();
+    this.spotService = new SpotService();
   }
 
   /**

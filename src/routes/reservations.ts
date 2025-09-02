@@ -10,12 +10,13 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { User } from '@prisma/client';
-import ReservationService, {
+import {
+  ReservationService,
   CreateReservationRequest,
   UpdateReservationRequest,
   ReservationFilters,
   AvailabilityRequest,
-} from '../services/ReservationService';
+} from '../services/reservationService';
 import { authenticate, authorize, managerOrAdmin, AuthRequest } from '../middleware/auth';
 import { HTTP_STATUS, API_RESPONSES, RATE_LIMITS, USER_ROLES } from '../config/constants';
 import { createLogger } from '../utils/logger';
@@ -60,6 +61,7 @@ router.get(
   authenticate,
   reservationOperationsLimiter,
   async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
       const {
         page = '1',
@@ -79,9 +81,9 @@ router.get(
         spotType,
         createdAfter,
         createdBefore,
-      } = req.query;
+      } = authReq.query;
 
-      const currentUser = req.user as User;
+      const currentUser = authReq.user;
 
       // Build filters
       const filters: ReservationFilters = {};
@@ -146,7 +148,7 @@ router.get(
 
       logger.info('Reservations list retrieved successfully', {
         count: result.data?.data.length,
-        totalItems: result.data?.totalCount,
+        totalItems: result.data?.totalItems,
         page: parseInt(page as string),
         userId: currentUser.id,
       });
@@ -171,10 +173,11 @@ router.get(
   '/:id',
   authenticate,
   reservationOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const currentUser = req.user as User;
+      const { id } = authReq.params;
+      const currentUser = authReq.user;
 
       const result = await reservationService.getReservationById(id);
 
@@ -208,7 +211,7 @@ router.get(
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to retrieve reservation', error as Error, {
-        reservationId: req.params.id,
+        reservationId: authReq.params.id,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -227,10 +230,11 @@ router.post(
   '/',
   authenticate,
   reservationOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const reservationData: CreateReservationRequest = req.body;
-      const currentUser = req.user as User;
+      const reservationData: CreateReservationRequest = authReq.body;
+      const currentUser = authReq.user;
 
       // Input validation
       if (!reservationData.vehicleId || !reservationData.spotId || !reservationData.startTime) {
@@ -303,11 +307,12 @@ router.put(
   '/:id',
   authenticate,
   reservationOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const updateData: UpdateReservationRequest = req.body;
-      const currentUser = req.user as User;
+      const { id } = authReq.params;
+      const updateData: UpdateReservationRequest = authReq.body;
+      const currentUser = authReq.user;
 
       // Check if reservation exists and user has permission
       const existingReservationResult = await reservationService.getReservationById(id);
@@ -372,7 +377,7 @@ router.put(
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to update reservation', error as Error, {
-        reservationId: req.params.id,
+        reservationId: authReq.params.id,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -391,11 +396,12 @@ router.delete(
   '/:id',
   authenticate,
   reservationOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const { reason } = req.body;
-      const currentUser = req.user as User;
+      const { id } = authReq.params;
+      const { reason } = authReq.body;
+      const currentUser = authReq.user;
 
       // Check if reservation exists and user has permission
       const existingReservationResult = await reservationService.getReservationById(id);
@@ -437,7 +443,7 @@ router.delete(
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to cancel reservation', error as Error, {
-        reservationId: req.params.id,
+        reservationId: authReq.params.id,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -457,11 +463,12 @@ router.put(
   authenticate,
   managerOrAdmin,
   reservationOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { id } = req.params;
-      const { endTime } = req.body;
-      const currentUser = req.user as User;
+      const { id } = authReq.params;
+      const { endTime } = authReq.body;
+      const currentUser = authReq.user;
 
       const completionTime = endTime ? new Date(endTime) : new Date();
       const result = await reservationService.completeReservation(id, completionTime);
@@ -485,7 +492,7 @@ router.put(
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to complete reservation', error as Error, {
-        reservationId: req.params.id,
+        reservationId: authReq.params.id,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -505,8 +512,9 @@ router.get(
   authenticate,
   availabilityLimiter,
   async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { startTime, endTime, spotType, floor } = req.query;
+      const { startTime, endTime, spotType, floor } = authReq.query;
 
       // Input validation
       if (!startTime || !endTime) {
@@ -578,11 +586,12 @@ router.get(
   '/vehicle/:vehicleId',
   authenticate,
   reservationOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { vehicleId } = req.params;
-      const { page = '1', limit = '20' } = req.query;
-      const currentUser = req.user as User;
+      const { vehicleId } = authReq.params;
+      const { page = '1', limit = '20' } = authReq.query;
+      const currentUser = authReq.user;
 
       // This would need vehicle ownership validation in a real implementation
       const result = await reservationService.getReservationsByVehicle(
@@ -599,14 +608,14 @@ router.get(
       logger.info('Vehicle reservations retrieved successfully', {
         vehicleId,
         count: result.data?.data.length,
-        totalItems: result.data?.totalCount,
+        totalItems: result.data?.totalItems,
         requestedBy: currentUser.id,
       });
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to retrieve vehicle reservations', error as Error, {
-        vehicleId: req.params.vehicleId,
+        vehicleId: authReq.params.vehicleId,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -626,11 +635,12 @@ router.get(
   authenticate,
   managerOrAdmin,
   reservationOperationsLimiter,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { licensePlate } = req.params;
-      const { page = '1', limit = '20' } = req.query;
-      const currentUser = req.user as User;
+      const { licensePlate } = authReq.params;
+      const { page = '1', limit = '20' } = authReq.query;
+      const currentUser = authReq.user;
 
       const result = await reservationService.getReservationsByLicensePlate(
         licensePlate,
@@ -646,14 +656,14 @@ router.get(
       logger.info('License plate reservations retrieved successfully', {
         licensePlate,
         count: result.data?.data.length,
-        totalItems: result.data?.totalCount,
+        totalItems: result.data?.totalItems,
         requestedBy: currentUser.id,
       });
 
       res.status(HTTP_STATUS.OK).json(result);
     } catch (error) {
       logger.error('Failed to retrieve license plate reservations', error as Error, {
-        licensePlate: req.params.licensePlate,
+        licensePlate: authReq.params.licensePlate,
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -674,8 +684,9 @@ router.get(
   managerOrAdmin,
   reservationOperationsLimiter,
   async (req: Request, res: Response): Promise<void> => {
+    const authReq = req as AuthRequest;
     try {
-      const { startDate, endDate } = req.query;
+      const { startDate, endDate } = authReq.query;
 
       const start = startDate ? new Date(startDate as string) : undefined;
       const end = endDate ? new Date(endDate as string) : undefined;

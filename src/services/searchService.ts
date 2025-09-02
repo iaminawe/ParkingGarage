@@ -9,7 +9,7 @@
  */
 
 import { VehicleRepository } from '../repositories/VehicleRepository';
-import { SpotRepository } from '../repositories/spotRepository';
+import { SpotRepository } from '../repositories/SpotRepository';
 import { searchLicensePlates, validateSearchTerm } from '../utils/stringMatcher';
 import { VehicleType, SpotFeature, VehicleStatus } from '../types/models';
 

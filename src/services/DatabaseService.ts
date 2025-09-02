@@ -83,14 +83,7 @@ export class DatabaseService implements IConnectionManager {
     try {
       this.logger.info('Initializing database service...');
 
-      this.prisma = new PrismaClient({
-        log: this.config.enableLogging ? [{ level: this.config.logLevel, emit: 'event' }] : [],
-        datasources: {
-          db: {
-            url: process.env.DATABASE_URL,
-          },
-        },
-      });
+      this.prisma = new PrismaClient();
 
       // Set up logging if enabled
       if (this.config.enableLogging) {

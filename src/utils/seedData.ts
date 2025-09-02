@@ -5,10 +5,10 @@
 
 import type { GarageConfig, FloorConfig, VehicleType, RateType } from '../types/models';
 
-// Import services - using both .js and .ts extensions as available
-const { GarageService } = require('../services/garageService');
-const { SpotService } = require('../services/spotService');
-const { VehicleRepository } = require('../repositories/vehicleRepository');
+// Lazy load services to avoid instantiation before database initialization
+let GarageService: any;
+let SpotService: any;
+let VehicleRepository: any;
 
 // Sample vehicle data interface
 interface SampleVehicleData {
@@ -48,9 +48,6 @@ export class SeedDataInitializer {
   private initialized: boolean;
 
   constructor() {
-    this.garageService = new GarageService();
-    this.spotService = new SpotService();
-    this.vehicleRepository = new VehicleRepository();
     this.initialized = false;
   }
 
@@ -66,6 +63,18 @@ export class SeedDataInitializer {
 
     try {
       console.log('🌱 Initializing seed data...');
+      
+      // Load services now that database is initialized
+      if (!GarageService) {
+        ({ GarageService } = require('../services/garageService'));
+        ({ SpotService } = require('../services/spotService'));
+        ({ VehicleRepository } = require('../repositories/VehicleRepository'));
+        
+        // Instantiate services
+        this.garageService = new GarageService();
+        this.spotService = new SpotService();
+        this.vehicleRepository = new VehicleRepository();
+      }
 
       // Step 1: Initialize garage structure
       await this.initializeGarage();

@@ -114,7 +114,7 @@ class EmailService {
           break;
       }
 
-      this.transporter = nodemailer.createTransporter(transportConfig);
+      this.transporter = nodemailer.createTransport(transportConfig);
 
       // Verify connection
       if (env.NODE_ENV !== 'test') {
