@@ -48,18 +48,25 @@ export type {
 export {
   levenshteinDistance,
   calculateSimilarity,
+  containsPartial,
+  startsWith,
+  endsWith,
   findFuzzyMatches,
   searchLicensePlates,
-  normalizeString,
-  tokenizeString,
-  findBestMatch,
-  isValidLicenseFormat
+  normalizeLicensePlate,
+  validateSearchTerm,
+  isValidSearchMode,
+  createSearchSuggestions,
+  highlightMatches,
+  getSearchStatistics
 } from './stringMatcher';
 
 export type {
   FuzzyMatch,
-  SearchOptions,
-  LicenseFormatConfig
+  FuzzyMatchOptions,
+  LicensePlateSearchOptions,
+  LicensePlateMatch,
+  SearchMode
 } from './stringMatcher';
 
 // Export all time calculation utilities and types
