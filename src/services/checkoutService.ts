@@ -1,15 +1,15 @@
 /**
  * Checkout Service with Sessions Integration
- * 
+ *
  * This module handles the business logic for vehicle checkout operations,
  * including vehicle lookup, duration calculation, fee computation,
  * session completion, atomic spot release, and parking record cleanup.
- * 
+ *
  * @module CheckoutService
  */
 
 import { VehicleRepository } from '../repositories/VehicleRepository';
-import { SpotRepository } from '../repositories/spotRepository';
+import { SpotRepository } from '../repositories/SpotRepository';
 import { SessionRepository } from '../repositories/SessionRepository';
 const BillingService = require('./billingService');
 
@@ -55,15 +55,12 @@ export class CheckoutService {
    * Check out a vehicle from the garage
    * Performs atomic operation: finds vehicle, calculates fees, completes session, releases spot, updates records
    */
-  async checkOutVehicle(
-    licensePlate: any,
-    options: CheckoutOptions = {}
-  ): Promise<CheckoutResult> {
+  async checkOutVehicle(licensePlate: any, options: CheckoutOptions = {}): Promise<CheckoutResult> {
     const {
       applyGracePeriod = false,
       removeRecord = true,
       checkOutTime = null,
-      endReason = 'Normal checkout'
+      endReason = 'Normal checkout',
     } = options;
 
     try {
@@ -79,7 +76,9 @@ export class CheckoutService {
       // Step 4: Calculate parking duration and fees
       const checkoutTime = checkOutTime ? new Date(checkOutTime) : new Date();
       const checkinTime = new Date(vehicle.checkedInAt || session?.createdAt);
-      const durationMinutes = Math.floor((checkoutTime.getTime() - checkinTime.getTime()) / (1000 * 60));
+      const durationMinutes = Math.floor(
+        (checkoutTime.getTime() - checkinTime.getTime()) / (1000 * 60)
+      );
       const durationHours = Math.ceil(durationMinutes / 60);
 
       // Step 5: Calculate billing
@@ -107,7 +106,7 @@ export class CheckoutService {
         await this.vehicleRepository.delete(vehicle.id);
       } else {
         await this.vehicleRepository.update(vehicle.id, {
-          checkOutTime: checkoutTime.toISOString()
+          checkOutTime: checkoutTime.toISOString(),
         });
       }
 
@@ -121,11 +120,10 @@ export class CheckoutService {
           minutes: durationMinutes,
           hours: durationHours,
           checkedIn: checkinTime.toISOString(),
-          checkedOut: checkoutTime.toISOString()
+          checkedOut: checkoutTime.toISOString(),
         },
-        message: `Vehicle ${licensePlate} successfully checked out from spot ${spot.id}. Total cost: $${billing.totalCost.toFixed(2)}`
+        message: `Vehicle ${licensePlate} successfully checked out from spot ${spot.id}. Total cost: $${billing.totalCost.toFixed(2)}`,
       };
-
     } catch (error) {
       console.error('CheckoutService.checkOutVehicle error:', error);
       throw error;
@@ -157,11 +155,11 @@ export class CheckoutService {
           licensePlate,
           currentDuration: {
             minutes: durationMinutes,
-            hours: Math.ceil(durationMinutes / 60)
+            hours: Math.ceil(durationMinutes / 60),
           },
           billing,
-          estimatedAt: now.toISOString()
-        }
+          estimatedAt: now.toISOString(),
+        },
       };
     } catch (error) {
       console.error('CheckoutService.estimateCheckoutCost error:', error);
@@ -178,16 +176,18 @@ export class CheckoutService {
       const completed = completedSessions.filter(s => s.status === 'completed');
 
       const totalRevenue = completed.reduce((sum, session: any) => sum + (session.cost || 0), 0);
-      const averageDuration = completed.length > 0
-        ? completed.reduce((sum, session: any) => sum + (session.duration || 0), 0) / completed.length
-        : 0;
+      const averageDuration =
+        completed.length > 0
+          ? completed.reduce((sum, session: any) => sum + (session.duration || 0), 0) /
+            completed.length
+          : 0;
 
       return {
         totalCheckouts: completed.length,
         totalRevenue,
         averageDuration,
         averageCost: completed.length > 0 ? totalRevenue / completed.length : 0,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       console.error('CheckoutService.getCheckoutStats error:', error);
@@ -200,13 +200,15 @@ export class CheckoutService {
   private async findAndValidateVehicle(licensePlate: any): Promise<any> {
     try {
       const vehicle = await this.vehicleRepository.findByLicensePlate(licensePlate);
-      
+
       if (!vehicle) {
         throw new Error(`Vehicle with license plate '${licensePlate}' not found in garage`);
       }
 
       if ((vehicle as any).status !== 'parked') {
-        throw new Error(`Vehicle with license plate '${licensePlate}' is not currently parked (status: ${(vehicle as any).status || "parked"})`);
+        throw new Error(
+          `Vehicle with license plate '${licensePlate}' is not currently parked (status: ${(vehicle as any).status || 'parked'})`
+        );
       }
 
       return vehicle;
@@ -219,7 +221,7 @@ export class CheckoutService {
   private async findAssociatedSpot(spotId: any): Promise<any> {
     try {
       const spot = await this.spotRepository.findById(spotId);
-      
+
       if (!spot) {
         throw new Error(`Spot with ID '${spotId}' not found`);
       }
@@ -235,7 +237,7 @@ export class CheckoutService {
     try {
       const sessions = await this.sessionsRepository.findByLicensePlate(licensePlate);
       const activeSession = sessions.find((s: any) => s.status === 'active');
-      
+
       if (!activeSession) {
         throw new Error(`No active parking session found for vehicle '${licensePlate}'`);
       }
@@ -257,20 +259,19 @@ export class CheckoutService {
       // This is a simplified billing calculation
       // In a real system, this would use the BillingService
       const hourlyRates: Record<string, number> = {
-        compact: 4.00,
-        standard: 5.00,
-        oversized: 8.00,
-        electric: 6.00,
-        motorcycle: 3.00,
-        truck: 10.00
+        compact: 4.0,
+        standard: 5.0,
+        oversized: 8.0,
+        electric: 6.0,
+        motorcycle: 3.0,
+        truck: 10.0,
       };
 
       const baseRate = hourlyRates[vehicleType.toLowerCase()] || hourlyRates.standard;
-      
+
       // Apply grace period (first 15 minutes free)
-      const billableMinutes = options.applyGracePeriod && durationMinutes <= 15 
-        ? 0 
-        : durationMinutes;
+      const billableMinutes =
+        options.applyGracePeriod && durationMinutes <= 15 ? 0 : durationMinutes;
 
       // Calculate based on rate type
       let totalCost = 0;
@@ -295,7 +296,7 @@ export class CheckoutService {
         rateType,
         durationMinutes: billableMinutes,
         gracePeriodApplied: options.applyGracePeriod && durationMinutes <= 15,
-        totalCost: Math.round(totalCost * 100) / 100 // Round to 2 decimal places
+        totalCost: Math.round(totalCost * 100) / 100, // Round to 2 decimal places
       };
     } catch (error) {
       console.error('CheckoutService.calculateBilling error:', error);
@@ -316,7 +317,7 @@ export class CheckoutService {
         endTime: endTime.toISOString(),
         duration: durationMinutes,
         cost,
-        endReason
+        endReason,
       });
 
       return updatedSession;
@@ -331,7 +332,7 @@ export class CheckoutService {
       await this.spotRepository.updateSpotStatus(spotId, 'available', {
         licensePlate: null,
         occupiedAt: null,
-        releasedAt: new Date().toISOString()
+        releasedAt: new Date().toISOString(),
       });
     } catch (error) {
       console.error('CheckoutService.releaseSpot error:', error);
@@ -342,42 +343,44 @@ export class CheckoutService {
   /**
    * Handle checkout rollback in case of partial failure
    */
-  private async rollbackCheckout(
-    vehicleId?: any,
-    spotId?: any,
-    sessionId?: any
-  ): Promise<void> {
+  private async rollbackCheckout(vehicleId?: any, spotId?: any, sessionId?: any): Promise<void> {
     try {
       const rollbackPromises = [];
 
       if (sessionId) {
         // Revert session back to active
         rollbackPromises.push(
-          this.sessionsRepository.update(sessionId, {
-            status: 'active',
-            endTime: undefined,
-            duration: undefined,
-            cost: undefined,
-            endReason: undefined
-          }).catch(err => console.error('Failed to rollback session:', err))
+          this.sessionsRepository
+            .update(sessionId, {
+              status: 'active',
+              endTime: undefined,
+              duration: undefined,
+              cost: undefined,
+              endReason: undefined,
+            })
+            .catch(err => console.error('Failed to rollback session:', err))
         );
       }
 
       if (vehicleId) {
         // Revert vehicle back to parked
         rollbackPromises.push(
-          Promise.resolve(this.vehicleRepository.update(vehicleId, {
-            checkOutTime: null
-          })).then(() => {}).catch(err => console.error('Failed to rollback vehicle:', err))
+          Promise.resolve(
+            this.vehicleRepository.update(vehicleId, {
+              checkOutTime: null,
+            })
+          )
+            .then(() => {})
+            .catch(err => console.error('Failed to rollback vehicle:', err))
         );
       }
 
       if (spotId) {
         // Revert spot back to occupied
         rollbackPromises.push(
-          Promise.resolve(this.spotRepository.updateSpotStatus(spotId, 'occupied', {})).then(() => {}).catch(err => 
-            console.error('Failed to rollback spot status:', err)
-          )
+          Promise.resolve(this.spotRepository.updateSpotStatus(spotId, 'occupied', {}))
+            .then(() => {})
+            .catch(err => console.error('Failed to rollback spot status:', err))
         );
       }
 

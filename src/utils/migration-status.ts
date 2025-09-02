@@ -1,6 +1,6 @@
 /**
  * Migration Status Tracking System
- * 
+ *
  * Provides utilities for tracking migration progress, storing checkpoints,
  * and managing migration state for resumable operations.
  */
@@ -41,7 +41,7 @@ export class MigrationStatusTracker {
     const baseDir = path.join(process.cwd(), '.migration');
     this.statusFile = path.join(baseDir, `status-${migrationId || 'default'}.json`);
     this.checkpointsDir = path.join(baseDir, 'checkpoints');
-    
+
     // Ensure directories exist
     if (!fs.existsSync(baseDir)) {
       fs.mkdirSync(baseDir, { recursive: true });
@@ -55,7 +55,7 @@ export class MigrationStatusTracker {
    * Initialize a new migration status
    */
   async initializeMigration(
-    id: string, 
+    id: string,
     totalSteps: number,
     backupPath?: string
   ): Promise<MigrationStatus> {
@@ -66,7 +66,7 @@ export class MigrationStatusTracker {
       checkpoints: [],
       totalSteps,
       completedSteps: 0,
-      backupPath
+      backupPath,
     };
 
     await this.saveStatus(status);
@@ -76,16 +76,15 @@ export class MigrationStatusTracker {
   /**
    * Update migration status
    */
-  async updateStatus(
-    status: Partial<MigrationStatus> & { id: string }
-  ): Promise<MigrationStatus> {
+  async updateStatus(status: Partial<MigrationStatus> & { id: string }): Promise<MigrationStatus> {
     const currentStatus = await this.getStatus();
     const updatedStatus: MigrationStatus = {
       ...currentStatus,
       ...status,
-      endTime: status.status === 'completed' || status.status === 'failed' 
-        ? new Date() 
-        : currentStatus.endTime
+      endTime:
+        status.status === 'completed' || status.status === 'failed'
+          ? new Date()
+          : currentStatus.endTime,
     };
 
     await this.saveStatus(updatedStatus);
@@ -105,7 +104,7 @@ export class MigrationStatusTracker {
       step,
       timestamp: new Date(),
       data,
-      metadata
+      metadata,
     };
 
     // Save checkpoint to file
@@ -127,18 +126,22 @@ export class MigrationStatusTracker {
     try {
       const data = await fs.promises.readFile(this.statusFile, 'utf8');
       const status = JSON.parse(data);
-      
+
       // Convert date strings back to Date objects
       status.startTime = new Date(status.startTime);
-      if (status.endTime) status.endTime = new Date(status.endTime);
+      if (status.endTime) {
+        status.endTime = new Date(status.endTime);
+      }
       status.checkpoints = status.checkpoints.map((cp: any) => ({
         ...cp,
-        timestamp: new Date(cp.timestamp)
+        timestamp: new Date(cp.timestamp),
       }));
 
       return status;
     } catch (error) {
-      throw new Error(`Failed to read migration status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to read migration status: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -147,9 +150,7 @@ export class MigrationStatusTracker {
    */
   async getLastCheckpoint(): Promise<MigrationCheckpoint | null> {
     const status = await this.getStatus();
-    return status.checkpoints.length > 0 
-      ? status.checkpoints[status.checkpoints.length - 1] 
-      : null;
+    return status.checkpoints.length > 0 ? status.checkpoints[status.checkpoints.length - 1] : null;
   }
 
   /**
@@ -200,13 +201,15 @@ export class MigrationStatusTracker {
   async getProgress(): Promise<{ percentage: number; currentStep: string; details: string }> {
     const status = await this.getStatus();
     const percentage = Math.round((status.completedSteps / status.totalSteps) * 100);
-    
+
     const lastCheckpoint = status.checkpoints[status.checkpoints.length - 1];
     const currentStep = lastCheckpoint ? lastCheckpoint.step : 'Not started';
-    
+
     let details = `${status.completedSteps}/${status.totalSteps} steps completed`;
     if (lastCheckpoint && lastCheckpoint.data.totalRecords > 0) {
-      const recordProgress = Math.round((lastCheckpoint.data.processedRecords / lastCheckpoint.data.totalRecords) * 100);
+      const recordProgress = Math.round(
+        (lastCheckpoint.data.processedRecords / lastCheckpoint.data.totalRecords) * 100
+      );
       details += ` | Current table: ${lastCheckpoint.data.currentTable} (${recordProgress}%)`;
     }
 

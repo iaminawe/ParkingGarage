@@ -1,15 +1,15 @@
 /**
  * Search service for efficient vehicle and spot lookups
- * 
+ *
  * This module provides high-performance search capabilities using Map-based
  * lookups for O(1) exact matches and optimized algorithms for partial and
  * fuzzy matching of license plates.
- * 
+ *
  * @module SearchService
  */
 
 import { VehicleRepository } from '../repositories/VehicleRepository';
-import { SpotRepository } from '../repositories/spotRepository';
+import { SpotRepository } from '../repositories/SpotRepository';
 import { searchLicensePlates, validateSearchTerm } from '../utils/stringMatcher';
 import { VehicleType, SpotFeature, VehicleStatus } from '../types/models';
 
@@ -101,7 +101,7 @@ class SearchService {
   constructor() {
     this.vehicleRepository = new VehicleRepository();
     this.spotRepository = new SpotRepository();
-    
+
     // Cache for performance optimization
     this._licensePlateCache = new Map();
     this._cacheTimestamp = null;
@@ -120,18 +120,18 @@ class SearchService {
       }
 
       const vehicle = this.vehicleRepository.findById(licensePlate);
-      
+
       if (!vehicle) {
         return {
           found: false,
           vehicle: null,
-          message: 'Vehicle not found'
+          message: 'Vehicle not found',
         };
       }
 
       // Get spot information for the vehicle
       const spot = this.spotRepository.findById(vehicle.spotId);
-      
+
       return {
         found: true,
         vehicle: {
@@ -144,14 +144,16 @@ class SearchService {
           totalAmount: vehicle.totalAmount,
           isPaid: vehicle.isPaid,
           status: vehicle.getStatus(),
-          spot: spot ? {
-            floor: spot.floor,
-            bay: spot.bay,
-            spotNumber: spot.spotNumber,
-            type: spot.type,
-            features: spot.features
-          } : null
-        }
+          spot: spot
+            ? {
+                floor: spot.floor,
+                bay: spot.bay,
+                spotNumber: spot.spotNumber,
+                type: spot.type,
+                features: spot.features,
+              }
+            : null,
+        },
       };
     } catch (error) {
       throw new Error(`Failed to find vehicle: ${(error as Error).message}`);
@@ -164,13 +166,12 @@ class SearchService {
    * @param options - Search options
    * @returns Search results with matches array
    */
-  async searchVehicles(searchTerm: string, options: SearchOptions = {}): Promise<VehicleSearchResults> {
+  async searchVehicles(
+    searchTerm: string,
+    options: SearchOptions = {}
+  ): Promise<VehicleSearchResults> {
     try {
-      const {
-        maxResults = 20,
-        threshold = 0.6,
-        mode = 'all'
-      } = options;
+      const { maxResults = 20, threshold = 0.6, mode = 'all' } = options;
 
       // Validate search term
       const validation = validateSearchTerm(searchTerm);
@@ -178,7 +179,7 @@ class SearchService {
         return {
           matches: [],
           count: 0,
-          errors: validation.errors
+          errors: validation.errors,
         };
       }
 
@@ -190,16 +191,16 @@ class SearchService {
       const searchResults = searchLicensePlates(searchTerm, licensePlates, {
         mode,
         threshold,
-        maxResults
+        maxResults,
       });
 
       // Enrich results with vehicle and spot information
       const enrichedMatches: SearchMatch[] = [];
-      
+
       for (const result of searchResults) {
         const vehicle = this.vehicleRepository.findById(result.licensePlate);
         const spot = vehicle ? this.spotRepository.findById(vehicle.spotId) : null;
-        
+
         if (vehicle) {
           enrichedMatches.push({
             licensePlate: result.licensePlate,
@@ -210,14 +211,16 @@ class SearchService {
               checkInTime: vehicle.checkInTime,
               vehicleType: vehicle.vehicleType,
               currentDuration: this._calculateCurrentDuration(vehicle.checkInTime),
-              status: vehicle.getStatus()
+              status: vehicle.getStatus(),
             },
-            spot: spot ? {
-              floor: spot.floor,
-              bay: spot.bay,
-              spotNumber: spot.spotNumber,
-              type: spot.type
-            } : null
+            spot: spot
+              ? {
+                  floor: spot.floor,
+                  bay: spot.bay,
+                  spotNumber: spot.spotNumber,
+                  type: spot.type,
+                }
+              : null,
           });
         }
       }
@@ -226,7 +229,7 @@ class SearchService {
         matches: enrichedMatches,
         count: enrichedMatches.length,
         searchTerm: validation.normalized,
-        mode
+        mode,
       };
     } catch (error) {
       throw new Error(`Failed to search vehicles: ${(error as Error).message}`);
@@ -276,13 +279,15 @@ class SearchService {
           vehicleType: vehicle.vehicleType,
           currentDuration: this._calculateCurrentDuration(vehicle.checkInTime),
           status: vehicle.getStatus(),
-          spot: spot ? {
-            floor: spot.floor,
-            bay: spot.bay,
-            spotNumber: spot.spotNumber,
-            type: spot.type,
-            features: spot.features
-          } : null
+          spot: spot
+            ? {
+                floor: spot.floor,
+                bay: spot.bay,
+                spotNumber: spot.spotNumber,
+                type: spot.type,
+                features: spot.features,
+              }
+            : null,
         };
       });
     } catch (error) {
@@ -314,7 +319,7 @@ class SearchService {
       }
 
       if (features && features.length > 0) {
-        availableSpots = availableSpots.filter(spot => 
+        availableSpots = availableSpots.filter(spot =>
           features.every(feature => spot.hasFeature(feature))
         );
       }
@@ -326,7 +331,7 @@ class SearchService {
         spotNumber: spot.spotNumber,
         type: spot.type,
         status: spot.status,
-        features: spot.features
+        features: spot.features,
       }));
     } catch (error) {
       throw new Error(`Failed to find available spots: ${(error as Error).message}`);
@@ -339,7 +344,7 @@ class SearchService {
    * @param limit - Maximum suggestions to return
    * @returns Array of license plate suggestions
    */
-  async getSearchSuggestions(partial: string, limit: number = 10): Promise<string[]> {
+  async getSearchSuggestions(partial: string, limit = 10): Promise<string[]> {
     try {
       if (!partial || partial.length < 2) {
         return [];
@@ -347,7 +352,7 @@ class SearchService {
 
       // Get cached license plates for performance
       const licensePlates = this._getCachedLicensePlates();
-      
+
       // Find matches that start with the partial input
       const suggestions: string[] = [];
       const partialUpper = partial.toUpperCase();
@@ -356,7 +361,9 @@ class SearchService {
         if (plate.startsWith(partialUpper)) {
           suggestions.push(plate);
         }
-        if (suggestions.length >= limit) break;
+        if (suggestions.length >= limit) {
+          break;
+        }
       }
 
       // If not enough matches, include contains matches
@@ -364,7 +371,9 @@ class SearchService {
         for (const plate of licensePlates) {
           if (!suggestions.includes(plate) && plate.includes(partialUpper)) {
             suggestions.push(plate);
-            if (suggestions.length >= limit) break;
+            if (suggestions.length >= limit) {
+              break;
+            }
           }
         }
       }
@@ -382,22 +391,22 @@ class SearchService {
    */
   private _getCachedLicensePlates(): string[] {
     const now = Date.now();
-    
+
     // Check if cache is valid
-    if (this._cacheTimestamp && (now - this._cacheTimestamp) < this._cacheExpiryMs) {
+    if (this._cacheTimestamp && now - this._cacheTimestamp < this._cacheExpiryMs) {
       return Array.from(this._licensePlateCache.keys());
     }
 
     // Refresh cache
     const parkedVehicles = this.vehicleRepository.findParked();
     this._licensePlateCache.clear();
-    
+
     parkedVehicles.forEach(vehicle => {
       this._licensePlateCache.set(vehicle.licensePlate, vehicle);
     });
-    
+
     this._cacheTimestamp = now;
-    
+
     return Array.from(this._licensePlateCache.keys());
   }
 
@@ -411,10 +420,10 @@ class SearchService {
     const checkIn = new Date(checkInTime);
     const now = new Date();
     const durationMs = now.getTime() - checkIn.getTime();
-    
+
     const hours = Math.floor(durationMs / (1000 * 60 * 60));
     const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     return { hours, minutes };
   }
 

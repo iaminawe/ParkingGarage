@@ -1,10 +1,10 @@
 /**
  * Time calculation utilities for parking duration
- * 
+ *
  * This module provides utility functions for calculating parking duration,
  * converting between time units, and handling billing-related time calculations
  * including rounding up to nearest hour for billing purposes.
- * 
+ *
  * @module TimeCalculator
  */
 
@@ -49,7 +49,7 @@ export function isValidTimestamp(timestamp: unknown): timestamp is string {
   if (!timestamp || typeof timestamp !== 'string') {
     return false;
   }
-  
+
   const date = new Date(timestamp);
   return !isNaN(date.getTime());
 }
@@ -61,7 +61,7 @@ export function isValidTimestamp(timestamp: unknown): timestamp is string {
  * @returns Duration breakdown
  */
 export function calculateParkingDuration(
-  checkInTime: string, 
+  checkInTime: string,
   checkOutTime?: string | null
 ): ParkingDuration {
   if (!checkInTime) {
@@ -97,10 +97,10 @@ export function calculateParkingDuration(
     billableHours: Math.max(1, billableHours), // Minimum 1 hour charge
     breakdown: {
       hours,
-      minutes
+      minutes,
     },
     checkInTime,
-    checkOutTime: checkOut.toISOString()
+    checkOutTime: checkOut.toISOString(),
   };
 }
 
@@ -110,14 +110,14 @@ export function calculateParkingDuration(
  * @param minimumHours - Minimum billable hours (default: 1)
  * @returns Billable hours
  */
-export function calculateBillableHours(totalMinutes: number, minimumHours: number = 1): number {
+export function calculateBillableHours(totalMinutes: number, minimumHours = 1): number {
   if (totalMinutes < 0) {
     throw new TimeCalculationError('Total minutes cannot be negative');
   }
 
   const totalHours = totalMinutes / 60;
   const roundedHours = Math.ceil(totalHours);
-  
+
   return Math.max(minimumHours, roundedHours);
 }
 
@@ -162,15 +162,15 @@ export function hoursToMinutes(hours: number): number {
  */
 export function formatDuration(totalMinutes: number): string {
   const { hours, minutes } = minutesToHoursAndMinutes(totalMinutes);
-  
+
   if (hours === 0) {
     return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
   }
-  
+
   if (minutes === 0) {
     return `${hours} hour${hours !== 1 ? 's' : ''}`;
   }
-  
+
   return `${hours} hour${hours !== 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}`;
 }
 
@@ -180,7 +180,7 @@ export function formatDuration(totalMinutes: number): string {
  * @param gracePeriodMinutes - Grace period in minutes (default: 5)
  * @returns Whether grace period applies
  */
-export function isWithinGracePeriod(totalMinutes: number, gracePeriodMinutes: number = 5): boolean {
+export function isWithinGracePeriod(totalMinutes: number, gracePeriodMinutes = 5): boolean {
   return totalMinutes <= gracePeriodMinutes;
 }
 
@@ -192,14 +192,14 @@ export function isWithinGracePeriod(totalMinutes: number, gracePeriodMinutes: nu
  * @returns Billable hours after grace period consideration
  */
 export function applyGracePeriod(
-  totalMinutes: number, 
-  gracePeriodMinutes: number = 5, 
-  minimumHours: number = 1
+  totalMinutes: number,
+  gracePeriodMinutes = 5,
+  minimumHours = 1
 ): number {
   if (isWithinGracePeriod(totalMinutes, gracePeriodMinutes)) {
     return 0; // Free within grace period
   }
-  
+
   return calculateBillableHours(totalMinutes, minimumHours);
 }
 
@@ -226,14 +226,14 @@ export function getCurrentParkingDuration(checkInTime: string): ParkingDuration 
  * @param hourlyRate - Rate per hour
  * @returns Cost estimation with duration
  */
-export function calculateEstimatedCost(checkInTime: string, hourlyRate: number = 5.00): CostEstimation {
+export function calculateEstimatedCost(checkInTime: string, hourlyRate = 5.0): CostEstimation {
   const duration = getCurrentParkingDuration(checkInTime);
   const estimatedCost = duration.billableHours * hourlyRate;
-  
+
   return {
     duration,
     estimatedCost: Math.round(estimatedCost * 100) / 100,
-    hourlyRate
+    hourlyRate,
   };
 }
 
@@ -256,7 +256,7 @@ export function convertDuration(minutes: number): {
     days: minutes / (60 * 24),
     weeks: minutes / (60 * 24 * 7),
     seconds: minutes * 60,
-    milliseconds: minutes * 60 * 1000
+    milliseconds: minutes * 60 * 1000,
   };
 }
 
@@ -271,14 +271,14 @@ export function safeDurationCalculation(startTime: unknown, endTime: unknown): n
     if (!isValidTimestamp(startTime) || !isValidTimestamp(endTime)) {
       return null;
     }
-    
+
     const start = new Date(startTime);
     const end = new Date(endTime);
-    
+
     if (end < start) {
       return null;
     }
-    
+
     return Math.floor((end.getTime() - start.getTime()) / (1000 * 60));
   } catch {
     return null;
@@ -294,9 +294,9 @@ export function parseTimeString(timeString: string): number | null {
   if (!timeString || typeof timeString !== 'string') {
     return null;
   }
-  
+
   const cleaned = timeString.toLowerCase().trim();
-  
+
   // Pattern: "2h 30m" or "2h30m"
   const hoursMinutesMatch = cleaned.match(/^(\d+(?:\.\d+)?)h\s*(\d+)m?$/);
   if (hoursMinutesMatch) {
@@ -304,19 +304,19 @@ export function parseTimeString(timeString: string): number | null {
     const minutes = parseInt(hoursMinutesMatch[2]);
     return Math.round(hours * 60 + minutes);
   }
-  
+
   // Pattern: "150m"
   const minutesMatch = cleaned.match(/^(\d+)m?$/);
   if (minutesMatch) {
     return parseInt(minutesMatch[1]);
   }
-  
+
   // Pattern: "2.5h"
   const hoursMatch = cleaned.match(/^(\d+(?:\.\d+)?)h$/);
   if (hoursMatch) {
     return Math.round(parseFloat(hoursMatch[1]) * 60);
   }
-  
+
   return null;
 }
 
@@ -336,15 +336,19 @@ export function getTimezoneOffset(date?: Date): number {
  * @returns True if same day, false otherwise
  */
 export function isSameDay(timestamp1?: string, timestamp2?: string): boolean {
-  if (!timestamp1 || !timestamp2) return false;
-  
+  if (!timestamp1 || !timestamp2) {
+    return false;
+  }
+
   try {
     const date1 = new Date(timestamp1);
     const date2 = new Date(timestamp2);
-    
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
+
+    return (
+      date1.getFullYear() === date2.getFullYear() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate()
+    );
   } catch {
     return false;
   }

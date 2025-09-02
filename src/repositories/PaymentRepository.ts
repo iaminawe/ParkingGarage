@@ -1,19 +1,19 @@
 /**
  * Payment repository for data access operations using Prisma
- * 
+ *
  * This module provides data access methods for payments and transactions
  * using the PrismaAdapter pattern. It handles payment CRUD operations,
  * transaction tracking, and financial reporting.
- * 
+ *
  * @module PaymentRepository
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
 import { Payment, Prisma, PaymentType, PaymentMethod, PaymentStatus } from '@prisma/client';
-import type { 
+import type {
   QueryOptions,
   PaginatedResult,
-  IAdapterLogger
+  IAdapterLogger,
 } from '../adapters/interfaces/BaseAdapter';
 import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
@@ -103,17 +103,18 @@ export interface PaymentStats {
 /**
  * Repository for managing payments using Prisma
  */
-export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData, UpdatePaymentData> {
+export class PaymentRepository extends PrismaAdapter<
+  Payment,
+  CreatePaymentData,
+  UpdatePaymentData
+> {
   protected readonly modelName = 'payment';
   protected readonly delegate: Prisma.PaymentDelegate;
 
-  constructor(
-    databaseService?: DatabaseService,
-    logger?: IAdapterLogger
-  ) {
+  constructor(databaseService?: DatabaseService, logger?: IAdapterLogger) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prismaClient = dbService.getClient();
-    
+
     super(prismaClient, logger || createLogger('PaymentRepository'));
     this.delegate = prismaClient.payment;
   }
@@ -132,22 +133,22 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       const result = await this.delegate.findFirst({
         where: {
           paymentNumber,
-          deletedAt: null
+          deletedAt: null,
         },
         include: {
           garage: true,
           vehicle: true,
           session: true,
-          ticket: true
+          ticket: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found payment by payment number', {
         paymentNumber,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find payment by number: ${paymentNumber}`);
   }
@@ -166,22 +167,22 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       const result = await this.delegate.findFirst({
         where: {
           transactionId,
-          deletedAt: null
+          deletedAt: null,
         },
         include: {
           garage: true,
           vehicle: true,
           session: true,
-          ticket: true
+          ticket: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found payment by transaction ID', {
         transactionId,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find payment by transaction ID: ${transactionId}`);
   }
@@ -192,10 +193,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments matching the status
    */
-  async findByStatus(
-    status: PaymentStatus,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async findByStatus(status: PaymentStatus, options?: QueryOptions): Promise<Payment[]> {
     return this.findMany({ status }, options);
   }
 
@@ -205,10 +203,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments matching the type
    */
-  async findByType(
-    type: PaymentType,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async findByType(type: PaymentType, options?: QueryOptions): Promise<Payment[]> {
     return this.findMany({ type }, options);
   }
 
@@ -218,10 +213,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments matching the method
    */
-  async findByMethod(
-    method: PaymentMethod,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async findByMethod(method: PaymentMethod, options?: QueryOptions): Promise<Payment[]> {
     return this.findMany({ method }, options);
   }
 
@@ -231,10 +223,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments for the vehicle
    */
-  async findByVehicleId(
-    vehicleId: string,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async findByVehicleId(vehicleId: string, options?: QueryOptions): Promise<Payment[]> {
     return this.findMany({ vehicleId }, options);
   }
 
@@ -244,33 +233,30 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments for the vehicle
    */
-  async findByLicensePlate(
-    licensePlate: string,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async findByLicensePlate(licensePlate: string, options?: QueryOptions): Promise<Payment[]> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findMany({
         where: {
           vehicle: {
             licensePlate: licensePlate.toUpperCase(),
-            deletedAt: null
+            deletedAt: null,
           },
-          deletedAt: null
+          deletedAt: null,
         },
         include: {
           garage: true,
           vehicle: true,
           session: true,
-          ticket: true
+          ticket: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found payments by license plate', {
         licensePlate,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, `find payments by license plate: ${licensePlate}`);
   }
@@ -281,10 +267,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments for the session
    */
-  async findBySessionId(
-    sessionId: string,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async findBySessionId(sessionId: string, options?: QueryOptions): Promise<Payment[]> {
     return this.findMany({ sessionId }, options);
   }
 
@@ -294,10 +277,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments for the ticket
    */
-  async findByTicketId(
-    ticketId: string,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async findByTicketId(ticketId: string, options?: QueryOptions): Promise<Payment[]> {
     return this.findMany({ ticketId }, options);
   }
 
@@ -307,10 +287,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments for the garage
    */
-  async findByGarageId(
-    garageId: string,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async findByGarageId(garageId: string, options?: QueryOptions): Promise<Payment[]> {
     return this.findMany({ garageId }, options);
   }
 
@@ -356,10 +333,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
    * @param options - Query options
    * @returns Array of payments matching all criteria
    */
-  async search(
-    criteria: PaymentSearchCriteria,
-    options?: QueryOptions
-  ): Promise<Payment[]> {
+  async search(criteria: PaymentSearchCriteria, options?: QueryOptions): Promise<Payment[]> {
     return this.executeWithRetry(async () => {
       const whereClause: Prisma.PaymentWhereInput = {};
 
@@ -386,13 +360,13 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
 
       if (criteria.paymentNumber) {
         whereClause.paymentNumber = {
-          contains: criteria.paymentNumber
+          contains: criteria.paymentNumber,
         };
       }
 
       if (criteria.transactionId) {
         whereClause.transactionId = {
-          contains: criteria.transactionId
+          contains: criteria.transactionId,
         };
       }
 
@@ -422,9 +396,9 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       if (criteria.licensePlate) {
         whereClause.vehicle = {
           licensePlate: {
-            contains: criteria.licensePlate.toUpperCase()
+            contains: criteria.licensePlate.toUpperCase(),
           },
-          deletedAt: null
+          deletedAt: null,
         };
       }
 
@@ -434,16 +408,16 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
           garage: true,
           vehicle: true,
           session: true,
-          ticket: true
+          ticket: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Payment search completed', {
         criteria,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, 'search payments');
   }
@@ -468,7 +442,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         status: paymentData.status || 'PENDING',
         currency: paymentData.currency || 'USD',
         paymentDate: paymentData.paymentDate || new Date(),
-        refundAmount: 0.0
+        refundAmount: 0.0,
       };
 
       const payment = await this.create(createData);
@@ -478,7 +452,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         paymentNumber: payment.paymentNumber,
         type: payment.paymentType,
         method: payment.paymentMethod,
-        amount: payment.amount
+        amount: payment.amount,
       });
 
       return payment;
@@ -502,8 +476,8 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         where: {
           id: paymentId,
           status: 'PENDING',
-          deletedAt: null
-        }
+          deletedAt: null,
+        },
       });
 
       if (!payment) {
@@ -514,14 +488,14 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         status: 'COMPLETED',
         transactionId,
         gatewayResponse,
-        processedAt: new Date()
+        processedAt: new Date(),
       });
 
       this.logger.info('Payment processed successfully', {
         paymentId,
         paymentNumber: payment.paymentNumber,
         amount: payment.amount,
-        transactionId
+        transactionId,
       });
 
       return updatedPayment;
@@ -540,8 +514,8 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         where: {
           id: paymentId,
           status: 'PENDING',
-          deletedAt: null
-        }
+          deletedAt: null,
+        },
       });
 
       if (!payment) {
@@ -551,14 +525,14 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       const updatedPayment = await this.update(paymentId, {
         status: 'FAILED',
         gatewayResponse: reason,
-        processedAt: new Date()
+        processedAt: new Date(),
       });
 
       this.logger.info('Payment failed', {
         paymentId,
         paymentNumber: payment.paymentNumber,
         amount: payment.amount,
-        reason
+        reason,
       });
 
       return updatedPayment;
@@ -582,8 +556,8 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         where: {
           id: paymentId,
           status: 'COMPLETED',
-          deletedAt: null
-        }
+          deletedAt: null,
+        },
       });
 
       if (!payment) {
@@ -600,7 +574,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         status: 'REFUNDED',
         refundAmount,
         refundDate: new Date(),
-        refundReason
+        refundReason,
       });
 
       this.logger.info('Payment refunded', {
@@ -608,7 +582,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         paymentNumber: payment.paymentNumber,
         originalAmount: payment.amount,
         refundAmount,
-        refundReason
+        refundReason,
       });
 
       return updatedPayment;
@@ -623,12 +597,10 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
   async getStats(garageId?: string): Promise<PaymentStats> {
     return this.executeWithRetry(async () => {
       const whereClause = garageId ? { garageId } : {};
-      
+
       // Get total count and amount
       const totalCount = await this.count(whereClause);
-      const totalAmountResult = await this.prisma.$queryRaw<
-        Array<{ totalAmount: number | null }>
-      >`
+      const totalAmountResult = await this.prisma.$queryRaw<Array<{ totalAmount: number | null }>>`
         SELECT SUM(amount) as totalAmount
         FROM payments
         WHERE deletedAt IS NULL ${garageId ? Prisma.sql`AND garageId = ${garageId}` : Prisma.empty}
@@ -665,9 +637,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       `;
 
       // Total refunded amount
-      const refundedResult = await this.prisma.$queryRaw<
-        Array<{ totalRefunded: number | null }>
-      >`
+      const refundedResult = await this.prisma.$queryRaw<Array<{ totalRefunded: number | null }>>`
         SELECT SUM(refundAmount) as totalRefunded
         FROM payments
         WHERE deletedAt IS NULL 
@@ -687,19 +657,19 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
           failed: { count: 0, amount: 0 },
           cancelled: { count: 0, amount: 0 },
           refunded: { count: 0, amount: 0 },
-          disputed: { count: 0, amount: 0 }
+          disputed: { count: 0, amount: 0 },
         },
         byType: {} as Record<PaymentType, { count: number; amount: number }>,
         byMethod: {} as Record<PaymentMethod, { count: number; amount: number }>,
         totalRefunded: refundedResult[0]?.totalRefunded || 0,
-        averageAmount: totalCount > 0 ? Math.round((totalAmount / totalCount) * 100) / 100 : 0
+        averageAmount: totalCount > 0 ? Math.round((totalAmount / totalCount) * 100) / 100 : 0,
       };
 
       // Process status stats
       statusStats.forEach(({ status, count, amount }) => {
         const countNum = Number(count);
         const amountNum = Number(amount) || 0;
-        
+
         switch (status) {
           case 'PENDING':
             stats.byStatus.pending = { count: countNum, amount: amountNum };
@@ -726,7 +696,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       typeStats.forEach(({ type, count, amount }) => {
         stats.byType[type] = {
           count: Number(count),
-          amount: Number(amount) || 0
+          amount: Number(amount) || 0,
         };
       });
 
@@ -734,15 +704,15 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       methodStats.forEach(({ method, count, amount }) => {
         stats.byMethod[method] = {
           count: Number(count),
-          amount: Number(amount) || 0
+          amount: Number(amount) || 0,
         };
       });
 
       this.logger.debug('Payment statistics calculated', {
         garageId,
-        stats
+        stats,
       });
-      
+
       return stats;
     }, 'get payment statistics');
   }
@@ -780,14 +750,14 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       const dailyRevenue = result.map(({ date, revenue, count }) => ({
         date,
         revenue: Number(revenue) || 0,
-        count: Number(count)
+        count: Number(count),
       }));
 
       this.logger.debug('Daily revenue calculated', {
         startDate,
         endDate,
         garageId,
-        daysCount: dailyRevenue.length
+        daysCount: dailyRevenue.length,
       });
 
       return dailyRevenue;
@@ -802,17 +772,17 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
     const paymentNumber = `PAY-${timestamp}-${random}`;
-    
+
     // Ensure uniqueness
     const existing = await this.delegate.findFirst({
-      where: { paymentNumber }
+      where: { paymentNumber },
     });
-    
+
     if (existing) {
       // If collision (very rare), try again
       return this.generatePaymentNumber();
     }
-    
+
     return paymentNumber;
   }
 }

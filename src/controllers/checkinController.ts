@@ -1,21 +1,17 @@
 /**
  * Check-in Controller
- * 
+ *
  * This module handles HTTP requests for vehicle check-in operations,
  * including request processing, error handling, and response formatting
  * for the check-in API endpoints.
- * 
+ *
  * @module CheckinController
  */
 
 import { Request, Response } from 'express';
-import { CheckinService } from "../services/checkinService";
-const SpotAssignmentService = require("../services/spotAssignmentService");
-import { 
-  CheckInRequest, 
-  CheckInResponse, 
-  ApiResponse 
-} from '../types/api';
+import { CheckinService } from '../services/checkinService';
+import { SpotService } from '../services/spotService';
+import { CheckInRequest, CheckInResponse, ApiResponse } from '../types/api';
 import { VehicleType } from '../types/models';
 
 /**
@@ -23,33 +19,31 @@ import { VehicleType } from '../types/models';
  */
 export class CheckinController {
   private checkinService: any;
-  private spotAssignmentService: any;
+  private spotService: any;
 
   constructor() {
     this.checkinService = new CheckinService();
-    this.spotAssignmentService = new SpotAssignmentService();
+    this.spotService = new SpotService();
   }
 
   /**
    * Handle vehicle check-in request
    * POST /api/v1/checkin
    */
-  checkIn = async (req: Request<{}, ApiResponse<CheckInResponse>, CheckInRequest>, res: Response<ApiResponse<CheckInResponse>>): Promise<void> => {
+  checkIn = async (
+    req: Request<{}, ApiResponse<CheckInResponse>, CheckInRequest>,
+    res: Response<ApiResponse<CheckInResponse>>
+  ): Promise<void> => {
     try {
       const { licensePlate, vehicleType, rateType = 'hourly' } = req.body;
 
-      const result = this.checkinService.checkInVehicle(
-        licensePlate,
-        vehicleType,
-        rateType
-      );
+      const result = this.checkinService.checkInVehicle(licensePlate, vehicleType, rateType);
 
       res.status(201).json({
         success: true,
         ...result,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       this.handleCheckinError(error as Error, req, res);
     }
@@ -61,13 +55,14 @@ export class CheckinController {
    */
   simulateCheckin = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { licensePlate, vehicleType }: { licensePlate: string; vehicleType: VehicleType } = req.body;
+      const { licensePlate, vehicleType }: { licensePlate: string; vehicleType: VehicleType } =
+        req.body;
 
       if (!licensePlate || !vehicleType) {
         res.status(400).json({
           success: false,
           message: 'License plate and vehicle type are required for simulation',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -77,15 +72,14 @@ export class CheckinController {
       res.status(200).json({
         success: true,
         ...simulation,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Simulation failed',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -94,7 +88,10 @@ export class CheckinController {
    * Get availability information by vehicle type
    * GET /api/v1/checkin/availability/:vehicleType
    */
-  getAvailabilityByVehicleType = async (req: Request<{ vehicleType: string }>, res: Response): Promise<void> => {
+  getAvailabilityByVehicleType = async (
+    req: Request<{ vehicleType: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { vehicleType } = req.params;
 
@@ -103,12 +100,14 @@ export class CheckinController {
         res.status(400).json({
           success: false,
           message: `Invalid vehicle type: ${vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
 
-      const availability = this.spotAssignmentService.getAvailabilityByVehicleType(vehicleType as VehicleType);
+      const availability = this.spotAssignmentService.getAvailabilityByVehicleType(
+        vehicleType as VehicleType
+      );
       const simulation = this.spotAssignmentService.simulateAssignment(vehicleType as VehicleType);
 
       res.status(200).json({
@@ -118,27 +117,28 @@ export class CheckinController {
           availability: {
             totalCompatibleSpots: availability.total,
             hasAvailable: availability.hasAvailable,
-            bySpotType: availability.bySpotType
+            bySpotType: availability.bySpotType,
           },
-          assignment: simulation.success ? {
-            wouldAssignTo: simulation.assignedSpot.id,
-            location: simulation.spotLocation,
-            spotType: simulation.assignedSpot.type,
-            isExactMatch: simulation.compatibility.isExactMatch
-          } : null,
-          message: simulation.success ? 
-            'Spots available for this vehicle type' : 
-            'No spots available for this vehicle type'
+          assignment: simulation.success
+            ? {
+                wouldAssignTo: simulation.assignedSpot.id,
+                location: simulation.spotLocation,
+                spotType: simulation.assignedSpot.type,
+                isExactMatch: simulation.compatibility.isExactMatch,
+              }
+            : null,
+          message: simulation.success
+            ? 'Spots available for this vehicle type'
+            : 'No spots available for this vehicle type',
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Failed to get availability information',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -157,7 +157,7 @@ export class CheckinController {
         availabilityByType[vehicleType] = {
           totalCompatible: availability.total,
           available: availability.hasAvailable,
-          bySpotType: availability.bySpotType
+          bySpotType: availability.bySpotType,
         };
       }
 
@@ -171,20 +171,19 @@ export class CheckinController {
             totalSpots: stats.spots.totalSpots,
             availableSpots: stats.spots.availableSpots,
             occupiedSpots: stats.spots.occupiedSpots,
-            occupancyRate: stats.spots.occupancyRate
+            occupancyRate: stats.spots.occupancyRate,
           },
           byVehicleType: availabilityByType,
-          currentlyParked: stats.vehicles.totalParked
+          currentlyParked: stats.vehicles.totalParked,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Failed to get availability information',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -209,19 +208,18 @@ export class CheckinController {
               totalSpots: assignmentStats.totalSpots,
               availableSpots: assignmentStats.availableSpots,
               occupancyRate: `${assignmentStats.occupancyRate}%`,
-              byVehicleType: assignmentStats.byVehicleType
-            }
-          }
+              byVehicleType: assignmentStats.byVehicleType,
+            },
+          },
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve statistics',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -238,18 +236,21 @@ export class CheckinController {
         success: false,
         message: 'Vehicle already checked in',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
 
     // No spots available error
-    if (errorMessage.includes('no available spots') || errorMessage.includes('no spots available')) {
+    if (
+      errorMessage.includes('no available spots') ||
+      errorMessage.includes('no spots available')
+    ) {
       res.status(503).json({
         success: false,
         message: 'Garage is full',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -260,7 +261,7 @@ export class CheckinController {
         success: false,
         message: 'Invalid vehicle type',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -271,7 +272,7 @@ export class CheckinController {
         success: false,
         message: 'Invalid rate type',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -282,7 +283,7 @@ export class CheckinController {
         success: false,
         message: 'Invalid license plate',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -293,7 +294,7 @@ export class CheckinController {
         success: false,
         message: 'Check-in operation failed',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -303,7 +304,7 @@ export class CheckinController {
       success: false,
       message: 'Internal server error during check-in',
       errors: [error.message],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -314,7 +315,7 @@ export class CheckinController {
   healthCheck = async (req: Request, res: Response): Promise<void> => {
     try {
       const stats = this.checkinService.getCheckinStats();
-      
+
       res.status(200).json({
         success: true,
         data: {
@@ -323,18 +324,17 @@ export class CheckinController {
           summary: {
             totalSpots: stats.spots.totalSpots,
             availableSpots: stats.spots.availableSpots,
-            currentlyParked: stats.vehicles.totalParked
-          }
+            currentlyParked: stats.vehicles.totalParked,
+          },
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(503).json({
         success: false,
         message: 'Service health check failed',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };

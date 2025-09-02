@@ -1,6 +1,6 @@
 /**
  * Monitoring and observability configuration
- * 
+ *
  * Features:
  * - Application Performance Monitoring (APM)
  * - Custom metrics collection
@@ -8,7 +8,7 @@
  * - Error tracking integration
  * - Performance benchmarking
  * - System resource monitoring
- * 
+ *
  * @module MonitoringConfig
  */
 
@@ -53,12 +53,12 @@ export class MetricsCollector {
   private histograms: Map<string, number[]> = new Map();
 
   // Record a metric
-  record(name: string, value: number, unit: string = 'count', tags?: Record<string, string>) {
+  record(name: string, value: number, unit = 'count', tags?: Record<string, string>) {
     const metric: Metric = {
       name,
       value,
       unit,
-      tags,
+      tags: tags || {},
       timestamp: new Date(),
     };
 
@@ -73,7 +73,7 @@ export class MetricsCollector {
   }
 
   // Increment a counter
-  increment(name: string, tags?: Record<string, string>, value: number = 1) {
+  increment(name: string, tags?: Record<string, string>, value = 1) {
     const current = this.counters.get(name) || 0;
     this.counters.set(name, current + value);
     this.record(name, current + value, 'count', tags);
@@ -84,15 +84,15 @@ export class MetricsCollector {
     if (!this.histograms.has(name)) {
       this.histograms.set(name, []);
     }
-    
+
     const values = this.histograms.get(name)!;
     values.push(value);
-    
+
     // Keep only last 100 values
     if (values.length > 100) {
       values.splice(0, values.length - 100);
     }
-    
+
     this.record(name, value, 'duration', tags);
   }
 
@@ -112,7 +112,7 @@ export class MetricsCollector {
     const duration = performance.now() - start;
     this.performanceMarks.delete(name);
     this.histogram(name, duration, tags);
-    
+
     return duration;
   }
 
@@ -162,18 +162,18 @@ export class DatabaseHealthCheck implements HealthCheckProvider {
 
   async check(): Promise<HealthCheckResult> {
     const start = performance.now();
-    
+
     try {
       // Import dynamically to avoid circular dependencies
       const { PrismaClient } = await import('@prisma/client');
       const prisma = new PrismaClient();
-      
+
       // Simple query to check database connectivity
       await prisma.$queryRaw`SELECT 1`;
       await prisma.$disconnect();
-      
+
       const duration = performance.now() - start;
-      
+
       return {
         name: this.name,
         status: duration < 1000 ? 'healthy' : 'degraded',
@@ -182,7 +182,7 @@ export class DatabaseHealthCheck implements HealthCheckProvider {
       };
     } catch (error) {
       const duration = performance.now() - start;
-      
+
       return {
         name: this.name,
         status: 'unhealthy',
@@ -260,7 +260,7 @@ export class MonitoringConfig {
   private static instance: MonitoringConfig;
   private metricsCollector: MetricsCollector;
   private healthChecks: HealthCheckProvider[];
-  private isInitialized: boolean = false;
+  private isInitialized = false;
 
   private constructor() {
     this.metricsCollector = new MetricsCollector();
@@ -291,10 +291,7 @@ export class MonitoringConfig {
           dsn: env.SENTRY_DSN,
           environment: env.SENTRY_ENVIRONMENT || env.NODE_ENV,
           tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE || 0.1,
-          integrations: [
-            Sentry.httpIntegration(),
-            Sentry.expressIntegration(),
-          ],
+          integrations: [Sentry.httpIntegration(), Sentry.expressIntegration()],
         });
         systemLogger.info('Sentry initialized', { environment: env.SENTRY_ENVIRONMENT });
       }
@@ -362,7 +359,10 @@ export class MonitoringConfig {
         const result = await Promise.race([
           healthCheck.check(),
           new Promise<HealthCheckResult>((_, reject) =>
-            setTimeout(() => reject(new Error('Health check timeout')), env.HEALTH_CHECK_TIMEOUT || 5000)
+            setTimeout(
+              () => reject(new Error('Health check timeout')),
+              env.HEALTH_CHECK_TIMEOUT || 5000
+            )
           ),
         ]);
         results.push(result);
@@ -379,11 +379,14 @@ export class MonitoringConfig {
   }
 
   // Get overall health status
-  async getHealthStatus(): Promise<{ status: 'healthy' | 'unhealthy' | 'degraded'; checks: HealthCheckResult[] }> {
+  async getHealthStatus(): Promise<{
+    status: 'healthy' | 'unhealthy' | 'degraded';
+    checks: HealthCheckResult[];
+  }> {
     const checks = await this.runHealthChecks();
-    
+
     let overallStatus: 'healthy' | 'unhealthy' | 'degraded' = 'healthy';
-    
+
     for (const check of checks) {
       if (check.status === 'unhealthy') {
         overallStatus = 'unhealthy';
@@ -399,29 +402,29 @@ export class MonitoringConfig {
   // Report error to monitoring systems
   reportError(error: Error, context?: Record<string, any>): void {
     systemLogger.error('Error reported to monitoring', error, context);
-    
+
     if (env.SENTRY_DSN) {
-      Sentry.captureException(error, { extra: context });
+      Sentry.captureException(error, context ? { extra: context } : undefined);
     }
-    
-    this.metricsCollector.increment('errors.total', { 
+
+    this.metricsCollector.increment('errors.total', {
       type: error.constructor.name,
-      ...context 
+      ...context,
     });
   }
 
   // Report custom event
   reportEvent(name: string, data?: Record<string, any>): void {
     systemLogger.info(`Event: ${name}`, data);
-    
+
     if (env.SENTRY_DSN) {
       Sentry.addBreadcrumb({
         message: name,
-        data,
+        data: data || {},
         level: 'info',
       });
     }
-    
+
     this.metricsCollector.increment(`events.${name}`, data);
   }
 }
@@ -430,11 +433,20 @@ export class MonitoringConfig {
 export const monitoring = MonitoringConfig.getInstance();
 
 // Utility functions
-export function recordMetric(name: string, value: number, unit?: string, tags?: Record<string, string>): void {
+export function recordMetric(
+  name: string,
+  value: number,
+  unit?: string,
+  tags?: Record<string, string>
+): void {
   monitoring.getMetricsCollector().record(name, value, unit, tags);
 }
 
-export function incrementCounter(name: string, tags?: Record<string, string>, value?: number): void {
+export function incrementCounter(
+  name: string,
+  tags?: Record<string, string>,
+  value?: number
+): void {
   monitoring.getMetricsCollector().increment(name, tags, value);
 }
 

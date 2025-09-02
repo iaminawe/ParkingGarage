@@ -1,9 +1,9 @@
 /**
  * Vehicle adapter implementation
- * 
+ *
  * This class extends PrismaAdapter to provide vehicle-specific
  * database operations with proper typing and business logic.
- * 
+ *
  * @module VehicleAdapter
  */
 
@@ -29,11 +29,7 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   protected readonly modelName = 'vehicle';
   protected readonly delegate: typeof PrismaClient.prototype.vehicle;
 
-  constructor(
-    prisma?: PrismaClient,
-    logger?: IAdapterLogger,
-    retryConfig?: Partial<RetryConfig>
-  ) {
+  constructor(prisma?: PrismaClient, logger?: IAdapterLogger, retryConfig?: Partial<RetryConfig>) {
     super(prisma, logger, retryConfig);
     this.delegate = this.prisma.vehicle;
   }
@@ -41,21 +37,24 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   /**
    * Find vehicle by license plate
    */
-  async findByLicensePlate(licensePlate: string, tx?: Prisma.TransactionClient): Promise<Vehicle | null> {
+  async findByLicensePlate(
+    licensePlate: string,
+    tx?: Prisma.TransactionClient
+  ): Promise<Vehicle | null> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
       const result = await client.vehicle.findFirst({
-        where: { 
-          licensePlate: licensePlate.toUpperCase()
-        }
+        where: {
+          licensePlate: licensePlate.toUpperCase(),
+        },
       });
-      
+
       this.logger.debug('Found vehicle by license plate', {
         licensePlate,
         found: !!result,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'find vehicle by license plate');
   }
@@ -67,21 +66,21 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
       const result = await client.vehicle.findMany({
-        where: { 
+        where: {
           status,
-          deletedAt: null
+          deletedAt: null,
         },
         orderBy: {
-          updatedAt: 'desc'
-        }
+          updatedAt: 'desc',
+        },
       });
-      
+
       this.logger.debug('Found vehicles by status', {
         status,
         count: result.length,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'find vehicles by status');
   }
@@ -89,25 +88,28 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   /**
    * Find vehicles by type
    */
-  async findByVehicleType(vehicleType: VehicleType, tx?: Prisma.TransactionClient): Promise<Vehicle[]> {
+  async findByVehicleType(
+    vehicleType: VehicleType,
+    tx?: Prisma.TransactionClient
+  ): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
       const result = await client.vehicle.findMany({
-        where: { 
+        where: {
           vehicleType,
-          deletedAt: null
+          deletedAt: null,
         },
         orderBy: {
-          createdAt: 'desc'
-        }
+          createdAt: 'desc',
+        },
       });
-      
+
       this.logger.debug('Found vehicles by type', {
         vehicleType,
         count: result.length,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'find vehicles by type');
   }
@@ -119,9 +121,9 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
       const result = await client.vehicle.findMany({
-        where: { 
+        where: {
           currentSpotId: { not: null },
-          deletedAt: null
+          deletedAt: null,
         },
         include: {
           spot: {
@@ -129,20 +131,20 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
               id: true,
               spotNumber: true,
               level: true,
-              section: true
-            }
-          }
+              section: true,
+            },
+          },
         },
         orderBy: {
-          updatedAt: 'desc'
-        }
+          updatedAt: 'desc',
+        },
       });
-      
+
       this.logger.debug('Found currently parked vehicles', {
         count: result.length,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'find currently parked vehicles');
   }
@@ -150,29 +152,32 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   /**
    * Search vehicles with multiple criteria
    */
-  async searchVehicles(criteria: {
-    licensePlate?: string;
-    vehicleType?: VehicleType;
-    make?: string;
-    model?: string;
-    color?: string;
-    ownerName?: string;
-    ownerEmail?: string;
-    status?: VehicleStatus;
-    yearFrom?: number;
-    yearTo?: number;
-  }, tx?: Prisma.TransactionClient): Promise<Vehicle[]> {
+  async searchVehicles(
+    criteria: {
+      licensePlate?: string;
+      vehicleType?: VehicleType;
+      make?: string;
+      model?: string;
+      color?: string;
+      ownerName?: string;
+      ownerEmail?: string;
+      status?: VehicleStatus;
+      yearFrom?: number;
+      yearTo?: number;
+    },
+    tx?: Prisma.TransactionClient
+  ): Promise<Vehicle[]> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
       const where: any = {
-        deletedAt: null
+        deletedAt: null,
       };
 
       // Add search conditions
       if (criteria.licensePlate) {
         where.licensePlate = {
           contains: criteria.licensePlate.toUpperCase(),
-          mode: 'insensitive'
+          mode: 'insensitive',
         };
       }
 
@@ -183,35 +188,35 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
       if (criteria.make) {
         where.make = {
           contains: criteria.make,
-          mode: 'insensitive'
+          mode: 'insensitive',
         };
       }
 
       if (criteria.model) {
         where.model = {
           contains: criteria.model,
-          mode: 'insensitive'
+          mode: 'insensitive',
         };
       }
 
       if (criteria.color) {
         where.color = {
           contains: criteria.color,
-          mode: 'insensitive'
+          mode: 'insensitive',
         };
       }
 
       if (criteria.ownerName) {
         where.ownerName = {
           contains: criteria.ownerName,
-          mode: 'insensitive'
+          mode: 'insensitive',
         };
       }
 
       if (criteria.ownerEmail) {
         where.ownerEmail = {
           contains: criteria.ownerEmail,
-          mode: 'insensitive'
+          mode: 'insensitive',
         };
       }
 
@@ -221,23 +226,27 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
 
       if (criteria.yearFrom || criteria.yearTo) {
         where.year = {};
-        if (criteria.yearFrom) where.year.gte = criteria.yearFrom;
-        if (criteria.yearTo) where.year.lte = criteria.yearTo;
+        if (criteria.yearFrom) {
+          where.year.gte = criteria.yearFrom;
+        }
+        if (criteria.yearTo) {
+          where.year.lte = criteria.yearTo;
+        }
       }
 
       const result = await client.vehicle.findMany({
         where,
         orderBy: {
-          updatedAt: 'desc'
-        }
+          updatedAt: 'desc',
+        },
       });
-      
+
       this.logger.debug('Searched vehicles', {
         criteria,
         count: result.length,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'search vehicles');
   }
@@ -246,13 +255,13 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
    * Update vehicle license plate with validation
    */
   async updateLicensePlate(
-    id: string, 
-    newLicensePlate: string, 
+    id: string,
+    newLicensePlate: string,
     tx?: Prisma.TransactionClient
   ): Promise<Vehicle> {
     return this.executeWithRetry(async () => {
       const normalizedPlate = newLicensePlate.toUpperCase();
-      
+
       // Check if the new license plate is already taken
       const existing = await this.findByLicensePlate(normalizedPlate, tx);
       if (existing && existing.id !== id) {
@@ -261,23 +270,23 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
 
       const client = tx || this.prisma;
       const result = await client.vehicle.update({
-        where: { 
+        where: {
           id,
-          deletedAt: null
+          deletedAt: null,
         },
         data: {
           licensePlate: normalizedPlate,
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
-      
+
       this.logger.info('Updated vehicle license plate', {
         id,
         oldPlate: 'hidden',
         newPlate: normalizedPlate,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'update vehicle license plate');
   }
@@ -292,29 +301,29 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   ): Promise<Vehicle> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
-      
+
       // Update vehicle with current spot
       const result = await client.vehicle.update({
-        where: { 
+        where: {
           id: vehicleId,
-          deletedAt: null
+          deletedAt: null,
         },
         data: {
           currentSpotId: spotId,
           status: VehicleStatus.ACTIVE, // Assuming vehicle becomes active when parked
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
         include: {
-          currentSpot: true
-        }
+          currentSpot: true,
+        },
       });
-      
+
       this.logger.info('Assigned vehicle to spot', {
         vehicleId,
         spotId,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'assign vehicle to spot');
   }
@@ -325,23 +334,23 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   async removeFromSpot(vehicleId: string, tx?: Prisma.TransactionClient): Promise<Vehicle> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
-      
+
       const result = await client.vehicle.update({
-        where: { 
+        where: {
           id: vehicleId,
-          deletedAt: null
+          deletedAt: null,
         },
         data: {
           currentSpotId: null,
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
-      
+
       this.logger.info('Removed vehicle from spot', {
         vehicleId,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'remove vehicle from spot');
   }
@@ -360,35 +369,31 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
   }> {
     return this.executeWithRetry(async () => {
       const client = tx || this.prisma;
-      
-      // Get counts by status
-      const [
-        total,
-        active,
-        blocked,
-        banned,
-        inactive,
-        currentlyParked,
-        typeStats
-      ] = await Promise.all([
-        client.vehicle.count({ where: { deletedAt: null } }),
-        client.vehicle.count({ where: { status: VehicleStatus.ACTIVE, deletedAt: null } }),
-        client.vehicle.count({ where: { status: VehicleStatus.PARKED, deletedAt: null } }),
-        client.vehicle.count({ where: { status: VehicleStatus.DEPARTED, deletedAt: null } }),
-        client.vehicle.count({ where: { status: VehicleStatus.INACTIVE, deletedAt: null } }),
-        client.vehicle.count({ where: { currentSpotId: { not: null }, deletedAt: null } }),
-        client.vehicle.groupBy({
-          by: ['vehicleType'],
-          where: { deletedAt: null },
-          _count: { id: true }
-        })
-      ]);
 
-      const byType = typeStats.reduce((acc, stat) => {
-        acc[stat.vehicleType] = stat._count.id;
-        return acc;
-      }, {} as Record<string, number>);
-      
+      // Get counts by status
+      const [total, active, blocked, banned, inactive, currentlyParked, typeStats] =
+        await Promise.all([
+          client.vehicle.count({ where: { deletedAt: null } }),
+          client.vehicle.count({ where: { status: VehicleStatus.ACTIVE, deletedAt: null } }),
+          client.vehicle.count({ where: { status: VehicleStatus.PARKED, deletedAt: null } }),
+          client.vehicle.count({ where: { status: VehicleStatus.DEPARTED, deletedAt: null } }),
+          client.vehicle.count({ where: { status: VehicleStatus.INACTIVE, deletedAt: null } }),
+          client.vehicle.count({ where: { currentSpotId: { not: null }, deletedAt: null } }),
+          client.vehicle.groupBy({
+            by: ['vehicleType'],
+            where: { deletedAt: null },
+            _count: { id: true },
+          }),
+        ]);
+
+      const byType = typeStats.reduce(
+        (acc, stat) => {
+          acc[stat.vehicleType] = stat._count.id;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
       const statistics = {
         total,
         active,
@@ -396,14 +401,14 @@ export class VehicleAdapter extends PrismaAdapter<Vehicle, VehicleCreateData, Ve
         banned,
         inactive,
         currentlyParked,
-        byType
+        byType,
       };
-      
+
       this.logger.debug('Retrieved vehicle statistics', {
         statistics,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return statistics;
     }, 'get vehicle statistics');
   }

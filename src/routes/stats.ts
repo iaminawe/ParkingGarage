@@ -1,9 +1,9 @@
 /**
  * Statistics and analytics routes
- * 
+ *
  * This module defines routes for garage statistics, occupancy reports,
  * revenue analytics, usage patterns, and operational insights.
- * 
+ *
  * @module StatsRoutes
  */
 

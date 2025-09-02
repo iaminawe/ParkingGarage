@@ -1,6 +1,6 @@
 /**
  * Core data model type definitions for the parking garage system
- * 
+ *
  * These interfaces define the structure for vehicles, spots, and garage
  * configuration objects used throughout the application.
  */

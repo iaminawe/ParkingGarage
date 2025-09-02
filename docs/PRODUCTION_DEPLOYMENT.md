@@ -273,7 +273,7 @@ clinic doctor -- node src/server.js
 - Set up CI/CD pipeline
 
 ### **Medium Term (1-2 months)**
-- Add payment processing
+- Add payment processing (future feature)
 - Implement user management
 - Add notification system
 - Mobile app API enhancements

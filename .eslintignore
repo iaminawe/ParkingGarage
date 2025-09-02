@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Generated files
+src/generated/**
+*.d.ts
+*.map
+
+# Configuration files
+*.config.js
+jest.config.js
+webpack.config.js
+rollup.config.js
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Environment files
+.env*
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Misc
+*.tgz
+*.tar.gz

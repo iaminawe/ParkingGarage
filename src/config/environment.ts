@@ -15,17 +15,21 @@ const environmentSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
   // JWT Configuration - CRITICAL: No default secrets allowed
-  JWT_SECRET: z.string()
+  JWT_SECRET: z
+    .string()
     .min(32, 'JWT_SECRET must be at least 32 characters long')
     .refine(
-      (val) => val !== 'your-super-secret-jwt-key' && val !== 'your-super-secure-jwt-secret-minimum-32-characters',
+      val =>
+        val !== 'your-super-secret-jwt-key' &&
+        val !== 'your-super-secure-jwt-secret-minimum-32-characters',
       'JWT_SECRET cannot use default/example values'
     ),
-  
-  JWT_REFRESH_SECRET: z.string()
+
+  JWT_REFRESH_SECRET: z
+    .string()
     .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters long')
     .refine(
-      (val) => val !== 'your-super-secret-refresh-key',
+      val => val !== 'your-super-secret-refresh-key',
       'JWT_REFRESH_SECRET cannot use default/example values'
     ),
 
@@ -54,22 +58,22 @@ const environmentSchema = z.object({
   SENDGRID_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().email().optional(),
   EMAIL_FROM_NAME: z.string().optional(),
-  
+
   // Application URLs
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
   API_URL: z.string().url().default('http://localhost:3001'),
-  
+
   // OAuth Configuration (optional)
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
-  
+
   // Security Configuration
   SESSION_SECRET: z.string().min(32).optional(),
   CSRF_SECRET: z.string().min(32).optional(),
   ENCRYPTION_KEY: z.string().min(32).optional(),
-  
+
   // Rate Limiting
   EMAIL_RATE_LIMIT_PER_HOUR: z.string().transform(Number).pipe(z.number()).default(100),
   EMAIL_RATE_LIMIT_PER_RECIPIENT_HOUR: z.string().transform(Number).pipe(z.number()).default(5),
@@ -78,15 +82,28 @@ const environmentSchema = z.object({
   LOG_FILE_DATE_PATTERN: z.string().default('YYYY-MM-DD-HH'),
   LOG_FILE_MAX_SIZE: z.string().default('20m'),
   LOG_FILE_MAX_FILES: z.string().default('14d'),
-  ENABLE_ERROR_LOGGING: z.string().transform((val) => val === 'true').default(true),
-  ENABLE_REQUEST_LOGGING: z.string().transform((val) => val === 'true').default(true),
+  ENABLE_ERROR_LOGGING: z
+    .string()
+    .transform(val => val === 'true')
+    .default(true),
+  ENABLE_REQUEST_LOGGING: z
+    .string()
+    .transform(val => val === 'true')
+    .default(true),
 
   // Monitoring (optional)
   SENTRY_DSN: z.string().optional(),
   SENTRY_ENVIRONMENT: z.string().optional(),
-  SENTRY_TRACES_SAMPLE_RATE: z.string().transform(Number).pipe(z.number().min(0).max(1)).default(0.1),
+  SENTRY_TRACES_SAMPLE_RATE: z
+    .string()
+    .transform(Number)
+    .pipe(z.number().min(0).max(1))
+    .default(0.1),
   HEALTH_CHECK_TIMEOUT: z.string().transform(Number).pipe(z.number()).default(30000),
-  ENABLE_METRICS: z.string().transform((val) => val === 'true').default(false),
+  ENABLE_METRICS: z
+    .string()
+    .transform(val => val === 'true')
+    .default(false),
 });
 
 // Environment validation result type
@@ -117,24 +134,24 @@ export class EnvironmentValidator {
         });
 
         EnvironmentValidator.validationErrors = errors;
-        
+
         console.error('❌ Environment validation failed:');
         errors.forEach(error => console.error(`   - ${error}`));
-        
-        if (process.env.NODE_ENV === 'production') {
+
+        if (process.env['NODE_ENV'] === 'production') {
           console.error('\n🔥 CRITICAL: Cannot start in production with invalid configuration');
           process.exit(1);
         } else {
           console.warn('\n⚠️  WARNING: Starting with invalid configuration in development mode');
           console.warn('   Please fix these issues before deploying to production');
         }
-        
+
         // Return a minimal valid configuration for development
         return EnvironmentValidator.getMinimalValidConfig();
       }
 
       EnvironmentValidator.validated = parsed.data;
-      
+
       // Log successful validation in development
       if (parsed.data.NODE_ENV === 'development') {
         console.log('✅ Environment validation successful');
@@ -142,7 +159,6 @@ export class EnvironmentValidator {
       }
 
       return parsed.data;
-
     } catch (error) {
       console.error('❌ Fatal error during environment validation:', error);
       process.exit(1);
@@ -160,7 +176,9 @@ export class EnvironmentValidator {
    * Check if environment is valid
    */
   static isValid(): boolean {
-    return EnvironmentValidator.validated !== null && EnvironmentValidator.validationErrors.length === 0;
+    return (
+      EnvironmentValidator.validated !== null && EnvironmentValidator.validationErrors.length === 0
+    );
   }
 
   /**
@@ -173,7 +191,7 @@ export class EnvironmentValidator {
       if (env.JWT_SECRET.length < 64) {
         warnings.push('Consider using a longer JWT_SECRET (64+ characters) for enhanced security');
       }
-      
+
       if (env.BCRYPT_SALT_ROUNDS < 12) {
         warnings.push('Consider increasing BCRYPT_SALT_ROUNDS to 12+ for production');
       }
@@ -193,9 +211,10 @@ export class EnvironmentValidator {
       NODE_ENV: 'development',
       PORT: 3000,
       HOST: '0.0.0.0',
-      DATABASE_URL: process.env.DATABASE_URL || 'file:./dev.db',
+      DATABASE_URL: process.env['DATABASE_URL'] || 'file:./dev.db',
       JWT_SECRET: 'development-jwt-secret-minimum-32-chars-long-do-not-use-in-production',
-      JWT_REFRESH_SECRET: 'development-refresh-secret-minimum-32-chars-long-do-not-use-in-production',
+      JWT_REFRESH_SECRET:
+        'development-refresh-secret-minimum-32-chars-long-do-not-use-in-production',
       JWT_EXPIRES_IN: '1h',
       JWT_REFRESH_EXPIRES_IN: '7d',
       BCRYPT_SALT_ROUNDS: 12,

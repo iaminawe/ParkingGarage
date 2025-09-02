@@ -1,6 +1,6 @@
 /**
  * Data Backup Utility
- * 
+ *
  * Provides comprehensive backup and restore functionality for migration safety.
  * Supports both MemoryStore data and SQLite database backups.
  */
@@ -36,7 +36,7 @@ export class DataBackupUtility {
 
   constructor(baseBackupDir?: string) {
     this.backupDir = baseBackupDir || path.join(process.cwd(), '.migration', 'backups');
-    
+
     // Ensure backup directory exists
     if (!fs.existsSync(this.backupDir)) {
       fs.mkdirSync(this.backupDir, { recursive: true });
@@ -51,7 +51,7 @@ export class DataBackupUtility {
     options: BackupOptions = {
       includeMemoryStore: true,
       includeSQLiteDB: true,
-      retentionDays: 30
+      retentionDays: 30,
     }
   ): Promise<BackupResult> {
     const timestamp = new Date();
@@ -94,7 +94,7 @@ export class DataBackupUtility {
         options,
         files: backedUpFiles,
         totalSize,
-        version: '1.0.0'
+        version: '1.0.0',
       };
 
       const metadataPath = path.join(backupPath, 'backup-metadata.json');
@@ -111,9 +111,8 @@ export class DataBackupUtility {
         backupPath,
         timestamp,
         size: totalSize,
-        files: backedUpFiles
+        files: backedUpFiles,
       };
-
     } catch (error) {
       return {
         success: false,
@@ -121,7 +120,7 @@ export class DataBackupUtility {
         timestamp,
         size: 0,
         files: [],
-        error: error instanceof Error ? error.message : 'Unknown backup error'
+        error: error instanceof Error ? error.message : 'Unknown backup error',
       };
     }
   }
@@ -146,15 +145,21 @@ export class DataBackupUtility {
         { name: 'vehicles', data: Array.from(memoryStore.vehicles.entries()) },
         { name: 'sessions', data: [] }, // Memory store doesn't have sessions
         { name: 'garageConfig', data: Array.from(memoryStore.garageConfig.entries()) },
-        { name: 'spotsByFloorBay', data: Array.from(memoryStore.spotsByFloorBay.entries()).map(([key, value]) => [key, Array.from(value)]) },
-        { name: 'occupiedSpots', data: Array.from(memoryStore.occupiedSpots) }
+        {
+          name: 'spotsByFloorBay',
+          data: Array.from(memoryStore.spotsByFloorBay.entries()).map(([key, value]) => [
+            key,
+            Array.from(value),
+          ]),
+        },
+        { name: 'occupiedSpots', data: Array.from(memoryStore.occupiedSpots) },
       ];
 
       for (const collection of collections) {
         const filePath = path.join(backupPath, `memorystore-${collection.name}.json`);
         const content = JSON.stringify(collection.data, null, 2);
         await fs.promises.writeFile(filePath, content);
-        
+
         const stats = await fs.promises.stat(filePath);
         totalSize += stats.size;
         files.push(path.basename(filePath));
@@ -169,13 +174,12 @@ export class DataBackupUtility {
       files.push('memorystore-stats.json');
 
       return { success: true, files, size: totalSize };
-
     } catch (error) {
       return {
         success: false,
         files: [],
         size: 0,
-        error: error instanceof Error ? error.message : 'Unknown MemoryStore backup error'
+        error: error instanceof Error ? error.message : 'Unknown MemoryStore backup error',
       };
     }
   }
@@ -198,16 +202,16 @@ export class DataBackupUtility {
         path.join(process.cwd(), 'prisma', 'dev.db'),
         path.join(process.cwd(), 'dev.db'),
         path.join(process.cwd(), 'database.db'),
-        path.join(process.cwd(), 'parking-garage.db')
+        path.join(process.cwd(), 'parking-garage.db'),
       ];
 
       for (const dbPath of possibleDBPaths) {
         if (fs.existsSync(dbPath)) {
           const dbFileName = path.basename(dbPath);
           const backupDBPath = path.join(backupPath, `sqlite-${dbFileName}`);
-          
+
           await fs.promises.copyFile(dbPath, backupDBPath);
-          
+
           const stats = await fs.promises.stat(backupDBPath);
           totalSize += stats.size;
           files.push(path.basename(backupDBPath));
@@ -215,7 +219,7 @@ export class DataBackupUtility {
           // Also backup WAL and SHM files if they exist
           const walPath = `${dbPath}-wal`;
           const shmPath = `${dbPath}-shm`;
-          
+
           if (fs.existsSync(walPath)) {
             const backupWalPath = path.join(backupPath, `sqlite-${dbFileName}-wal`);
             await fs.promises.copyFile(walPath, backupWalPath);
@@ -223,7 +227,7 @@ export class DataBackupUtility {
             totalSize += walStats.size;
             files.push(path.basename(backupWalPath));
           }
-          
+
           if (fs.existsSync(shmPath)) {
             const backupShmPath = path.join(backupPath, `sqlite-${dbFileName}-shm`);
             await fs.promises.copyFile(shmPath, backupShmPath);
@@ -239,18 +243,17 @@ export class DataBackupUtility {
           success: false,
           files: [],
           size: 0,
-          error: 'No SQLite database files found to backup'
+          error: 'No SQLite database files found to backup',
         };
       }
 
       return { success: true, files, size: totalSize };
-
     } catch (error) {
       return {
         success: false,
         files: [],
         size: 0,
-        error: error instanceof Error ? error.message : 'Unknown SQLite backup error'
+        error: error instanceof Error ? error.message : 'Unknown SQLite backup error',
       };
     }
   }
@@ -288,14 +291,13 @@ export class DataBackupUtility {
 
       return {
         success: true,
-        restoredFiles
+        restoredFiles,
       };
-
     } catch (error) {
       return {
         success: false,
         restoredFiles: [],
-        error: error instanceof Error ? error.message : 'Unknown restore error'
+        error: error instanceof Error ? error.message : 'Unknown restore error',
       };
     }
   }
@@ -305,16 +307,18 @@ export class DataBackupUtility {
    */
   private async restoreMemoryStore(backupPath: string, files: string[]): Promise<void> {
     const memoryStore = MemoryStore.getInstance();
-    
+
     for (const file of files) {
-      if (file === 'memorystore-stats.json') continue; // Skip stats file
-      
+      if (file === 'memorystore-stats.json') {
+        continue;
+      } // Skip stats file
+
       const filePath = path.join(backupPath, file);
       const content = await fs.promises.readFile(filePath, 'utf8');
       const data = JSON.parse(content);
-      
+
       const collectionName = file.replace('memorystore-', '').replace('.json', '');
-      
+
       switch (collectionName) {
         case 'spots':
           memoryStore.spots.clear();
@@ -359,17 +363,17 @@ export class DataBackupUtility {
   private async restoreSQLiteDB(backupPath: string, files: string[]): Promise<void> {
     for (const file of files) {
       const backupFilePath = path.join(backupPath, file);
-      
+
       // Determine restore path based on file name
       const originalFileName = file.replace('sqlite-', '');
       let restorePath: string;
-      
+
       if (originalFileName.includes('-wal') || originalFileName.includes('-shm')) {
         // Handle WAL and SHM files
         const baseFileName = originalFileName.replace('-wal', '').replace('-shm', '');
         const isWal = originalFileName.includes('-wal');
         const extension = isWal ? '-wal' : '-shm';
-        
+
         restorePath = path.join(process.cwd(), 'prisma', baseFileName) + extension;
         if (!fs.existsSync(path.dirname(restorePath))) {
           restorePath = path.join(process.cwd(), baseFileName) + extension;
@@ -381,7 +385,7 @@ export class DataBackupUtility {
           restorePath = path.join(process.cwd(), originalFileName);
         }
       }
-      
+
       await fs.promises.copyFile(backupFilePath, restorePath);
     }
   }
@@ -389,41 +393,42 @@ export class DataBackupUtility {
   /**
    * List available backups
    */
-  async listBackups(): Promise<Array<{
-    id: string;
-    path: string;
-    timestamp: Date;
-    size: number;
-    migrationId: string;
-    files: string[];
-  }>> {
+  async listBackups(): Promise<
+    Array<{
+      id: string;
+      path: string;
+      timestamp: Date;
+      size: number;
+      migrationId: string;
+      files: string[];
+    }>
+  > {
     const backups: Array<any> = [];
-    
+
     try {
       const entries = await fs.promises.readdir(this.backupDir, { withFileTypes: true });
-      
+
       for (const entry of entries) {
         if (entry.isDirectory()) {
           const metadataPath = path.join(this.backupDir, entry.name, 'backup-metadata.json');
-          
+
           if (fs.existsSync(metadataPath)) {
             const metadata = JSON.parse(await fs.promises.readFile(metadataPath, 'utf8'));
-            
+
             backups.push({
               id: entry.name,
               path: path.join(this.backupDir, entry.name),
               timestamp: new Date(metadata.timestamp),
               size: metadata.totalSize,
               migrationId: metadata.migrationId,
-              files: metadata.files
+              files: metadata.files,
             });
           }
         }
       }
-      
+
       // Sort by timestamp, newest first
       return backups.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      
     } catch (error) {
       console.error('Failed to list backups:', error);
       return [];
@@ -435,9 +440,9 @@ export class DataBackupUtility {
    */
   private async cleanupOldBackups(retentionDays: number): Promise<void> {
     try {
-      const cutoffDate = new Date(Date.now() - (retentionDays * 24 * 60 * 60 * 1000));
+      const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
       const backups = await this.listBackups();
-      
+
       for (const backup of backups) {
         if (backup.timestamp < cutoffDate) {
           await fs.promises.rm(backup.path, { recursive: true, force: true });

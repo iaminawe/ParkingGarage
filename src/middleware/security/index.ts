@@ -10,7 +10,7 @@ export {
   sanitizeHtml,
   commonValidations,
   handleValidationErrors,
-  createValidationChain
+  createValidationChain,
 } from './inputSanitization';
 
 // Circuit breaker for external services
@@ -20,7 +20,7 @@ export {
   CircuitBreakerState,
   CircuitBreakerError,
   withCircuitBreaker,
-  circuitBreakerManager
+  circuitBreakerManager,
 } from './circuitBreaker';
 
 // Security monitoring and threat detection
@@ -29,7 +29,7 @@ export {
   collectRequestMetrics,
   securityHeaders,
   getMonitoringStats,
-  getSecurityHealthCheck
+  getSecurityHealthCheck,
 } from './securityMonitoring';
 
 // Re-export security configuration
@@ -40,5 +40,5 @@ export {
   createRateLimiters,
   getCorsConfig,
   getRequestLimits,
-  type SecurityEvent
+  type SecurityEvent,
 } from '../../config/security.config';

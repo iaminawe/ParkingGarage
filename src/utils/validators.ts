@@ -1,22 +1,22 @@
 /**
  * Data validation utilities for the parking garage system
- * 
+ *
  * This module provides validation functions for all data models including
  * spots, vehicles, and garage configuration. It ensures data integrity
  * and provides meaningful error messages for invalid data.
- * 
+ *
  * @module Validators
  */
 
-import type { 
-  SpotData, 
-  VehicleData, 
-  GarageConfig, 
+import type {
+  SpotData,
+  VehicleData,
+  GarageConfig,
   ValidationResult,
   VehicleType,
   SpotStatus,
   SpotFeature,
-  RateType
+  RateType,
 } from '../types/models';
 
 /**
@@ -185,9 +185,9 @@ export function validateGarageConfig(garageConfig: unknown): ValidationResult {
         errors.push(`Floor ${index + 1}: must be an object`);
         return;
       }
-      
+
       const floorData = floor as Record<string, unknown>;
-      
+
       if (typeof floorData.number !== 'number' || floorData.number < 1) {
         errors.push(`Floor ${index + 1}: number must be a positive number`);
       }
@@ -247,8 +247,10 @@ export function validateGarageConfig(garageConfig: unknown): ValidationResult {
  * @returns True if valid format, false otherwise
  */
 export function isValidSpotId(spotId: unknown): spotId is string {
-  if (typeof spotId !== 'string') return false;
-  
+  if (typeof spotId !== 'string') {
+    return false;
+  }
+
   const spotIdRegex = /^F(\d+)-B(\d+)-S(\d{3})$/;
   return spotIdRegex.test(spotId);
 }
@@ -256,7 +258,7 @@ export function isValidSpotId(spotId: unknown): spotId is string {
 /**
  * Generate a spot ID from floor, bay, and spot number
  * @param floor - Floor number
- * @param bay - Bay number  
+ * @param bay - Bay number
  * @param spotNumber - Spot number
  * @returns Generated spot ID in format F{floor}-B{bay}-S{spot}
  */
@@ -281,6 +283,8 @@ export function generateSpotId(floor: number, bay: number, spotNumber: number): 
  * @returns True if valid, false otherwise
  */
 export function isValidLicensePlate(licensePlate: unknown): licensePlate is string {
-  if (typeof licensePlate !== 'string') return false;
+  if (typeof licensePlate !== 'string') {
+    return false;
+  }
   return licensePlate.length >= 2 && licensePlate.length <= 10;
 }

@@ -1,10 +1,10 @@
 /**
  * Sessions Controller
- * 
+ *
  * Handles HTTP requests for parking session management operations.
  * This includes session listing, lifecycle management, analytics,
  * and data export functionality.
- * 
+ *
  * @module SessionsController
  */
 
@@ -32,7 +32,7 @@ export class SessionsController {
         limit = '50',
         offset = '0',
         sort = 'createdAt',
-        order = 'desc'
+        order = 'desc',
       } = req.query;
 
       // Validate parameters
@@ -48,7 +48,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: `Invalid status filter. Must be one of: ${validStatuses.join(', ')}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -57,7 +57,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: `Invalid dateRange filter. Must be one of: ${validDateRanges.join(', ')}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -66,7 +66,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: `Invalid sort field. Must be one of: ${validSortFields.join(', ')}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -75,7 +75,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: `Invalid order. Must be one of: ${validOrders.join(', ')}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -87,13 +87,13 @@ export class SessionsController {
         search: search as string,
         limit: limitNum,
         sort: sort as any,
-        order: order as 'asc' | 'desc'
+        order: order as 'asc' | 'desc',
       });
 
       const response: ApiResponse<PaginatedResponse<ParkingSession[]>> = {
         success: true,
         data: result,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json(response);
@@ -102,7 +102,7 @@ export class SessionsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error while fetching sessions',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -120,7 +120,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: `Invalid period. Must be one of: ${validPeriods.join(', ')}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -130,7 +130,7 @@ export class SessionsController {
       const response: ApiResponse<typeof stats> = {
         success: true,
         data: stats,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json(response);
@@ -139,7 +139,7 @@ export class SessionsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error while fetching session statistics',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -159,7 +159,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: `Invalid analytics type. Must be one of: ${validTypes.join(', ')}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -168,20 +168,17 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: `Invalid period. Must be one of: ${validPeriods.join(', ')}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
 
-      const analytics = await this.sessionsService.getSessionAnalytics(
-        type as any,
-        period as any
-      );
+      const analytics = await this.sessionsService.getSessionAnalytics(type as any, period as any);
 
       const response: ApiResponse<typeof analytics> = {
         success: true,
         data: analytics,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json(response);
@@ -190,7 +187,7 @@ export class SessionsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error while fetching session analytics',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -207,7 +204,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: 'Session ID is required',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -218,7 +215,7 @@ export class SessionsController {
         res.status(404).json({
           success: false,
           message: `Session with ID '${id}' not found`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -226,7 +223,7 @@ export class SessionsController {
       const response: ApiResponse<ParkingSession> = {
         success: true,
         data: session,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json(response);
@@ -235,7 +232,7 @@ export class SessionsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error while fetching session',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -253,7 +250,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: 'Session ID is required',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -264,28 +261,28 @@ export class SessionsController {
         success: true,
         data: result,
         message: 'Session ended successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json(response);
     } catch (error) {
       console.error('SessionsController.endSession error:', error);
-      
+
       if (error instanceof Error) {
         if (error.message.includes('not found')) {
           res.status(404).json({
             success: false,
             message: error.message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           return;
         }
-        
+
         if (error.message.includes('not active')) {
           res.status(400).json({
             success: false,
             message: error.message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           return;
         }
@@ -294,7 +291,7 @@ export class SessionsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error while ending session',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -312,7 +309,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: 'Session ID is required',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -323,19 +320,19 @@ export class SessionsController {
         success: true,
         data: result,
         message: 'Session cancelled successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json(response);
     } catch (error) {
       console.error('SessionsController.cancelSession error:', error);
-      
+
       if (error instanceof Error) {
         if (error.message.includes('not found')) {
           res.status(404).json({
             success: false,
             message: error.message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           return;
         }
@@ -344,7 +341,7 @@ export class SessionsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error while cancelling session',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -362,7 +359,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: 'Session ID is required',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -371,7 +368,7 @@ export class SessionsController {
         res.status(400).json({
           success: false,
           message: 'Additional hours must be a positive number',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -382,28 +379,28 @@ export class SessionsController {
         success: true,
         data: result,
         message: `Session extended by ${additionalHours} hour(s)`,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       res.json(response);
     } catch (error) {
       console.error('SessionsController.extendSession error:', error);
-      
+
       if (error instanceof Error) {
         if (error.message.includes('not found')) {
           res.status(404).json({
             success: false,
             message: error.message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           return;
         }
-        
+
         if (error.message.includes('not active')) {
           res.status(400).json({
             success: false,
             message: error.message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           return;
         }
@@ -412,7 +409,7 @@ export class SessionsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error while extending session',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -423,16 +420,12 @@ export class SessionsController {
    */
   async exportSessionsCSV(req: Request, res: Response): Promise<void> {
     try {
-      const {
-        status = 'all',
-        dateRange = 'all',
-        search = ''
-      } = req.query;
+      const { status = 'all', dateRange = 'all', search = '' } = req.query;
 
       const csvData = await this.sessionsService.exportSessionsCSV({
         status: status as any,
         dateRange: dateRange as any,
-        search: search as string
+        search: search as string,
       });
 
       // Set headers for CSV download
@@ -447,7 +440,7 @@ export class SessionsController {
       res.status(500).json({
         success: false,
         message: 'Internal server error while exporting sessions',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }

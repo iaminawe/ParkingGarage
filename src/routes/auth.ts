@@ -13,7 +13,7 @@ import {
   requestPasswordReset,
   confirmPasswordReset,
   logoutAllDevices,
-  getUserSessions
+  getUserSessions,
 } from '../controllers/authController';
 
 import {
@@ -21,16 +21,16 @@ import {
   loginValidation,
   refreshTokenValidation,
   profileUpdateValidation,
-  changePasswordValidation
+  changePasswordValidation,
 } from '../middleware/validation/authValidation';
 
 import { authenticate, enforceSessionLimit } from '../middleware/auth';
-import { 
-  authRateLimit, 
-  signupRateLimit, 
+import {
+  authRateLimit,
+  signupRateLimit,
   passwordValidationLimit,
   securityLogger,
-  validateContentType
+  validateContentType,
 } from '../middleware/security';
 import { RATE_LIMITS, API_RESPONSES, HTTP_STATUS } from '../config/constants';
 
@@ -45,10 +45,10 @@ const profileLimiter = rateLimit({
   max: RATE_LIMITS.PROFILE_UPDATE_MAX_ATTEMPTS,
   message: {
     success: false,
-    message: 'Too many profile update attempts from this IP, please try again later.'
+    message: 'Too many profile update attempts from this IP, please try again later.',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 // Apply security middleware to all routes
@@ -102,7 +102,14 @@ router.put('/profile', authenticate, profileLimiter, profileUpdateValidation, up
  * @desc    Change user password
  * @access  Private
  */
-router.put('/change-password', authenticate, enforceSessionLimit(5), authRateLimit, changePasswordValidation, changePassword as any);
+router.put(
+  '/change-password',
+  authenticate,
+  enforceSessionLimit(5),
+  authRateLimit,
+  changePasswordValidation,
+  changePassword as any
+);
 
 /**
  * @route   POST /api/auth/validate-password
@@ -155,9 +162,9 @@ router.get('/verify', authenticate, (req, res) => {
         email: req.user!.email,
         role: req.user!.role,
         firstName: req.user!.firstName,
-        lastName: req.user!.lastName
-      }
-    }
+        lastName: req.user!.lastName,
+      },
+    },
   });
 });
 

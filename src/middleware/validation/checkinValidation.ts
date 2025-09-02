@@ -1,10 +1,10 @@
 /**
  * Check-in validation middleware
- * 
+ *
  * This module provides Express middleware functions for validating
  * vehicle check-in requests, including license plate format,
  * vehicle type validation, and request body sanitization.
- * 
+ *
  * @module CheckinValidation
  */
 
@@ -26,7 +26,11 @@ interface TypedRequest<T = any> extends Request {
  * Validate check-in request body
  * Validates license plate and vehicle type from request body
  */
-export const validateCheckinRequest = (req: TypedRequest<CheckinRequestBody>, res: Response, next: NextFunction): void => {
+export const validateCheckinRequest = (
+  req: TypedRequest<CheckinRequestBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { licensePlate, vehicleType, rateType } = req.body;
   const errors: string[] = [];
 
@@ -44,7 +48,9 @@ export const validateCheckinRequest = (req: TypedRequest<CheckinRequestBody>, re
   } else {
     const validVehicleTypes = ['compact', 'standard', 'oversized'];
     if (!validVehicleTypes.includes(vehicleType)) {
-      errors.push(`Invalid vehicle type: ${vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`);
+      errors.push(
+        `Invalid vehicle type: ${vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`
+      );
     }
   }
 
@@ -62,7 +68,9 @@ export const validateCheckinRequest = (req: TypedRequest<CheckinRequestBody>, re
   const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
 
   if (invalidFields.length > 0) {
-    errors.push(`Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`);
+    errors.push(
+      `Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`
+    );
   }
 
   if (errors.length > 0) {
@@ -70,7 +78,7 @@ export const validateCheckinRequest = (req: TypedRequest<CheckinRequestBody>, re
       success: false,
       message: 'Invalid check-in data',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -82,7 +90,11 @@ export const validateCheckinRequest = (req: TypedRequest<CheckinRequestBody>, re
  * Sanitize check-in request data
  * Normalize license plate to uppercase and trim whitespace
  */
-export const sanitizeCheckinRequest = (req: TypedRequest<CheckinRequestBody>, res: Response, next: NextFunction): void => {
+export const sanitizeCheckinRequest = (
+  req: TypedRequest<CheckinRequestBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   if (req.body.licensePlate && typeof req.body.licensePlate === 'string') {
     req.body.licensePlate = req.body.licensePlate.trim().toUpperCase();
   }
@@ -108,7 +120,7 @@ export const validateRequestBody = (req: Request, res: Response, next: NextFunct
       message: 'Request body is required',
       requiredFields: ['licensePlate', 'vehicleType'],
       optionalFields: ['rateType'],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -124,7 +136,7 @@ export const validateContentType = (req: Request, res: Response, next: NextFunct
     res.status(400).json({
       success: false,
       message: 'Content-Type must be application/json',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }

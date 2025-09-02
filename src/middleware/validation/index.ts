@@ -1,10 +1,10 @@
 /**
  * Validation middleware index
- * 
+ *
  * Central export point for all validation middleware functions.
  * This module re-exports validation functions from individual modules
  * for easy importing throughout the application.
- * 
+ *
  * @module ValidationIndex
  */
 
@@ -16,7 +16,7 @@ export {
   validateContentType as validateCheckoutContentType,
   validateLicensePlateParam,
   validateCheckoutListQuery,
-  validateForceCheckoutRequest
+  validateForceCheckoutRequest,
 } from './checkoutValidation';
 
 // Check-in validation exports
@@ -24,7 +24,7 @@ export {
   validateCheckinRequest,
   sanitizeCheckinRequest,
   validateRequestBody as validateCheckinRequestBody,
-  validateContentType as validateCheckinContentType
+  validateContentType as validateCheckinContentType,
 } from './checkinValidation';
 
 // Spot validation exports
@@ -34,7 +34,7 @@ export {
   validateSpotUpdate,
   sanitizeSpotUpdate,
   validateIncludeParams,
-  validateSortParams
+  validateSortParams,
 } from './spotValidation';
 
 // Garage validation exports
@@ -44,7 +44,7 @@ export {
   validateGarageQuery,
   validateGarageConfigUpdate,
   requireGarageExists,
-  sanitizeGarageName
+  sanitizeGarageName,
 } from './garageValidation';
 
 // Vehicle validation exports
@@ -56,7 +56,7 @@ export {
   validateBulkRequest,
   sanitizeVehicleRequest,
   validateRequestBody as validateVehicleRequestBody,
-  validateContentType as validateVehicleContentType
+  validateContentType as validateVehicleContentType,
 } from './vehicleValidation';
 
 // Session validation exports
@@ -68,5 +68,5 @@ export {
   validateExtendSessionRequest,
   validateContentType as validateSessionContentType,
   validateRequestBody as validateSessionRequestBody,
-  sanitizeSessionRequest
+  sanitizeSessionRequest,
 } from './sessionValidation';

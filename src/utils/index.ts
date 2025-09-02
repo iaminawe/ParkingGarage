@@ -1,9 +1,9 @@
 /**
  * Utility functions export index
- * 
+ *
  * This module re-exports all utility functions from their respective modules
  * providing a central import point for all utility functions.
- * 
+ *
  * @module UtilsIndex
  */
 
@@ -18,7 +18,7 @@ export {
   isValidVehicleType,
   isValidSpotStatus,
   isValidSpotFeature,
-  isValidRateType
+  isValidRateType,
 } from './validators';
 
 // Export all pagination utilities and types
@@ -33,7 +33,7 @@ export {
   isValidPaginationQuery,
   getPaginationDefaults,
   getPageFromOffset,
-  getOffsetFromPage
+  getOffsetFromPage,
 } from './pagination';
 
 export type {
@@ -41,7 +41,7 @@ export type {
   PaginationResult,
   PaginatedResponse,
   PaginationLinks,
-  FilterMetadata
+  FilterMetadata,
 } from './pagination';
 
 // Export all string matching utilities and types
@@ -58,7 +58,7 @@ export {
   isValidSearchMode,
   createSearchSuggestions,
   highlightMatches,
-  getSearchStatistics
+  getSearchStatistics,
 } from './stringMatcher';
 
 export type {
@@ -66,7 +66,7 @@ export type {
   FuzzyMatchOptions,
   LicensePlateSearchOptions,
   LicensePlateMatch,
-  SearchMode
+  SearchMode,
 } from './stringMatcher';
 
 // Export all time calculation utilities and types
@@ -88,14 +88,10 @@ export {
   getTimezoneOffset,
   isSameDay,
   isValidTimestamp,
-  TimeCalculationError
+  TimeCalculationError,
 } from './timeCalculator';
 
-export type {
-  ParkingDuration,
-  HoursMinutesBreakdown,
-  CostEstimation
-} from './timeCalculator';
+export type { ParkingDuration, HoursMinutesBreakdown, CostEstimation } from './timeCalculator';
 
 // Note: All utility functions have been removed from this index as they were unused.
 // The project uses direct imports from specific modules (e.g., './validators', './pagination')

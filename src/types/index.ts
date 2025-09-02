@@ -1,98 +1,65 @@
 /**
- * Type definitions entry point
- * 
- * This module re-exports all type definitions used throughout
- * the parking garage application for easy importing.
+ * Central type exports for the Parking Garage API
+ * This file provides a single point of entry for all type definitions
  */
 
-// Export all model types
-export * from './models';
+// Re-export all types from their respective modules
+export type * from './api';
+export type * from './database';
+export type * from './auth';
+export type * from './validation';
+export type * from './common';
 
-// Export all API types
-export * from './api';
+// Default exports
+export { default as ApiResponse } from './api';
+export { default as DatabaseTypes } from './database';
+export { default as AuthTypes } from './auth';
+export { default as ValidationTypes } from './validation';
+export { default as CommonTypes } from './common';
 
-// Export all service interface types
-export * from './services';
+/**
+ * Type utility for creating read-only deep objects
+ */
+export type DeepReadonly<T> = {
+  readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
+};
 
-// Export all repository interface types
-export * from './repositories';
+/**
+ * Type utility for making all properties optional recursively
+ */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
 
-// Export all middleware and validation types
-export * from './middleware';
+/**
+ * Type utility for strict object keys
+ */
+export type StrictExtract<T, U extends T> = T extends U ? T : never;
 
-// Export JavaScript model class types
-export * from './javascript-models';
+/**
+ * Type utility for non-nullable types
+ */
+export type NonNullable<T> = T extends null | undefined ? never : T;
 
-// Export migration plan and analysis
-export * from './migration-plan';
+/**
+ * Type utility for promise return types
+ */
+export type PromiseType<T extends Promise<unknown>> = T extends Promise<infer U> ? U : never;
 
-// Express extensions are automatically available globally
-// No need to re-export express.d.ts types
+/**
+ * Type utility for function parameters
+ */
+export type Parameters<T extends (...args: readonly unknown[]) => unknown> = T extends (
+  ...args: infer P
+) => unknown
+  ? P
+  : never;
 
-// Re-export commonly used model types for convenience
-export type {
-  VehicleType,
-  RateType,
-  SpotStatus,
-  VehicleStatus,
-  SpotFeature,
-  VehicleRecord,
-  SpotRecord,
-  GarageRecord,
-  ServiceResponse,
-  PaginatedResult,
-  ValidationResult,
-  ParkingSession,
-  GarageStats
-} from './models';
-
-// Re-export commonly used API types for convenience
-export type {
-  ApiResponse,
-  CheckInRequest,
-  CheckInResponse,
-  CheckOutRequest,
-  CheckOutResponse,
-  SearchVehiclesRequest,
-  SearchSpotsRequest,
-  HealthCheckResponse,
-  PaginatedResponse
-} from './api';
-
-// Re-export commonly used service types for convenience
-export type {
-  ISpotAssignmentService,
-  IBillingService,
-  IAnalyticsService,
-  SpotAssignmentResult,
-  BillingResult,
-  AnalyticsGarageStats
-} from './services';
-
-// Re-export commonly used repository types for convenience
-export type {
-  ISpotRepository,
-  IVehicleRepository,
-  IGarageRepository,
-  IBaseRepository,
-  RepositoryResult
-} from './repositories';
-
-// Re-export commonly used middleware types for convenience
-export type {
-  MiddlewareFunction,
-  CustomRequest,
-  ValidationSchema,
-  ParkingGarageError,
-  ErrorResponse
-} from './middleware';
-
-// Re-export JavaScript model interfaces for migration
-export type {
-  SpotModelInterface,
-  VehicleModelInterface,
-  GarageModelInterface,
-  SpotConstructorData,
-  VehicleConstructorData,
-  GarageConstructorData
-} from './javascript-models';
+/**
+ * Type utility for function return types
+ */
+export type ReturnType<T extends (...args: readonly unknown[]) => unknown> = T extends (
+  ...args: readonly unknown[]
+) => infer R
+  ? R
+  : unknown;

@@ -1,9 +1,9 @@
 /**
  * Simple logger utility for adapter operations
- * 
+ *
  * This module provides a basic logging interface for database operations
  * with different log levels and structured logging support.
- * 
+ *
  * @module Logger
  */
 
@@ -16,7 +16,7 @@ export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
   WARN = 2,
-  ERROR = 3
+  ERROR = 3,
 }
 
 /**
@@ -37,7 +37,7 @@ export class ConsoleLogger implements IAdapterLogger {
   private readonly minLevel: LogLevel;
   private readonly name: string;
 
-  constructor(name: string = 'PrismaAdapter', minLevel: LogLevel = LogLevel.INFO) {
+  constructor(name = 'PrismaAdapter', minLevel: LogLevel = LogLevel.INFO) {
     this.name = name;
     this.minLevel = minLevel;
   }
@@ -66,23 +66,28 @@ export class ConsoleLogger implements IAdapterLogger {
     }
   }
 
-  private log(level: LogLevel, message: string, meta?: Record<string, unknown>, error?: Error): void {
+  private log(
+    level: LogLevel,
+    message: string,
+    meta?: Record<string, unknown>,
+    error?: Error
+  ): void {
     const timestamp = new Date().toISOString();
     const levelName = LogLevel[level];
-    
+
     let logMessage = `[${timestamp}] ${levelName} [${this.name}] ${message}`;
-    
+
     if (meta && Object.keys(meta).length > 0) {
       logMessage += ` | Meta: ${JSON.stringify(meta)}`;
     }
-    
+
     if (error) {
       logMessage += ` | Error: ${error.message}`;
       if (error.stack) {
         logMessage += `\nStack: ${error.stack}`;
       }
     }
-    
+
     switch (level) {
       case LogLevel.DEBUG:
       case LogLevel.INFO:
@@ -115,11 +120,11 @@ export function createLogger(name?: string): IAdapterLogger {
   // In production, you might want to use a more sophisticated logger
   const isDevelopment = process.env.NODE_ENV !== 'production';
   const logLevel = process.env.LOG_LEVEL;
-  
+
   if (process.env.NODE_ENV === 'test') {
     return new NoopLogger();
   }
-  
+
   let minLevel = LogLevel.INFO;
   if (logLevel) {
     switch (logLevel.toUpperCase()) {
@@ -139,7 +144,7 @@ export function createLogger(name?: string): IAdapterLogger {
   } else if (isDevelopment) {
     minLevel = LogLevel.DEBUG;
   }
-  
+
   return new ConsoleLogger(name, minLevel);
 }
 

@@ -1,10 +1,10 @@
 /**
  * Vehicle controller for comprehensive vehicle management
- * 
+ *
  * This controller handles HTTP requests for vehicle CRUD operations,
  * owner management, and search functionality. It provides complete
  * vehicle lifecycle management with proper error handling and validation.
- * 
+ *
  * @module VehicleController
  */
 
@@ -12,15 +12,8 @@ import { Request, Response } from 'express';
 import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SearchService } from '../services/searchService';
 import { Vehicle, VehicleType, RateType } from '@prisma/client';
-import { 
-  ApiResponse,
-  PaginatedApiResponse 
-} from '../types/api';
-import { 
-  VehicleRecord, 
-  VehicleType as LegacyVehicleType, 
-  VehicleStatus 
-} from '../types/models';
+import { ApiResponse, PaginatedApiResponse } from '../types/api';
+import { VehicleRecord, VehicleType as LegacyVehicleType, VehicleStatus } from '../types/models';
 
 // Frontend vehicle interface (for API compatibility)
 interface FrontendVehicle {
@@ -77,25 +70,28 @@ export class VehicleController {
    * Get all vehicles with pagination and filtering
    * GET /api/vehicles
    */
-  getAllVehicles = async (req: Request<{}, ApiResponse<FrontendVehicle[]>, {}, VehicleSearchQuery>, res: Response): Promise<void> => {
+  getAllVehicles = async (
+    req: Request<{}, ApiResponse<FrontendVehicle[]>, {}, VehicleSearchQuery>,
+    res: Response
+  ): Promise<void> => {
     try {
-      const { 
-        search, 
-        vehicleType, 
-        status, 
-        page = '1', 
-        limit = '20', 
-        sortBy = 'createdAt', 
-        sortOrder = 'desc' 
+      const {
+        search,
+        vehicleType,
+        status,
+        page = '1',
+        limit = '20',
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
       } = req.query;
 
       // Build search criteria for database query
       const searchCriteria: any = {};
-      
+
       if (search) {
         searchCriteria.licensePlate = search;
       }
-      
+
       if (vehicleType) {
         searchCriteria.vehicleType = vehicleType;
       }
@@ -104,15 +100,19 @@ export class VehicleController {
       const vehicles = await this.vehicleRepository.search(searchCriteria);
 
       // Apply any additional filtering that couldn't be done at database level
-      let filteredVehicles = vehicles;
-      
+      const filteredVehicles = vehicles;
+
       // Apply sorting (if needed beyond database ordering)
       filteredVehicles.sort((a, b) => {
         let aValue: any = (a as any)[sortBy];
         let bValue: any = (b as any)[sortBy];
 
-        if (aValue === undefined) aValue = '';
-        if (bValue === undefined) bValue = '';
+        if (aValue === undefined) {
+          aValue = '';
+        }
+        if (bValue === undefined) {
+          bValue = '';
+        }
 
         if (typeof aValue === 'string') {
           aValue = aValue.toLowerCase();
@@ -131,7 +131,9 @@ export class VehicleController {
       const paginatedVehicles = filteredVehicles.slice(startIndex, endIndex);
 
       // Transform to frontend format
-      const transformedVehicles = paginatedVehicles.map(vehicle => this.transformToFrontend(vehicle));
+      const transformedVehicles = paginatedVehicles.map(vehicle =>
+        this.transformToFrontend(vehicle)
+      );
 
       res.status(200).json({
         success: true,
@@ -142,17 +144,21 @@ export class VehicleController {
           currentPage: pageNum,
           itemsPerPage: limitNum,
           hasNextPage: endIndex < filteredVehicles.length,
-          hasPreviousPage: pageNum > 1
+          hasPreviousPage: pageNum > 1,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Get all vehicles error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -161,7 +167,10 @@ export class VehicleController {
    * Get vehicle by ID (license plate)
    * GET /api/vehicles/:id
    */
-  getVehicleById = async (req: Request<{ id: string }>, res: Response<ApiResponse<FrontendVehicle>>): Promise<void> => {
+  getVehicleById = async (
+    req: Request<{ id: string }>,
+    res: Response<ApiResponse<FrontendVehicle>>
+  ): Promise<void> => {
     try {
       const { id } = req.params;
       const vehicle = await this.vehicleRepository.findByLicensePlate(id);
@@ -170,7 +179,7 @@ export class VehicleController {
         res.status(404).json({
           success: false,
           message: 'Vehicle not found',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -180,15 +189,19 @@ export class VehicleController {
       res.status(200).json({
         success: true,
         data: transformedVehicle,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Get vehicle by ID error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -197,17 +210,22 @@ export class VehicleController {
    * Create a new vehicle
    * POST /api/vehicles
    */
-  createVehicle = async (req: Request<{}, ApiResponse<FrontendVehicle>, Partial<FrontendVehicle>>, res: Response): Promise<void> => {
+  createVehicle = async (
+    req: Request<{}, ApiResponse<FrontendVehicle>, Partial<FrontendVehicle>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const vehicleData = req.body;
 
       // Check for existing vehicle
-      const existingVehicle = await this.vehicleRepository.findByLicensePlate(vehicleData.licensePlate!);
+      const existingVehicle = await this.vehicleRepository.findByLicensePlate(
+        vehicleData.licensePlate!
+      );
       if (existingVehicle) {
         res.status(409).json({
           success: false,
           message: `Vehicle with license plate ${vehicleData.licensePlate} already exists`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -226,7 +244,7 @@ export class VehicleController {
         ownerName: vehicleData.ownerName,
         ownerEmail: vehicleData.ownerEmail,
         ownerPhone: vehicleData.ownerPhone,
-        notes: vehicleData.notes
+        notes: vehicleData.notes,
       };
 
       const vehicle = await this.vehicleRepository.create(backendVehicleData);
@@ -236,7 +254,7 @@ export class VehicleController {
         success: true,
         data: transformedVehicle,
         message: 'Vehicle created successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Create vehicle error:', error);
@@ -244,20 +262,24 @@ export class VehicleController {
         res.status(409).json({
           success: false,
           message: 'Vehicle with this license plate already exists',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } else if ((error as Error).message.includes('Invalid vehicle data')) {
         res.status(400).json({
           success: false,
           message: (error as Error).message,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } else {
         res.status(500).json({
           success: false,
           message: 'Internal server error',
-          errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-          timestamp: new Date().toISOString()
+          errors: [
+            process.env.NODE_ENV === 'development'
+              ? (error as Error).message
+              : 'Internal server error',
+          ],
+          timestamp: new Date().toISOString(),
         });
       }
     }
@@ -267,7 +289,10 @@ export class VehicleController {
    * Update a vehicle
    * PUT /api/vehicles/:id
    */
-  updateVehicle = async (req: Request<{ id: string }, ApiResponse<FrontendVehicle>, Partial<FrontendVehicle>>, res: Response): Promise<void> => {
+  updateVehicle = async (
+    req: Request<{ id: string }, ApiResponse<FrontendVehicle>, Partial<FrontendVehicle>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -277,26 +302,44 @@ export class VehicleController {
         res.status(404).json({
           success: false,
           message: 'Vehicle not found',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
 
       // Map frontend updates to backend format
       const backendUpdates: any = {};
-      
+
       if (updates.type !== undefined) {
         backendUpdates.vehicleType = this.mapFrontendVehicleTypeToEnum(updates.type);
       }
-      if (updates.make !== undefined) backendUpdates.make = updates.make;
-      if (updates.model !== undefined) backendUpdates.model = updates.model;
-      if (updates.color !== undefined) backendUpdates.color = updates.color;
-      if (updates.year !== undefined) backendUpdates.year = updates.year;
-      if (updates.ownerId !== undefined) backendUpdates.ownerId = updates.ownerId;
-      if (updates.ownerName !== undefined) backendUpdates.ownerName = updates.ownerName;
-      if (updates.ownerEmail !== undefined) backendUpdates.ownerEmail = updates.ownerEmail;
-      if (updates.ownerPhone !== undefined) backendUpdates.ownerPhone = updates.ownerPhone;
-      if (updates.notes !== undefined) backendUpdates.notes = updates.notes;
+      if (updates.make !== undefined) {
+        backendUpdates.make = updates.make;
+      }
+      if (updates.model !== undefined) {
+        backendUpdates.model = updates.model;
+      }
+      if (updates.color !== undefined) {
+        backendUpdates.color = updates.color;
+      }
+      if (updates.year !== undefined) {
+        backendUpdates.year = updates.year;
+      }
+      if (updates.ownerId !== undefined) {
+        backendUpdates.ownerId = updates.ownerId;
+      }
+      if (updates.ownerName !== undefined) {
+        backendUpdates.ownerName = updates.ownerName;
+      }
+      if (updates.ownerEmail !== undefined) {
+        backendUpdates.ownerEmail = updates.ownerEmail;
+      }
+      if (updates.ownerPhone !== undefined) {
+        backendUpdates.ownerPhone = updates.ownerPhone;
+      }
+      if (updates.notes !== undefined) {
+        backendUpdates.notes = updates.notes;
+      }
 
       // Update the vehicle using the repository's update method
       const updatedVehicle = await this.vehicleRepository.update(id, backendUpdates);
@@ -307,7 +350,7 @@ export class VehicleController {
         success: true,
         data: transformedVehicle,
         message: 'Vehicle updated successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Update vehicle error:', error);
@@ -316,20 +359,24 @@ export class VehicleController {
         res.status(404).json({
           success: false,
           message: 'Vehicle not found',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } else if ((error as Error).message.includes('immutable fields')) {
         res.status(400).json({
           success: false,
           message: (error as Error).message,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } else {
         res.status(500).json({
           success: false,
           message: 'Internal server error',
-          errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-          timestamp: new Date().toISOString()
+          errors: [
+            process.env.NODE_ENV === 'development'
+              ? (error as Error).message
+              : 'Internal server error',
+          ],
+          timestamp: new Date().toISOString(),
         });
       }
     }
@@ -339,7 +386,10 @@ export class VehicleController {
    * Delete a vehicle
    * DELETE /api/vehicles/:id
    */
-  deleteVehicle = async (req: Request<{ id: string }>, res: Response<ApiResponse<void>>): Promise<void> => {
+  deleteVehicle = async (
+    req: Request<{ id: string }>,
+    res: Response<ApiResponse<void>>
+  ): Promise<void> => {
     try {
       const { id } = req.params;
       await this.vehicleRepository.delete(id);
@@ -350,7 +400,7 @@ export class VehicleController {
       res.status(200).json({
         success: true,
         message: 'Vehicle deleted successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Delete vehicle error:', error);
@@ -359,20 +409,24 @@ export class VehicleController {
         res.status(404).json({
           success: false,
           message: 'Vehicle not found',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } else if ((error as Error).message.includes('still parked')) {
         res.status(400).json({
           success: false,
           message: 'Cannot delete vehicle that is currently parked. Check out the vehicle first.',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } else {
         res.status(500).json({
           success: false,
           message: 'Internal server error',
-          errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-          timestamp: new Date().toISOString()
+          errors: [
+            process.env.NODE_ENV === 'development'
+              ? (error as Error).message
+              : 'Internal server error',
+          ],
+          timestamp: new Date().toISOString(),
         });
       }
     }
@@ -382,18 +436,23 @@ export class VehicleController {
    * Bulk delete vehicles
    * POST /api/vehicles/bulk-delete
    */
-  bulkDeleteVehicles = async (req: Request<{}, ApiResponse<any>, BulkDeleteRequest>, res: Response): Promise<void> => {
+  bulkDeleteVehicles = async (
+    req: Request<{}, ApiResponse<any>, BulkDeleteRequest>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { vehicleIds } = req.body;
 
-      const results = await Promise.all(vehicleIds.map(async (id) => {
-        try {
-          await this.vehicleRepository.delete(id);
-          return { id, success: true, error: null };
-        } catch (error) {
-          return { id, success: false, error: (error as Error).message };
-        }
-      }));
+      const results = await Promise.all(
+        vehicleIds.map(async id => {
+          try {
+            await this.vehicleRepository.delete(id);
+            return { id, success: true, error: null };
+          } catch (error) {
+            return { id, success: false, error: (error as Error).message };
+          }
+        })
+      );
 
       const successCount = results.filter(r => r.success).length;
       const failureCount = results.length - successCount;
@@ -404,18 +463,22 @@ export class VehicleController {
           total: vehicleIds.length,
           successful: successCount,
           failed: failureCount,
-          results
+          results,
         },
         message: `Bulk delete completed: ${successCount} successful, ${failureCount} failed`,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Bulk delete vehicles error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -424,7 +487,10 @@ export class VehicleController {
    * Get vehicle metrics/statistics
    * GET /api/vehicles/metrics
    */
-  getVehicleMetrics = async (req: Request, res: Response<ApiResponse<VehicleMetrics>>): Promise<void> => {
+  getVehicleMetrics = async (
+    req: Request,
+    res: Response<ApiResponse<VehicleMetrics>>
+  ): Promise<void> => {
     try {
       const vehicles = await this.vehicleRepository.findMany();
       const parkedVehicles = vehicles.filter(v => v.spotId && !v.checkOutTime);
@@ -439,29 +505,33 @@ export class VehicleController {
         byType: {
           compact: vehicles.filter(v => v.vehicleType === 'COMPACT').length,
           standard: vehicles.filter(v => v.vehicleType === 'STANDARD').length,
-          oversized: vehicles.filter(v => v.vehicleType === 'OVERSIZED').length
+          oversized: vehicles.filter(v => v.vehicleType === 'OVERSIZED').length,
         },
         byStatus: {
           active: vehicles.filter(v => !v.checkOutTime).length,
           inactive: vehicles.filter(v => !!v.checkOutTime).length,
           parked: parkedVehicles.length,
           checked_out_unpaid: unpaidVehicles.length,
-          completed: completedSessions.length
-        }
+          completed: completedSessions.length,
+        },
       };
 
       res.status(200).json({
         success: true,
         data: metrics,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Get vehicle metrics error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -478,7 +548,7 @@ export class VehicleController {
         res.status(400).json({
           success: false,
           message: 'Search parameter is required',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -486,22 +556,26 @@ export class VehicleController {
       const result = await this.searchService.searchVehicles(search, {
         mode: mode as 'partial' | 'fuzzy' | 'all',
         threshold: parseFloat(threshold as string),
-        maxResults: parseInt(maxResults as string, 10)
+        maxResults: parseInt(maxResults as string, 10),
       });
 
       res.json({
         success: true,
         ...result,
         data: result.matches || [],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Vehicle search error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        errors: [process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error'],
-        timestamp: new Date().toISOString()
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -525,7 +599,7 @@ export class VehicleController {
       notes: vehicle.notes || undefined,
       status: vehicle.checkOutTime ? 'inactive' : 'active',
       createdAt: vehicle.createdAt.toISOString(),
-      updatedAt: vehicle.updatedAt.toISOString()
+      updatedAt: vehicle.updatedAt.toISOString(),
     };
   }
 
@@ -534,9 +608,9 @@ export class VehicleController {
    */
   private mapVehicleType(backendType: string): 'car' | 'motorcycle' | 'truck' | 'van' | 'bus' {
     const typeMap: Record<string, 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'> = {
-      'COMPACT': 'car',
-      'STANDARD': 'car',
-      'OVERSIZED': 'truck'
+      COMPACT: 'car',
+      STANDARD: 'car',
+      OVERSIZED: 'truck',
     };
     return typeMap[backendType] || 'car';
   }
@@ -544,13 +618,15 @@ export class VehicleController {
   /**
    * Helper method to map frontend vehicle type to backend VehicleType
    */
-  private mapFrontendVehicleTypeToEnum(frontendType: 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'): VehicleType {
+  private mapFrontendVehicleTypeToEnum(
+    frontendType: 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'
+  ): VehicleType {
     const typeMap: Record<string, VehicleType> = {
-      'car': VehicleType.STANDARD,
-      'motorcycle': VehicleType.COMPACT,
-      'truck': VehicleType.OVERSIZED,
-      'van': VehicleType.OVERSIZED,
-      'bus': VehicleType.OVERSIZED
+      car: VehicleType.STANDARD,
+      motorcycle: VehicleType.COMPACT,
+      truck: VehicleType.OVERSIZED,
+      van: VehicleType.OVERSIZED,
+      bus: VehicleType.OVERSIZED,
     };
     return typeMap[frontendType] || VehicleType.STANDARD;
   }

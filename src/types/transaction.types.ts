@@ -1,10 +1,10 @@
 /**
  * Transaction types and interfaces for comprehensive transaction management
- * 
+ *
  * This module defines all transaction-related types, interfaces, and enums
  * used throughout the application for managing database transactions,
  * savepoints, and transaction-scoped operations.
- * 
+ *
  * @module TransactionTypes
  */
 
@@ -17,7 +17,7 @@ export enum TransactionIsolationLevel {
   READ_UNCOMMITTED = 'READ UNCOMMITTED',
   READ_COMMITTED = 'READ COMMITTED',
   REPEATABLE_READ = 'REPEATABLE READ',
-  SERIALIZABLE = 'SERIALIZABLE'
+  SERIALIZABLE = 'SERIALIZABLE',
 }
 
 /**
@@ -29,7 +29,7 @@ export enum TransactionStatus {
   COMMITTED = 'COMMITTED',
   ROLLED_BACK = 'ROLLED_BACK',
   FAILED = 'FAILED',
-  TIMEOUT = 'TIMEOUT'
+  TIMEOUT = 'TIMEOUT',
 }
 
 /**
@@ -39,7 +39,7 @@ export enum TransactionPriority {
   LOW = 1,
   NORMAL = 5,
   HIGH = 10,
-  CRITICAL = 20
+  CRITICAL = 20,
 }
 
 /**
@@ -98,7 +98,10 @@ export interface ITransactionContext {
 /**
  * Transaction callback function type
  */
-export type TransactionCallback<T> = (tx: Prisma.TransactionClient, context: ITransactionContext) => Promise<T>;
+export type TransactionCallback<T> = (
+  tx: Prisma.TransactionClient,
+  context: ITransactionContext
+) => Promise<T>;
 
 /**
  * Transaction result interface
@@ -231,7 +234,7 @@ export enum TransactionOperationType {
   BULK_CREATE = 'BULK_CREATE',
   BULK_UPDATE = 'BULK_UPDATE',
   BULK_DELETE = 'BULK_DELETE',
-  CUSTOM = 'CUSTOM'
+  CUSTOM = 'CUSTOM',
 }
 
 /**
@@ -281,5 +284,5 @@ export default {
   TransactionTimeoutError,
   TransactionDeadlockError,
   TransactionConflictError,
-  SavepointError
+  SavepointError,
 };

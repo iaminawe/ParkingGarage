@@ -12,7 +12,7 @@ The database serves as the single source of truth for all persistent state.
 
 **Key Components:**
 - **ORM**: Prisma with SQLite database
-- **Entities**: Vehicle, ParkingSession, Payment, Spot, Ticket, User, SessionToken
+- **Entities**: Vehicle, ParkingSession, Spot, Ticket, User, SessionToken (Payment: future feature)
 - **Lifecycle Management**: Each entity includes `createdAt`, `updatedAt`, and `deletedAt` fields
 - **Status Tracking**: Enum-based status fields for state transitions
 
@@ -25,13 +25,14 @@ enum SessionStatus {
   EXPIRED
 }
 
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-  CANCELLED
-}
+// Payment system - Future Feature
+// enum PaymentStatus {
+//   PENDING
+//   COMPLETED
+//   FAILED
+//   REFUNDED
+//   CANCELLED
+// }
 
 enum TicketStatus {
   OPEN
@@ -152,7 +153,7 @@ sequenceDiagram
     API->>Client: Return Session Details
 ```
 
-### Payment Processing Flow
+### Payment Processing Flow (Future Feature)
 
 ```mermaid
 sequenceDiagram

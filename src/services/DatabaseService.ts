@@ -1,9 +1,9 @@
 /**
  * Database Service - Central database connection and lifecycle management
- * 
+ *
  * This service manages the Prisma client lifecycle, connection pooling,
  * health checks, and graceful shutdown for the application.
- * 
+ *
  * @module DatabaseService
  */
 
@@ -42,10 +42,10 @@ export class DatabaseService implements IConnectionManager {
   private prisma: PrismaClient | null = null;
   private logger: IAdapterLogger;
   private config: Required<DatabaseConfig>;
-  private isConnectedFlag: boolean = false;
+  private isConnectedFlag = false;
   private startTime: Date | null = null;
   private lastHealthCheck: Date | null = null;
-  private queryCount: number = 0;
+  private queryCount = 0;
   private shutdownHandlers: (() => Promise<void>)[] = [];
 
   constructor(config: DatabaseConfig = {}) {
@@ -55,9 +55,9 @@ export class DatabaseService implements IConnectionManager {
       queryTimeout: config.queryTimeout || 30000,
       maxConnections: config.maxConnections || 10,
       enableLogging: config.enableLogging || false,
-      logLevel: config.logLevel || 'error'
+      logLevel: config.logLevel || 'error',
     };
-    
+
     this.setupGracefulShutdown();
   }
 
@@ -82,17 +82,8 @@ export class DatabaseService implements IConnectionManager {
 
     try {
       this.logger.info('Initializing database service...');
-      
-      this.prisma = new PrismaClient({
-        log: this.config.enableLogging 
-          ? [{ level: this.config.logLevel, emit: 'event' }]
-          : [],
-        datasources: {
-          db: {
-            url: process.env.DATABASE_URL
-          }
-        }
-      });
+
+      this.prisma = new PrismaClient();
 
       // Set up logging if enabled
       if (this.config.enableLogging) {
@@ -101,14 +92,14 @@ export class DatabaseService implements IConnectionManager {
           this.logger.debug('Database query', {
             query: e.query,
             duration: e.duration,
-            params: e.params
+            params: e.params,
           });
         });
       }
 
       await this.connect();
       this.startTime = new Date();
-      
+
       this.logger.info('Database service initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize database service', error as Error);
@@ -126,14 +117,14 @@ export class DatabaseService implements IConnectionManager {
 
     try {
       this.logger.info('Connecting to database...');
-      
+
       // Test connection with a simple query
       await this.prisma.$connect();
       await this.prisma.$queryRaw`SELECT 1`;
-      
+
       this.isConnectedFlag = true;
       this.logger.info('Database connection established');
-      
+
       // Perform initial health check
       await this.healthCheck();
     } catch (error) {
@@ -153,11 +144,11 @@ export class DatabaseService implements IConnectionManager {
 
     try {
       this.logger.info('Disconnecting from database...');
-      
+
       await this.prisma.$disconnect();
       this.isConnectedFlag = false;
       this.prisma = null;
-      
+
       this.logger.info('Database disconnected successfully');
     } catch (error) {
       this.logger.error('Error during database disconnection', error as Error);
@@ -184,12 +175,12 @@ export class DatabaseService implements IConnectionManager {
       // Simple connectivity test
       await this.prisma.$queryRaw`SELECT 1 as health`;
       this.lastHealthCheck = new Date();
-      
+
       this.logger.debug('Database health check passed');
       return true;
     } catch (error) {
       this.logger.warn('Database health check failed', {
-        error: (error as Error).message
+        error: (error as Error).message,
       });
       return false;
     }
@@ -202,7 +193,7 @@ export class DatabaseService implements IConnectionManager {
     if (!this.prisma) {
       throw new Error('Database service not initialized. Call initialize() first.');
     }
-    
+
     if (!this.isConnectedFlag) {
       throw new Error('Database not connected. Call connect() first.');
     }
@@ -215,29 +206,29 @@ export class DatabaseService implements IConnectionManager {
    */
   async executeWithRetry<T>(
     operation: (client: PrismaClient) => Promise<T>,
-    retries: number = 3,
-    delay: number = 1000
+    retries = 3,
+    delay = 1000
   ): Promise<T> {
     const client = this.getClient();
-    
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const result = await operation(client);
         return result;
       } catch (error) {
         this.logger.warn(`Database operation failed (attempt ${attempt}/${retries})`, {
-          error: (error as Error).message
+          error: (error as Error).message,
         });
-        
+
         if (attempt === retries) {
           throw error;
         }
-        
+
         // Wait before retry
         await new Promise(resolve => setTimeout(resolve, delay * attempt));
       }
     }
-    
+
     throw new Error('All retry attempts exhausted');
   }
 
@@ -252,15 +243,18 @@ export class DatabaseService implements IConnectionManager {
     }
   ): Promise<T> {
     const client = this.getClient();
-    
+
     try {
-      const result = await client.$transaction(async (tx) => {
-        return callback(tx as PrismaClient);
-      }, {
-        maxWait: options?.maxWait || 5000,
-        timeout: options?.timeout || 10000
-      });
-      
+      const result = await client.$transaction(
+        async tx => {
+          return callback(tx as PrismaClient);
+        },
+        {
+          maxWait: options?.maxWait || 5000,
+          timeout: options?.timeout || 10000,
+        }
+      );
+
       this.logger.debug('Transaction completed successfully');
       return result;
     } catch (error) {
@@ -279,7 +273,7 @@ export class DatabaseService implements IConnectionManager {
       maxConnections: this.config.maxConnections,
       uptime: this.startTime ? Date.now() - this.startTime.getTime() : 0,
       lastHealthCheck: this.lastHealthCheck,
-      queryCount: this.queryCount
+      queryCount: this.queryCount,
     };
   }
 
@@ -305,7 +299,7 @@ export class DatabaseService implements IConnectionManager {
    */
   async shutdown(): Promise<void> {
     this.logger.info('Initiating database service shutdown...');
-    
+
     try {
       // Execute shutdown handlers
       for (const handler of this.shutdownHandlers) {
@@ -315,10 +309,10 @@ export class DatabaseService implements IConnectionManager {
           this.logger.error('Shutdown handler error', error as Error);
         }
       }
-      
+
       // Disconnect from database
       await this.disconnect();
-      
+
       this.logger.info('Database service shutdown completed');
     } catch (error) {
       this.logger.error('Error during database service shutdown', error as Error);
@@ -332,7 +326,7 @@ export class DatabaseService implements IConnectionManager {
   private setupGracefulShutdown(): void {
     const gracefulShutdown = async (signal: string) => {
       this.logger.info(`Received ${signal}, initiating graceful shutdown...`);
-      
+
       try {
         await this.shutdown();
         process.exit(0);
@@ -346,16 +340,16 @@ export class DatabaseService implements IConnectionManager {
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
     process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2')); // Nodemon restart
-    
+
     // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
+    process.on('uncaughtException', error => {
       this.logger.error('Uncaught exception', error);
       gracefulShutdown('uncaughtException');
     });
-    
+
     process.on('unhandledRejection', (reason, promise) => {
       this.logger.error('Unhandled rejection', new Error(String(reason)), {
-        promise: promise
+        promise: promise,
       });
       gracefulShutdown('unhandledRejection');
     });

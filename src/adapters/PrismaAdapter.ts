@@ -1,10 +1,10 @@
 /**
  * PrismaAdapter base class for database operations
- * 
+ *
  * This abstract class provides a foundation for all repository adapters,
  * implementing common CRUD operations, error handling, logging, and
  * transaction support using Prisma ORM.
- * 
+ *
  * @module PrismaAdapter
  */
 
@@ -14,24 +14,29 @@ import {
   ITransactionManager,
   IConnectionManager,
   IAdapterLogger,
-  PaginationOptions,
-  SortOptions,
   QueryOptions,
   PaginatedResult,
   TransactionCallback,
   TransactionOptions,
-  AuditFields
 } from './interfaces/BaseAdapter';
-import { handlePrismaError, withRetry, DEFAULT_RETRY_CONFIG, RetryConfig } from '../utils/prisma-errors';
+import {
+  handlePrismaError,
+  withRetry,
+  DEFAULT_RETRY_CONFIG,
+  RetryConfig,
+} from '../utils/prisma-errors';
 import { createLogger } from '../utils/logger';
 
 /**
  * Connection manager for Prisma client
  */
 export class PrismaConnectionManager implements IConnectionManager {
-  private isConnectedFlag: boolean = false;
+  private isConnectedFlag = false;
 
-  constructor(private readonly prisma: PrismaClient, private readonly logger: IAdapterLogger) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly logger: IAdapterLogger
+  ) {}
 
   async connect(): Promise<void> {
     try {
@@ -74,9 +79,9 @@ export class PrismaConnectionManager implements IConnectionManager {
 /**
  * Abstract base adapter class for Prisma operations
  */
-export abstract class PrismaAdapter<T, CreateData, UpdateData> 
-  implements IBaseAdapter<T, CreateData, UpdateData>, ITransactionManager {
-  
+export abstract class PrismaAdapter<T, CreateData, UpdateData>
+  implements IBaseAdapter<T, CreateData, UpdateData>, ITransactionManager
+{
   protected readonly prisma: PrismaClient;
   protected readonly logger: IAdapterLogger;
   protected readonly connectionManager: PrismaConnectionManager;
@@ -85,15 +90,11 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   // Abstract properties to be implemented by subclasses
   protected abstract readonly modelName: string;
   protected abstract readonly delegate: any; // Prisma delegate (e.g., prisma.user, prisma.post)
-  
+
   // Models that support soft delete (have deletedAt field)
   private readonly SOFT_DELETE_MODELS = ['vehicle', 'payment'];
 
-  constructor(
-    prisma?: PrismaClient,
-    logger?: IAdapterLogger,
-    retryConfig?: Partial<RetryConfig>
-  ) {
+  constructor(prisma?: PrismaClient, logger?: IAdapterLogger, retryConfig?: Partial<RetryConfig>) {
     this.prisma = prisma || new PrismaClient();
     this.logger = logger || createLogger(this.constructor.name);
     this.connectionManager = new PrismaConnectionManager(this.prisma, this.logger);
@@ -115,20 +116,20 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     operationName: string
   ): Promise<R> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.debug(`Starting ${operationName}`, {
         model: this.modelName,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       const result = await withRetry(operation, this.retryConfig, operationName);
-      
+
       const duration = Date.now() - startTime;
       this.logger.debug(`Completed ${operationName}`, {
         model: this.modelName,
         duration,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       return result;
@@ -137,7 +138,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
       this.logger.error(`Failed ${operationName}`, error as Error, {
         model: this.modelName,
         duration,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       throw error;
     }
@@ -150,14 +151,14 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const result = await delegate.create({
-        data: this.addAuditFields(data, 'create')
+        data: this.addAuditFields(data, 'create'),
       });
-      
+
       this.logger.info(`Created ${this.modelName}`, {
         id: result.id,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as T;
     }, `create ${this.modelName}`);
   }
@@ -172,27 +173,31 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   /**
    * Find a record by ID
    */
-  async findById(id: string, options?: QueryOptions, tx?: Prisma.TransactionClient): Promise<T | null> {
+  async findById(
+    id: string,
+    options?: QueryOptions,
+    tx?: Prisma.TransactionClient
+  ): Promise<T | null> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const whereClause: any = { id };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         whereClause.deletedAt = null;
       }
-      
+
       const result = await delegate.findFirst({
         where: whereClause,
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug(`Found ${this.modelName} by ID`, {
         id,
         found: !!result,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as T | null;
     }, `find ${this.modelName} by ID`);
   }
@@ -208,22 +213,22 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where: any = { ...filter };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         where.deletedAt = null;
       }
       const result = await delegate.findMany({
         where,
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug(`Found ${this.modelName} records`, {
         count: result.length,
         filter,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as T[];
     }, `find many ${this.modelName}`);
   }
@@ -231,42 +236,45 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   /**
    * Find all records with pagination
    */
-  async findAll(options?: QueryOptions, tx?: Prisma.TransactionClient): Promise<PaginatedResult<T>> {
+  async findAll(
+    options?: QueryOptions,
+    tx?: Prisma.TransactionClient
+  ): Promise<PaginatedResult<T>> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = { deletedAt: null }; // Exclude soft-deleted records
-      
+
       // Get total count
       const totalCount = await delegate.count({ where });
-      
+
       // Build pagination
       const take = options?.take || 10;
       const skip = options?.skip || 0;
       const currentPage = Math.floor(skip / take) + 1;
       const totalPages = Math.ceil(totalCount / take);
-      
+
       // Get paginated data
       const data = await delegate.findMany({
         where,
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug(`Found all ${this.modelName} records`, {
         totalCount,
         currentPage,
         totalPages,
         take,
         skip,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return {
         data: data as T[],
         totalCount,
         hasNextPage: currentPage < totalPages,
         hasPrevPage: currentPage > 1,
         currentPage,
-        totalPages
+        totalPages,
       };
     }, `find all ${this.modelName}`);
   }
@@ -283,23 +291,23 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const whereClause: any = { id };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         whereClause.deletedAt = null;
       }
-      
+
       const result = await delegate.update({
         where: whereClause,
         data: this.addAuditFields(data, 'update'),
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.info(`Updated ${this.modelName}`, {
         id,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as T;
     }, `update ${this.modelName}`);
   }
@@ -311,14 +319,14 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const result = await delegate.delete({
-        where: { id }
+        where: { id },
       });
-      
+
       this.logger.info(`Deleted ${this.modelName}`, {
         id,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as T;
     }, `delete ${this.modelName}`);
   }
@@ -328,27 +336,29 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async softDelete(id: string, tx?: Prisma.TransactionClient): Promise<T> {
     if (!this.supportsSoftDelete()) {
-      throw new Error(`Model ${this.modelName} does not support soft delete. Use delete() instead.`);
+      throw new Error(
+        `Model ${this.modelName} does not support soft delete. Use delete() instead.`
+      );
     }
-    
+
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const result = await delegate.update({
-        where: { 
+        where: {
           id,
-          deletedAt: null // Only soft-delete non-deleted records
+          deletedAt: null, // Only soft-delete non-deleted records
         },
         data: {
           deletedAt: new Date(),
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
-      
+
       this.logger.info(`Soft deleted ${this.modelName}`, {
         id,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as T;
     }, `soft delete ${this.modelName}`);
   }
@@ -360,20 +370,20 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where: any = { ...filter };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         where.deletedAt = null;
       }
 
       const count = await delegate.count({ where });
-      
+
       this.logger.debug(`Counted ${this.modelName} records`, {
         count,
         filter,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return count;
     }, `count ${this.modelName}`);
   }
@@ -385,24 +395,24 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const whereClause: any = { id };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         whereClause.deletedAt = null;
       }
-      
+
       const result = await delegate.findFirst({
         where: whereClause,
-        select: { id: true }
+        select: { id: true },
       });
-      
+
       const exists = !!result;
       this.logger.debug(`Checked existence of ${this.modelName}`, {
         id,
         exists,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return exists;
     }, `check existence of ${this.modelName}`);
   }
@@ -410,21 +420,24 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   /**
    * Bulk create records
    */
-  async createMany(data: CreateData[], tx?: Prisma.TransactionClient): Promise<Prisma.BatchPayload> {
+  async createMany(
+    data: CreateData[],
+    tx?: Prisma.TransactionClient
+  ): Promise<Prisma.BatchPayload> {
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const dataWithAudit = data.map(item => this.addAuditFields(item, 'create'));
-      
+
       const result = await delegate.createMany({
         data: dataWithAudit,
-        skipDuplicates: true
+        skipDuplicates: true,
       });
-      
+
       this.logger.info(`Bulk created ${this.modelName}`, {
         count: result.count,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, `bulk create ${this.modelName}`);
   }
@@ -440,7 +453,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where: any = { ...filter };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         where.deletedAt = null;
@@ -448,15 +461,15 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
 
       const result = await delegate.updateMany({
         where,
-        data: this.addAuditFields(data, 'update')
+        data: this.addAuditFields(data, 'update'),
       });
-      
+
       this.logger.info(`Bulk updated ${this.modelName}`, {
         count: result.count,
         filter,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, `bulk update ${this.modelName}`);
   }
@@ -471,15 +484,15 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const result = await delegate.deleteMany({
-        where: filter
+        where: filter,
       });
-      
+
       this.logger.info(`Bulk deleted ${this.modelName}`, {
         count: result.count,
         filter,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, `bulk delete ${this.modelName}`);
   }
@@ -487,11 +500,14 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   /**
    * Execute raw SQL query
    */
-  async executeRaw(sql: string, values?: unknown[], tx?: Prisma.TransactionClient): Promise<number> {
+  async executeRaw(
+    sql: string,
+    values?: unknown[],
+    tx?: Prisma.TransactionClient
+  ): Promise<number> {
     return this.executeWithRetry(async () => {
-      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       let result: number;
-      
+
       if (values && values.length > 0) {
         // Create template literal array manually for parameterized queries
         const sqlParts = sql.split('?');
@@ -501,14 +517,14 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
         // For non-parameterized queries, use executeRawUnsafe
         result = await (tx || this.prisma).$executeRawUnsafe(sql);
       }
-      
+
       this.logger.debug('Executed raw SQL', {
         sql: sql.substring(0, 100) + (sql.length > 100 ? '...' : ''),
         valuesCount: values?.length || 0,
         affectedRows: result,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'execute raw SQL');
   }
@@ -516,11 +532,14 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
   /**
    * Execute raw SQL query and return results
    */
-  async queryRaw<R = unknown>(sql: string, values?: unknown[], tx?: Prisma.TransactionClient): Promise<R> {
+  async queryRaw<R = unknown>(
+    sql: string,
+    values?: unknown[],
+    tx?: Prisma.TransactionClient
+  ): Promise<R> {
     return this.executeWithRetry(async () => {
-      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       let result: unknown;
-      
+
       if (values && values.length > 0) {
         // Create template literal array manually for parameterized queries
         const sqlParts = sql.split('?');
@@ -530,14 +549,14 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
         // For non-parameterized queries, use queryRawUnsafe
         result = await (tx || this.prisma).$queryRawUnsafe(sql);
       }
-      
+
       this.logger.debug('Executed raw SQL query', {
         sql: sql.substring(0, 100) + (sql.length > 100 ? '...' : ''),
         valuesCount: values?.length || 0,
         resultCount: Array.isArray(result) ? result.length : 1,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as R;
     }, 'query raw SQL');
   }
@@ -552,13 +571,13 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const result = await this.prisma.$transaction(callback, {
         maxWait: options?.maxWait || 5000,
-        timeout: options?.timeout || 10000
+        timeout: options?.timeout || 10000,
       });
-      
+
       this.logger.info('Transaction completed successfully', {
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, 'transaction');
   }
@@ -568,17 +587,17 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   protected addAuditFields(data: any, operation: 'create' | 'update'): any {
     const now = new Date();
-    
+
     if (operation === 'create') {
       return {
         ...data,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       };
     } else {
       return {
         ...data,
-        updatedAt: now
+        updatedAt: now,
       };
     }
   }
@@ -587,20 +606,36 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    * Build query options for Prisma operations
    */
   protected buildQueryOptions(options?: QueryOptions): any {
-    if (!options) return {};
-    
+    if (!options) {
+      return {};
+    }
+
     const queryOptions: any = {};
-    
-    if (options.skip !== undefined) queryOptions.skip = options.skip;
-    if (options.take !== undefined) queryOptions.take = options.take;
-    if (options.cursor) queryOptions.cursor = options.cursor;
-    if (options.orderBy) queryOptions.orderBy = options.orderBy;
-    if (options.include) queryOptions.include = options.include;
-    if (options.select) queryOptions.select = options.select;
-    
+
+    if (options.skip !== undefined) {
+      queryOptions.skip = options.skip;
+    }
+    if (options.take !== undefined) {
+      queryOptions.take = options.take;
+    }
+    if (options.cursor) {
+      queryOptions.cursor = options.cursor;
+    }
+    if (options.orderBy) {
+      queryOptions.orderBy = options.orderBy;
+    }
+    if (options.include) {
+      queryOptions.include = options.include;
+    }
+    if (options.select) {
+      queryOptions.select = options.select;
+    }
+
     // Add support for distinct
-    if (options.distinct) queryOptions.distinct = options.distinct;
-    
+    if (options.distinct) {
+      queryOptions.distinct = options.distinct;
+    }
+
     return queryOptions;
   }
 
@@ -621,7 +656,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where: any = { ...filter };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         where.deletedAt = null;
@@ -630,16 +665,16 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
       const result = await delegate.findMany({
         where,
         include,
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug(`Found ${this.modelName} with relations`, {
         count: result.length,
         filter,
         include,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as T[];
     }, `find ${this.modelName} with relations`);
   }
@@ -659,7 +694,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where: any = { ...filter };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         where.deletedAt = null;
@@ -667,16 +702,16 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
 
       const result = await delegate.aggregate({
         where,
-        ...aggregations
+        ...aggregations,
       });
-      
+
       this.logger.debug(`Aggregated ${this.modelName}`, {
         aggregations,
         filter,
         result,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, `aggregate ${this.modelName}`);
   }
@@ -692,7 +727,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
    */
   async findWithCursor(
     cursor: Record<string, unknown> | null,
-    take: number = 10,
+    take = 10,
     filter?: Record<string, unknown>,
     options?: QueryOptions,
     tx?: Prisma.TransactionClient
@@ -700,7 +735,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where: any = { ...filter };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         where.deletedAt = null;
@@ -709,7 +744,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
       const queryOptions: any = {
         where,
         take: take + 1, // Take one extra to check if there's a next page
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       };
 
       if (cursor) {
@@ -718,23 +753,23 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
       }
 
       const result = await delegate.findMany(queryOptions);
-      
+
       const hasNextPage = result.length > take;
       const data = hasNextPage ? result.slice(0, take) : result;
       const nextCursor = hasNextPage ? { id: result[take].id } : null;
-      
+
       this.logger.debug(`Found ${this.modelName} with cursor pagination`, {
         take,
         hasNextPage,
         dataCount: data.length,
         filter,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return {
         data: data as T[],
         nextCursor,
-        hasNextPage
+        hasNextPage,
       };
     }, `find ${this.modelName} with cursor`);
   }
@@ -758,15 +793,15 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
       const result = await delegate.upsert({
         where,
         create: this.addAuditFields(create, 'create'),
-        update: this.addAuditFields(update, 'update')
+        update: this.addAuditFields(update, 'update'),
       });
-      
+
       this.logger.info(`Upserted ${this.modelName}`, {
         where,
         id: result.id,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result as T;
     }, `upsert ${this.modelName}`);
   }
@@ -782,30 +817,32 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     tx?: Prisma.TransactionClient
   ): Promise<Prisma.BatchPayload> {
     if (!this.supportsSoftDelete()) {
-      throw new Error(`Model ${this.modelName} does not support soft delete. Use deleteMany() instead.`);
+      throw new Error(
+        `Model ${this.modelName} does not support soft delete. Use deleteMany() instead.`
+      );
     }
-    
+
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where = {
         ...filter,
-        deletedAt: null // Only soft-delete non-deleted records
+        deletedAt: null, // Only soft-delete non-deleted records
       };
 
       const result = await delegate.updateMany({
         where,
         data: {
           deletedAt: new Date(),
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       });
-      
+
       this.logger.info(`Bulk soft deleted ${this.modelName}`, {
         count: result.count,
         filter,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, `soft delete many ${this.modelName}`);
   }
@@ -827,7 +864,7 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
     return this.executeWithRetry(async () => {
       const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
       const where: any = { ...filter };
-      
+
       // Only add deletedAt filter if the model supports soft deletes
       if (this.supportsSoftDelete()) {
         where.deletedAt = null;
@@ -836,16 +873,16 @@ export abstract class PrismaAdapter<T, CreateData, UpdateData>
       const result = await delegate.groupBy({
         by,
         where,
-        ...aggregations
+        ...aggregations,
       });
-      
+
       this.logger.debug(`Grouped ${this.modelName}`, {
         by,
         filter,
         resultCount: result.length,
-        model: this.modelName
+        model: this.modelName,
       });
-      
+
       return result;
     }, `group by ${this.modelName}`);
   }

@@ -1,6 +1,6 @@
 /**
  * Type definitions for JavaScript model classes
- * 
+ *
  * These types define the structure and methods of JavaScript model classes
  * that need to be migrated to TypeScript. They serve as contracts for
  * the migration process and provide type safety during the transition.
@@ -43,10 +43,18 @@ export interface SpotModelInterface {
   removeFeature(feature: SpotFeature): void;
   toObject(): SpotConstructorData & { createdAt: string; updatedAt: string };
   toJSON(): string;
-  
+
   // Static methods
-  createSpot(floor: number, bay: number, spotNumber: number, type?: VehicleType, features?: SpotFeature[]): SpotModelInterface;
-  fromObject(obj: SpotConstructorData & { createdAt?: string; updatedAt?: string }): SpotModelInterface;
+  createSpot(
+    floor: number,
+    bay: number,
+    spotNumber: number,
+    type?: VehicleType,
+    features?: SpotFeature[]
+  ): SpotModelInterface;
+  fromObject(
+    obj: SpotConstructorData & { createdAt?: string; updatedAt?: string }
+  ): SpotModelInterface;
 }
 
 // Vehicle Model Class Types
@@ -100,14 +108,21 @@ export interface VehicleModelInterface {
   toJSON(): string;
 
   // Static methods
-  checkIn(licensePlate: string, spotId: string, vehicleType?: VehicleType, rateType?: RateType): VehicleModelInterface;
-  fromObject(obj: VehicleConstructorData & {
-    checkOutTime?: string | null;
-    totalAmount?: number;
-    isPaid?: boolean;
-    createdAt?: string;
-    updatedAt?: string;
-  }): VehicleModelInterface;
+  checkIn(
+    licensePlate: string,
+    spotId: string,
+    vehicleType?: VehicleType,
+    rateType?: RateType
+  ): VehicleModelInterface;
+  fromObject(
+    obj: VehicleConstructorData & {
+      checkOutTime?: string | null;
+      totalAmount?: number;
+      isPaid?: boolean;
+      createdAt?: string;
+      updatedAt?: string;
+    }
+  ): VehicleModelInterface;
 }
 
 // Garage Model Class Types (inferred from usage patterns)
@@ -158,7 +173,9 @@ export interface GarageModelInterface {
 
   // Static methods
   create(config: GarageConstructorData): GarageModelInterface;
-  fromObject(obj: GarageConstructorData & { createdAt?: string; updatedAt?: string }): GarageModelInterface;
+  fromObject(
+    obj: GarageConstructorData & { createdAt?: string; updatedAt?: string }
+  ): GarageModelInterface;
 }
 
 // Validation Result Types (from validators)

@@ -1,10 +1,10 @@
 /**
  * Vehicle validation middleware
- * 
+ *
  * This module provides Express middleware functions for validating
  * vehicle CRUD operations, including license plate format validation,
  * owner information validation, and request body sanitization.
- * 
+ *
  * @module VehicleValidation
  */
 
@@ -20,7 +20,8 @@ interface VehicleRequestBody extends Partial<ExtendedVehicleData> {
   rateType?: RateType;
 }
 
-interface VehicleUpdateBody extends Partial<Omit<ExtendedVehicleData, 'licensePlate' | 'checkInTime' | 'spotId'>> {
+interface VehicleUpdateBody
+  extends Partial<Omit<ExtendedVehicleData, 'licensePlate' | 'checkInTime' | 'spotId'>> {
   // Update body excludes immutable fields
 }
 
@@ -44,25 +45,25 @@ interface TypedRequest<TBody = any, TQuery extends ParsedQs = ParsedQs> extends 
  * Validates all required and optional fields for creating a new vehicle
  */
 export const validateVehicleCreation = (
-  req: TypedRequest<VehicleRequestBody>, 
-  res: Response, 
+  req: TypedRequest<VehicleRequestBody>,
+  res: Response,
   next: NextFunction
 ): void => {
-  const { 
-    licensePlate, 
-    vehicleType, 
-    rateType, 
-    make, 
-    model, 
-    color, 
+  const {
+    licensePlate,
+    vehicleType,
+    rateType,
+    make,
+    model,
+    color,
     year,
     ownerId,
     ownerName,
     ownerEmail,
     ownerPhone,
-    notes
+    notes,
   } = req.body;
-  
+
   const errors: string[] = [];
 
   // Validate required fields
@@ -78,7 +79,9 @@ export const validateVehicleCreation = (
   if (vehicleType !== undefined) {
     const validVehicleTypes: VehicleType[] = ['compact', 'standard', 'oversized'];
     if (!validVehicleTypes.includes(vehicleType)) {
-      errors.push(`Invalid vehicle type: ${vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`);
+      errors.push(
+        `Invalid vehicle type: ${vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`
+      );
     }
   }
 
@@ -141,7 +144,9 @@ export const validateVehicleCreation = (
     } else if (ownerPhone.trim() !== '') {
       const phoneRegex = /^[\d\s\-\(\)\+\.]+$/;
       if (!phoneRegex.test(ownerPhone)) {
-        errors.push('Owner phone must contain only digits, spaces, and phone formatting characters');
+        errors.push(
+          'Owner phone must contain only digits, spaces, and phone formatting characters'
+        );
       }
     }
   }
@@ -152,14 +157,26 @@ export const validateVehicleCreation = (
 
   // Check for extra fields
   const allowedFields = [
-    'licensePlate', 'vehicleType', 'rateType', 'make', 'model', 'color', 'year',
-    'ownerId', 'ownerName', 'ownerEmail', 'ownerPhone', 'notes'
+    'licensePlate',
+    'vehicleType',
+    'rateType',
+    'make',
+    'model',
+    'color',
+    'year',
+    'ownerId',
+    'ownerName',
+    'ownerEmail',
+    'ownerPhone',
+    'notes',
   ];
   const providedFields = Object.keys(req.body);
   const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
 
   if (invalidFields.length > 0) {
-    errors.push(`Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`);
+    errors.push(
+      `Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`
+    );
   }
 
   if (errors.length > 0) {
@@ -167,7 +184,7 @@ export const validateVehicleCreation = (
       success: false,
       message: 'Invalid vehicle data',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -180,8 +197,8 @@ export const validateVehicleCreation = (
  * Similar to creation but allows partial updates and excludes immutable fields
  */
 export const validateVehicleUpdate = (
-  req: TypedRequest<VehicleUpdateBody>, 
-  res: Response, 
+  req: TypedRequest<VehicleUpdateBody>,
+  res: Response,
   next: NextFunction
 ): void => {
   const body = req.body;
@@ -199,7 +216,9 @@ export const validateVehicleUpdate = (
   if ('vehicleType' in body) {
     const validVehicleTypes: VehicleType[] = ['compact', 'standard', 'oversized'];
     if (!validVehicleTypes.includes(body.vehicleType as VehicleType)) {
-      errors.push(`Invalid vehicle type: ${body.vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`);
+      errors.push(
+        `Invalid vehicle type: ${body.vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`
+      );
     }
   }
 
@@ -213,7 +232,11 @@ export const validateVehicleUpdate = (
   // Validate string fields
   const stringFields = ['make', 'model', 'color', 'ownerName', 'ownerId', 'notes'];
   stringFields.forEach(field => {
-    if (field in body && body[field as keyof typeof body] !== undefined && typeof body[field as keyof typeof body] !== 'string') {
+    if (
+      field in body &&
+      body[field as keyof typeof body] !== undefined &&
+      typeof body[field as keyof typeof body] !== 'string'
+    ) {
       errors.push(`${field} must be a string`);
     }
   });
@@ -248,14 +271,25 @@ export const validateVehicleUpdate = (
 
   // Check for extra fields
   const allowedFields = [
-    'vehicleType', 'rateType', 'make', 'model', 'color', 'year',
-    'ownerId', 'ownerName', 'ownerEmail', 'ownerPhone', 'notes'
+    'vehicleType',
+    'rateType',
+    'make',
+    'model',
+    'color',
+    'year',
+    'ownerId',
+    'ownerName',
+    'ownerEmail',
+    'ownerPhone',
+    'notes',
   ];
   const providedFields = Object.keys(req.body);
   const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
 
   if (invalidFields.length > 0) {
-    errors.push(`Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`);
+    errors.push(
+      `Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`
+    );
   }
 
   if (errors.length > 0) {
@@ -263,7 +297,7 @@ export const validateVehicleUpdate = (
       success: false,
       message: 'Invalid vehicle update data',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -281,7 +315,7 @@ export const validateVehicleId = (req: Request, res: Response, next: NextFunctio
     res.status(400).json({
       success: false,
       message: 'Vehicle ID (license plate) is required',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -290,7 +324,7 @@ export const validateVehicleId = (req: Request, res: Response, next: NextFunctio
     res.status(400).json({
       success: false,
       message: 'Invalid license plate format',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -302,8 +336,8 @@ export const validateVehicleId = (req: Request, res: Response, next: NextFunctio
  * Validate vehicle query parameters for listing/searching
  */
 export const validateVehicleQuery = (
-  req: TypedRequest<any, VehicleQueryParams>, 
-  res: Response, 
+  req: TypedRequest<any, VehicleQueryParams>,
+  res: Response,
   next: NextFunction
 ): void => {
   const { vehicleType, status, page, limit, sortBy, sortOrder } = req.query;
@@ -313,7 +347,9 @@ export const validateVehicleQuery = (
   if (vehicleType !== undefined) {
     const validVehicleTypes: VehicleType[] = ['compact', 'standard', 'oversized'];
     if (!validVehicleTypes.includes(vehicleType)) {
-      errors.push(`Invalid vehicle type filter: ${vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`);
+      errors.push(
+        `Invalid vehicle type filter: ${vehicleType}. Valid types: ${validVehicleTypes.join(', ')}`
+      );
     }
   }
 
@@ -343,8 +379,15 @@ export const validateVehicleQuery = (
   // Validate sort parameters
   if (sortBy !== undefined) {
     const validSortFields = [
-      'licensePlate', 'vehicleType', 'make', 'model', 'color', 'year',
-      'ownerName', 'createdAt', 'updatedAt'
+      'licensePlate',
+      'vehicleType',
+      'make',
+      'model',
+      'color',
+      'year',
+      'ownerName',
+      'createdAt',
+      'updatedAt',
     ];
     if (!validSortFields.includes(sortBy)) {
       errors.push(`Invalid sort field: ${sortBy}. Valid fields: ${validSortFields.join(', ')}`);
@@ -360,7 +403,7 @@ export const validateVehicleQuery = (
       success: false,
       message: 'Invalid query parameters',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -397,7 +440,7 @@ export const validateBulkRequest = (req: Request, res: Response, next: NextFunct
       success: false,
       message: 'Invalid bulk request',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -410,8 +453,8 @@ export const validateBulkRequest = (req: Request, res: Response, next: NextFunct
  * Normalize and clean input data
  */
 export const sanitizeVehicleRequest = (
-  req: TypedRequest<VehicleRequestBody>, 
-  res: Response, 
+  req: TypedRequest<VehicleRequestBody>,
+  res: Response,
   next: NextFunction
 ): void => {
   const body = req.body;
@@ -422,7 +465,16 @@ export const sanitizeVehicleRequest = (
   }
 
   // Sanitize string fields
-  const stringFields: Array<keyof VehicleRequestBody> = ['make', 'model', 'color', 'ownerName', 'ownerId', 'ownerEmail', 'ownerPhone', 'notes'];
+  const stringFields: Array<keyof VehicleRequestBody> = [
+    'make',
+    'model',
+    'color',
+    'ownerName',
+    'ownerId',
+    'ownerEmail',
+    'ownerPhone',
+    'notes',
+  ];
   stringFields.forEach(field => {
     if (body[field] && typeof body[field] === 'string') {
       // Type assertion is safe here since we checked the type above
@@ -457,10 +509,19 @@ export const validateRequestBody = (req: Request, res: Response, next: NextFunct
       message: 'Request body is required',
       requiredFields: ['licensePlate'],
       optionalFields: [
-        'vehicleType', 'rateType', 'make', 'model', 'color', 'year',
-        'ownerId', 'ownerName', 'ownerEmail', 'ownerPhone', 'notes'
+        'vehicleType',
+        'rateType',
+        'make',
+        'model',
+        'color',
+        'year',
+        'ownerId',
+        'ownerName',
+        'ownerEmail',
+        'ownerPhone',
+        'notes',
       ],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -476,7 +537,7 @@ export const validateContentType = (req: Request, res: Response, next: NextFunct
     res.status(400).json({
       success: false,
       message: 'Content-Type must be application/json',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }

@@ -1,9 +1,9 @@
 /**
  * Database utilities for connection pooling, retry logic, and health checks
- * 
+ *
  * This module provides utility functions for managing database connections,
  * implementing retry logic, query logging, and health monitoring.
- * 
+ *
  * @module DatabaseUtils
  */
 
@@ -16,34 +16,34 @@ const logger = createLogger('DatabaseUtils');
  * Connection pool configuration
  */
 export interface ConnectionPoolConfig {
-  max?: number;                    // Maximum connections
-  min?: number;                    // Minimum connections
-  acquireTimeoutMillis?: number;   // Max time to get connection
-  createTimeoutMillis?: number;    // Max time to create connection
-  destroyTimeoutMillis?: number;   // Max time to destroy connection
-  idleTimeoutMillis?: number;      // Max time connection can be idle
-  reapIntervalMillis?: number;     // Frequency to check for idle connections
+  max?: number; // Maximum connections
+  min?: number; // Minimum connections
+  acquireTimeoutMillis?: number; // Max time to get connection
+  createTimeoutMillis?: number; // Max time to create connection
+  destroyTimeoutMillis?: number; // Max time to destroy connection
+  idleTimeoutMillis?: number; // Max time connection can be idle
+  reapIntervalMillis?: number; // Frequency to check for idle connections
 }
 
 /**
  * Health check configuration
  */
 export interface HealthCheckConfig {
-  timeoutMs?: number;              // Health check timeout
-  intervalMs?: number;             // Health check interval
-  retries?: number;                // Number of retries before marking unhealthy
-  enabled?: boolean;               // Enable/disable health checks
+  timeoutMs?: number; // Health check timeout
+  intervalMs?: number; // Health check interval
+  retries?: number; // Number of retries before marking unhealthy
+  enabled?: boolean; // Enable/disable health checks
 }
 
 /**
  * Query logging configuration
  */
 export interface QueryLoggingConfig {
-  enabled?: boolean;               // Enable query logging
-  logLevel?: 'info' | 'debug';     // Log level for queries
-  slowQueryThresholdMs?: number;   // Log slow queries above this threshold
-  includeParams?: boolean;         // Include query parameters in logs
-  maxQueryLength?: number;         // Maximum query length to log
+  enabled?: boolean; // Enable query logging
+  logLevel?: 'info' | 'debug'; // Log level for queries
+  slowQueryThresholdMs?: number; // Log slow queries above this threshold
+  includeParams?: boolean; // Include query parameters in logs
+  maxQueryLength?: number; // Maximum query length to log
 }
 
 /**
@@ -55,23 +55,23 @@ export const DEFAULT_POOL_CONFIG: Required<ConnectionPoolConfig> = {
   acquireTimeoutMillis: 60000,
   createTimeoutMillis: 30000,
   destroyTimeoutMillis: 5000,
-  idleTimeoutMillis: 300000,       // 5 minutes
-  reapIntervalMillis: 10000        // 10 seconds
+  idleTimeoutMillis: 300000, // 5 minutes
+  reapIntervalMillis: 10000, // 10 seconds
 };
 
 export const DEFAULT_HEALTH_CONFIG: Required<HealthCheckConfig> = {
   timeoutMs: 5000,
-  intervalMs: 30000,               // 30 seconds
+  intervalMs: 30000, // 30 seconds
   retries: 3,
-  enabled: true
+  enabled: true,
 };
 
 export const DEFAULT_LOGGING_CONFIG: Required<QueryLoggingConfig> = {
   enabled: true,
   logLevel: 'debug',
-  slowQueryThresholdMs: 1000,      // 1 second
+  slowQueryThresholdMs: 1000, // 1 second
   includeParams: false,
-  maxQueryLength: 500
+  maxQueryLength: 500,
 };
 
 /**
@@ -80,8 +80,8 @@ export const DEFAULT_LOGGING_CONFIG: Required<QueryLoggingConfig> = {
 export class DatabaseConnectionManager {
   private client: PrismaClient;
   private healthCheckInterval?: NodeJS.Timeout;
-  private isHealthy: boolean = true;
-  private consecutiveFailures: number = 0;
+  private isHealthy = true;
+  private consecutiveFailures = 0;
   private readonly healthConfig: Required<HealthCheckConfig>;
   private readonly loggingConfig: Required<QueryLoggingConfig>;
 
@@ -92,10 +92,10 @@ export class DatabaseConnectionManager {
   ) {
     this.healthConfig = { ...DEFAULT_HEALTH_CONFIG, ...healthConfig };
     this.loggingConfig = { ...DEFAULT_LOGGING_CONFIG, ...loggingConfig };
-    
+
     this.client = client || this.createClient();
     this.setupQueryLogging();
-    
+
     if (this.healthConfig.enabled) {
       this.startHealthChecks();
     }
@@ -106,17 +106,19 @@ export class DatabaseConnectionManager {
    */
   private createClient(): PrismaClient {
     const client = new PrismaClient({
-      log: this.loggingConfig.enabled ? [
-        { level: 'query', emit: 'event' },
-        { level: 'error', emit: 'event' },
-        { level: 'info', emit: 'event' },
-        { level: 'warn', emit: 'event' }
-      ] : [],
+      log: this.loggingConfig.enabled
+        ? [
+            { level: 'query', emit: 'event' },
+            { level: 'error', emit: 'event' },
+            { level: 'info', emit: 'event' },
+            { level: 'warn', emit: 'event' },
+          ]
+        : [],
       datasources: {
         db: {
-          url: process.env.DATABASE_URL
-        }
-      }
+          url: process.env.DATABASE_URL,
+        },
+      },
     });
 
     return client;
@@ -126,7 +128,9 @@ export class DatabaseConnectionManager {
    * Setup query logging with performance monitoring
    */
   private setupQueryLogging(): void {
-    if (!this.loggingConfig.enabled) return;
+    if (!this.loggingConfig.enabled) {
+      return;
+    }
 
     this.client.$on('query', (e: Prisma.QueryEvent) => {
       const duration = e.duration;
@@ -137,7 +141,7 @@ export class DatabaseConnectionManager {
         query,
         params,
         duration: `${duration}ms`,
-        timestamp: e.timestamp
+        timestamp: e.timestamp,
       };
 
       // Log slow queries at warning level
@@ -153,7 +157,7 @@ export class DatabaseConnectionManager {
     this.client.$on('error', (e: Prisma.LogEvent) => {
       logger.error('Database error', new Error(e.message), {
         timestamp: e.timestamp,
-        target: e.target
+        target: e.target,
       });
     });
 
@@ -161,7 +165,7 @@ export class DatabaseConnectionManager {
       logger.warn('Database warning', {
         message: e.message,
         timestamp: e.timestamp,
-        target: e.target
+        target: e.target,
       });
     });
 
@@ -169,7 +173,7 @@ export class DatabaseConnectionManager {
       logger.info('Database info', {
         message: e.message,
         timestamp: e.timestamp,
-        target: e.target
+        target: e.target,
       });
     });
   }
@@ -217,20 +221,20 @@ export class DatabaseConnectionManager {
   async performHealthCheck(): Promise<boolean> {
     try {
       const startTime = Date.now();
-      
+
       // Simple query to check database connectivity
       await Promise.race([
         this.client.$queryRaw`SELECT 1`,
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Health check timeout')), this.healthConfig.timeoutMs)
-        )
+        ),
       ]);
 
       const duration = Date.now() - startTime;
-      
+
       // Reset failure count on successful health check
       this.consecutiveFailures = 0;
-      
+
       if (!this.isHealthy) {
         this.isHealthy = true;
         logger.info('Database connection restored', { duration: `${duration}ms` });
@@ -241,19 +245,23 @@ export class DatabaseConnectionManager {
       return true;
     } catch (error) {
       this.consecutiveFailures++;
-      
+
       logger.error('Database health check failed', error as Error, {
         consecutiveFailures: this.consecutiveFailures,
-        maxRetries: this.healthConfig.retries
+        maxRetries: this.healthConfig.retries,
       });
 
       // Mark as unhealthy if we've exceeded retry count
       if (this.consecutiveFailures >= this.healthConfig.retries && this.isHealthy) {
         this.isHealthy = false;
-        logger.error('Database marked as unhealthy', new Error('Max health check failures exceeded'), {
-          consecutiveFailures: this.consecutiveFailures,
-          maxRetries: this.healthConfig.retries
-        });
+        logger.error(
+          'Database marked as unhealthy',
+          new Error('Max health check failures exceeded'),
+          {
+            consecutiveFailures: this.consecutiveFailures,
+            maxRetries: this.healthConfig.retries,
+          }
+        );
       }
 
       return false;
@@ -271,7 +279,7 @@ export class DatabaseConnectionManager {
     return {
       isHealthy: this.isHealthy,
       consecutiveFailures: this.consecutiveFailures,
-      lastCheck: new Date()
+      lastCheck: new Date(),
     };
   }
 
@@ -333,8 +341,8 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
     'P1017', // Server has closed the connection
     'ECONNRESET',
     'ECONNREFUSED',
-    'ETIMEDOUT'
-  ]
+    'ETIMEDOUT',
+  ],
 };
 
 /**
@@ -343,20 +351,19 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
 export async function withRetry<T>(
   operation: () => Promise<T>,
   config: RetryConfig = DEFAULT_RETRY_CONFIG,
-  operationName: string = 'database operation'
+  operationName = 'database operation'
 ): Promise<T> {
   let lastError: Error;
-  
+
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     try {
       return await operation();
     } catch (error) {
       lastError = error as Error;
-      
+
       // Check if error is retryable
-      const isRetryable = config.retryableErrors.some(errorCode =>
-        lastError.message.includes(errorCode) || 
-        lastError.name.includes(errorCode)
+      const isRetryable = config.retryableErrors.some(
+        errorCode => lastError.message.includes(errorCode) || lastError.name.includes(errorCode)
       );
 
       // Don't retry if not retryable or if this was the last attempt
@@ -364,7 +371,7 @@ export async function withRetry<T>(
         logger.error(`${operationName} failed after ${attempt + 1} attempts`, lastError, {
           attempt: attempt + 1,
           maxRetries: config.maxRetries,
-          isRetryable
+          isRetryable,
         });
         throw lastError;
       }
@@ -379,7 +386,7 @@ export async function withRetry<T>(
         error: lastError.message,
         attempt: attempt + 1,
         maxRetries: config.maxRetries,
-        delay
+        delay,
       });
 
       // Wait before retrying
@@ -410,29 +417,29 @@ export function createOptimizedClient(
 export async function executeBatch<T, R>(
   items: T[],
   operation: (batch: T[]) => Promise<R[]>,
-  batchSize: number = 100
+  batchSize = 100
 ): Promise<R[]> {
   const results: R[] = [];
-  
+
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
-    
+
     logger.debug('Executing batch operation', {
       batchNumber: Math.floor(i / batchSize) + 1,
       batchSize: batch.length,
-      totalItems: items.length
+      totalItems: items.length,
     });
-    
+
     const batchResults = await operation(batch);
     results.push(...batchResults);
   }
-  
+
   logger.info('Batch operation completed', {
     totalItems: items.length,
     totalResults: results.length,
-    batchSize
+    batchSize,
   });
-  
+
   return results;
 }
 
@@ -445,10 +452,11 @@ export async function executeTransaction<T>(
   retryConfig?: RetryConfig
 ): Promise<T> {
   return withRetry(
-    () => client.$transaction(operation, {
-      maxWait: 10000,  // 10 seconds
-      timeout: 20000   // 20 seconds
-    }),
+    () =>
+      client.$transaction(operation, {
+        maxWait: 10000, // 10 seconds
+        timeout: 20000, // 20 seconds
+      }),
     retryConfig,
     'transaction'
   );
@@ -489,10 +497,10 @@ export class MigrationHelper {
       const versionResult = await this.client.$queryRaw<[{ version: string }]>`
         SELECT sqlite_version() as version
       `;
-      
+
       return {
         version: versionResult[0]?.version || 'unknown',
-        name: 'SQLite'
+        name: 'SQLite',
       };
     } catch (error) {
       logger.error('Failed to get database info', error as Error);
@@ -539,5 +547,5 @@ export default {
   DEFAULT_POOL_CONFIG,
   DEFAULT_HEALTH_CONFIG,
   DEFAULT_LOGGING_CONFIG,
-  DEFAULT_RETRY_CONFIG
+  DEFAULT_RETRY_CONFIG,
 };

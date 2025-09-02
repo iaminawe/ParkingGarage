@@ -1,9 +1,9 @@
 /**
  * Parking Service with comprehensive transactional operations
- * 
+ *
  * This service handles all complex parking operations with full transaction support,
  * ensuring data consistency across multiple database operations.
- * 
+ *
  * @module ParkingService
  */
 
@@ -18,7 +18,7 @@ import {
   ITransactionResult,
   ITransactionContext,
   TransactionPriority,
-  TransactionError
+  TransactionError,
 } from '../types/transaction.types';
 import {
   SpotStatus,
@@ -28,7 +28,7 @@ import {
   Spot,
   Session,
   Ticket,
-  Payment
+  Payment,
 } from '@prisma/client';
 import { createLogger } from '../utils/logger';
 import type { IAdapterLogger } from '../adapters/interfaces/BaseAdapter';
@@ -97,10 +97,7 @@ export class ParkingService {
   private readonly vehicleRepository: VehicleRepository;
   private readonly sessionRepository: SessionRepository;
 
-  constructor(
-    databaseService?: DatabaseService,
-    logger?: IAdapterLogger
-  ) {
+  constructor(databaseService?: DatabaseService, logger?: IAdapterLogger) {
     const dbService = databaseService || DatabaseService.getInstance();
     this.logger = logger || createLogger('ParkingService');
     this.transactionManager = TransactionManager.getInstance(dbService);
@@ -117,15 +114,15 @@ export class ParkingService {
     options: ITransactionOptions = {}
   ): Promise<IParkingOperationResult<{ session: Session; spot: Spot; vehicle: Vehicle }>> {
     const startTime = Date.now();
-    
+
     const result = await this.transactionManager.executeTransaction(
       async (tx, context) => {
         this.logger.info('Starting vehicle parking transaction', {
           transactionId: context.id,
           spotId: sessionData.spotId,
-          licensePlate: sessionData.vehicle.licensePlate
+          licensePlate: sessionData.vehicle.licensePlate,
         });
-        
+
         // Step 1: Verify spot is available
         const spot = await this.spotRepository.findById(sessionData.spotId, undefined, tx);
         if (!spot) {
@@ -136,7 +133,7 @@ export class ParkingService {
             context
           );
         }
-        
+
         if (spot.status !== SpotStatus.AVAILABLE) {
           throw new TransactionError(
             `Spot ${sessionData.spotId} is not available (current status: ${spot.status})`,
@@ -145,45 +142,48 @@ export class ParkingService {
             context
           );
         }
-        
+
         // Step 2: Create or get vehicle
         let vehicle = await this.vehicleRepository.findByLicensePlate(
           sessionData.vehicle.licensePlate,
           undefined,
           tx
         );
-        
+
         if (!vehicle) {
           // Create savepoint for vehicle creation
           const vehicleSavepoint = await this.transactionManager.createSavepoint(
             'vehicle_creation',
             context
           );
-          
+
           try {
-            vehicle = await this.vehicleRepository.create({
-              licensePlate: sessionData.vehicle.licensePlate.toUpperCase(),
-              vehicleType: sessionData.vehicle.vehicleType || 'STANDARD',
-              color: sessionData.vehicle.color,
-              make: sessionData.vehicle.make,
-              model: sessionData.vehicle.model,
-              year: sessionData.vehicle.year
-            }, tx);
-            
+            vehicle = await this.vehicleRepository.create(
+              {
+                licensePlate: sessionData.vehicle.licensePlate.toUpperCase(),
+                vehicleType: sessionData.vehicle.vehicleType || 'STANDARD',
+                color: sessionData.vehicle.color,
+                make: sessionData.vehicle.make,
+                model: sessionData.vehicle.model,
+                year: sessionData.vehicle.year,
+              },
+              tx
+            );
+
             await this.transactionManager.releaseSavepoint(vehicleSavepoint.id, context);
           } catch (error) {
             await this.transactionManager.rollbackToSavepoint(vehicleSavepoint.id, context);
             throw error;
           }
         }
-        
+
         // Step 3: Check if vehicle is already parked
         const existingSession = await this.sessionRepository.findActiveByVehicle(
           vehicle.id,
           undefined,
           tx
         );
-        
+
         if (existingSession) {
           throw new TransactionError(
             `Vehicle ${sessionData.vehicle.licensePlate} is already parked in spot ${existingSession.spotId}`,
@@ -192,61 +192,64 @@ export class ParkingService {
             context
           );
         }
-        
+
         // Step 4: Create parking session
         const sessionSavepoint = await this.transactionManager.createSavepoint(
           'session_creation',
           context
         );
-        
+
         let session: Session;
         try {
-          session = await this.sessionRepository.create({
-            spotId: sessionData.spotId,
-            vehicleId: vehicle.id,
-            status: SessionStatus.ACTIVE,
-            entryTime: sessionData.entryTime || new Date(),
-            expectedExitTime: sessionData.expectedExitTime,
-            metadata: sessionData.metadata ? JSON.stringify(sessionData.metadata) : undefined
-          }, tx);
-          
+          session = await this.sessionRepository.create(
+            {
+              spotId: sessionData.spotId,
+              vehicleId: vehicle.id,
+              status: SessionStatus.ACTIVE,
+              entryTime: sessionData.entryTime || new Date(),
+              expectedExitTime: sessionData.expectedExitTime,
+              metadata: sessionData.metadata ? JSON.stringify(sessionData.metadata) : undefined,
+            },
+            tx
+          );
+
           await this.transactionManager.releaseSavepoint(sessionSavepoint.id, context);
         } catch (error) {
           await this.transactionManager.rollbackToSavepoint(sessionSavepoint.id, context);
           throw error;
         }
-        
+
         // Step 5: Update spot status
         const spotSavepoint = await this.transactionManager.createSavepoint(
           'spot_occupation',
           context
         );
-        
+
         try {
           const updatedSpot = await this.spotRepository.update(
             sessionData.spotId,
             {
               status: SpotStatus.OCCUPIED,
-              currentVehicleId: vehicle.id
+              currentVehicleId: vehicle.id,
             },
             undefined,
             tx
           );
-          
+
           await this.transactionManager.releaseSavepoint(spotSavepoint.id, context);
-          
+
           this.logger.info('Vehicle parked successfully', {
             transactionId: context.id,
             sessionId: session.id,
             spotId: sessionData.spotId,
             vehicleId: vehicle.id,
-            licensePlate: vehicle.licensePlate
+            licensePlate: vehicle.licensePlate,
           });
-          
+
           return {
             session,
             spot: updatedSpot,
-            vehicle
+            vehicle,
           };
         } catch (error) {
           await this.transactionManager.rollbackToSavepoint(spotSavepoint.id, context);
@@ -256,16 +259,16 @@ export class ParkingService {
       {
         priority: TransactionPriority.HIGH,
         timeout: 15000,
-        ...options
+        ...options,
       }
     );
-    
+
     return {
       success: result.success,
       data: result.result,
       error: result.error?.message,
       transactionId: result.context.id,
-      duration: Date.now() - startTime
+      duration: Date.now() - startTime,
     };
   }
 
@@ -278,21 +281,21 @@ export class ParkingService {
     options: ITransactionOptions = {}
   ): Promise<IParkingOperationResult<{ session: Session; spot: Spot; payment?: any }>> {
     const startTime = Date.now();
-    
+
     const result = await this.transactionManager.executeTransaction(
       async (tx, context) => {
         this.logger.info('Starting vehicle exit transaction', {
           transactionId: context.id,
-          licensePlate
+          licensePlate,
         });
-        
+
         // Step 1: Find vehicle
         const vehicle = await this.vehicleRepository.findByLicensePlate(
           licensePlate,
           undefined,
           tx
         );
-        
+
         if (!vehicle) {
           throw new TransactionError(
             `Vehicle with license plate ${licensePlate} not found`,
@@ -301,14 +304,10 @@ export class ParkingService {
             context
           );
         }
-        
+
         // Step 2: Find active session
-        const session = await this.sessionRepository.findActiveByVehicle(
-          vehicle.id,
-          undefined,
-          tx
-        );
-        
+        const session = await this.sessionRepository.findActiveByVehicle(vehicle.id, undefined, tx);
+
         if (!session) {
           throw new TransactionError(
             `No active parking session found for vehicle ${licensePlate}`,
@@ -317,19 +316,19 @@ export class ParkingService {
             context
           );
         }
-        
+
         // Step 3: Calculate parking duration and fee
         const actualExitTime = exitTime || new Date();
         const duration = actualExitTime.getTime() - session.entryTime.getTime();
         const hours = Math.ceil(duration / (1000 * 60 * 60));
         const fee = this.calculateParkingFee(hours);
-        
+
         // Step 4: Update session with exit information
         const sessionSavepoint = await this.transactionManager.createSavepoint(
           'session_completion',
           context
         );
-        
+
         let updatedSession: Session;
         try {
           updatedSession = await this.sessionRepository.update(
@@ -338,42 +337,42 @@ export class ParkingService {
               status: SessionStatus.COMPLETED,
               exitTime: actualExitTime,
               duration: Math.floor(duration / 1000), // duration in seconds
-              totalFee: fee
+              totalFee: fee,
             },
             undefined,
             tx
           );
-          
+
           await this.transactionManager.releaseSavepoint(sessionSavepoint.id, context);
         } catch (error) {
           await this.transactionManager.rollbackToSavepoint(sessionSavepoint.id, context);
           throw error;
         }
-        
+
         // Step 5: Update spot status
         const spotSavepoint = await this.transactionManager.createSavepoint(
           'spot_vacation',
           context
         );
-        
+
         let updatedSpot: Spot;
         try {
           updatedSpot = await this.spotRepository.update(
             session.spotId,
             {
               status: SpotStatus.AVAILABLE,
-              currentVehicleId: null as any
+              currentVehicleId: null as any,
             },
             undefined,
             tx
           );
-          
+
           await this.transactionManager.releaseSavepoint(spotSavepoint.id, context);
         } catch (error) {
           await this.transactionManager.rollbackToSavepoint(spotSavepoint.id, context);
           throw error;
         }
-        
+
         this.logger.info('Vehicle exit completed successfully', {
           transactionId: context.id,
           sessionId: session.id,
@@ -381,32 +380,32 @@ export class ParkingService {
           vehicleId: vehicle.id,
           licensePlate: vehicle.licensePlate,
           duration: Math.floor(duration / 1000),
-          fee
+          fee,
         });
-        
+
         return {
           session: updatedSession,
           spot: updatedSpot,
           payment: {
             amount: fee,
             duration: Math.floor(duration / 1000),
-            hours
-          }
+            hours,
+          },
         };
       },
       {
         priority: TransactionPriority.HIGH,
         timeout: 15000,
-        ...options
+        ...options,
       }
     );
-    
+
     return {
       success: result.success,
       data: result.result,
       error: result.error?.message,
       transactionId: result.context.id,
-      duration: Date.now() - startTime
+      duration: Date.now() - startTime,
     };
   }
 
@@ -418,15 +417,15 @@ export class ParkingService {
     options: ITransactionOptions = {}
   ): Promise<IParkingOperationResult<{ session: Session; fromSpot: Spot; toSpot: Spot }>> {
     const startTime = Date.now();
-    
+
     const result = await this.transactionManager.executeTransaction(
       async (tx, context) => {
         this.logger.info('Starting vehicle transfer transaction', {
           transactionId: context.id,
           fromSpotId: transferData.fromSpotId,
-          toSpotId: transferData.toSpotId
+          toSpotId: transferData.toSpotId,
         });
-        
+
         // Step 1: Validate source spot
         const fromSpot = await this.spotRepository.findById(transferData.fromSpotId, undefined, tx);
         if (!fromSpot || fromSpot.status !== SpotStatus.OCCUPIED) {
@@ -437,7 +436,7 @@ export class ParkingService {
             context
           );
         }
-        
+
         // Step 2: Validate destination spot
         const toSpot = await this.spotRepository.findById(transferData.toSpotId, undefined, tx);
         if (!toSpot || toSpot.status !== SpotStatus.AVAILABLE) {
@@ -448,7 +447,7 @@ export class ParkingService {
             context
           );
         }
-        
+
         // Step 3: Find active session
         const session = await this.sessionRepository.findBySpotAndStatus(
           transferData.fromSpotId,
@@ -456,7 +455,7 @@ export class ParkingService {
           undefined,
           tx
         );
-        
+
         if (!session) {
           throw new TransactionError(
             `No active session found for spot ${transferData.fromSpotId}`,
@@ -465,107 +464,108 @@ export class ParkingService {
             context
           );
         }
-        
+
         // Step 4: Update session spot
         const sessionSavepoint = await this.transactionManager.createSavepoint(
           'session_transfer',
           context
         );
-        
+
         let updatedSession: Session;
         try {
           updatedSession = await this.sessionRepository.update(
             session.id,
             {
               spotId: transferData.toSpotId,
-              metadata: transferData.metadata ? 
-                JSON.stringify(transferData.metadata) : session.metadata
+              metadata: transferData.metadata
+                ? JSON.stringify(transferData.metadata)
+                : session.metadata,
             },
             undefined,
             tx
           );
-          
+
           await this.transactionManager.releaseSavepoint(sessionSavepoint.id, context);
         } catch (error) {
           await this.transactionManager.rollbackToSavepoint(sessionSavepoint.id, context);
           throw error;
         }
-        
+
         // Step 5: Update source spot
         const fromSpotSavepoint = await this.transactionManager.createSavepoint(
           'from_spot_update',
           context
         );
-        
+
         let updatedFromSpot: Spot;
         try {
           updatedFromSpot = await this.spotRepository.update(
             transferData.fromSpotId,
             {
               status: SpotStatus.AVAILABLE,
-              currentVehicleId: null as any
+              currentVehicleId: null as any,
             },
             undefined,
             tx
           );
-          
+
           await this.transactionManager.releaseSavepoint(fromSpotSavepoint.id, context);
         } catch (error) {
           await this.transactionManager.rollbackToSavepoint(fromSpotSavepoint.id, context);
           throw error;
         }
-        
+
         // Step 6: Update destination spot
         const toSpotSavepoint = await this.transactionManager.createSavepoint(
           'to_spot_update',
           context
         );
-        
+
         let updatedToSpot: Spot;
         try {
           updatedToSpot = await this.spotRepository.update(
             transferData.toSpotId,
             {
               status: SpotStatus.OCCUPIED,
-              currentVehicleId: fromSpot.currentVehicleId
+              currentVehicleId: fromSpot.currentVehicleId,
             },
             undefined,
             tx
           );
-          
+
           await this.transactionManager.releaseSavepoint(toSpotSavepoint.id, context);
         } catch (error) {
           await this.transactionManager.rollbackToSavepoint(toSpotSavepoint.id, context);
           throw error;
         }
-        
+
         this.logger.info('Vehicle transfer completed successfully', {
           transactionId: context.id,
           sessionId: session.id,
           fromSpotId: transferData.fromSpotId,
           toSpotId: transferData.toSpotId,
-          vehicleId: fromSpot.currentVehicleId
+          vehicleId: fromSpot.currentVehicleId,
         });
-        
+
         return {
           session: updatedSession,
           fromSpot: updatedFromSpot,
-          toSpot: updatedToSpot
+          toSpot: updatedToSpot,
         };
       },
       {
         priority: TransactionPriority.HIGH,
         timeout: 20000,
-        ...options
+        ...options,
       }
     );
-    
+
     return {
       success: result.success,
       data: result.result,
       error: result.error?.message,
       transactionId: result.context.id,
-      duration: Date.now() - startTime
+      duration: Date.now() - startTime,
     };
   }
 
@@ -579,28 +579,28 @@ export class ParkingService {
     options: ITransactionOptions = {}
   ): Promise<IParkingOperationResult<{ updatedCount: number; spots: Spot[] }>> {
     const startTime = Date.now();
-    
+
     const result = await this.transactionManager.executeTransaction(
       async (tx, context) => {
         this.logger.info('Starting bulk spot status update', {
           transactionId: context.id,
           spotCount: spotIds.length,
           targetStatus: status,
-          reason
+          reason,
         });
-        
+
         const updatedSpots: Spot[] = [];
-        
+
         // Process in batches to avoid transaction timeout
         const batchSize = 50;
         for (let i = 0; i < spotIds.length; i += batchSize) {
           const batch = spotIds.slice(i, i + batchSize);
-          
+
           const batchSavepoint = await this.transactionManager.createSavepoint(
             `batch_${Math.floor(i / batchSize)}`,
             context
           );
-          
+
           try {
             for (const spotId of batch) {
               const spot = await this.spotRepository.findById(spotId, undefined, tx);
@@ -614,38 +614,38 @@ export class ParkingService {
                 updatedSpots.push(updatedSpot);
               }
             }
-            
+
             await this.transactionManager.releaseSavepoint(batchSavepoint.id, context);
           } catch (error) {
             await this.transactionManager.rollbackToSavepoint(batchSavepoint.id, context);
             throw error;
           }
         }
-        
+
         this.logger.info('Bulk spot status update completed', {
           transactionId: context.id,
           updatedCount: updatedSpots.length,
-          targetStatus: status
+          targetStatus: status,
         });
-        
+
         return {
           updatedCount: updatedSpots.length,
-          spots: updatedSpots
+          spots: updatedSpots,
         };
       },
       {
         priority: TransactionPriority.NORMAL,
         timeout: 60000,
-        ...options
+        ...options,
       }
     );
-    
+
     return {
       success: result.success,
       data: result.result,
       error: result.error?.message,
       transactionId: result.context.id,
-      duration: Date.now() - startTime
+      duration: Date.now() - startTime,
     };
   }
 
@@ -656,12 +656,12 @@ export class ParkingService {
     // Simple fee calculation - $5 for first hour, $3 for each additional hour
     const baseRate = 5;
     const hourlyRate = 3;
-    
+
     if (hours <= 1) {
       return baseRate;
     }
-    
-    return baseRate + ((hours - 1) * hourlyRate);
+
+    return baseRate + (hours - 1) * hourlyRate;
   }
 
   /**
@@ -674,13 +674,13 @@ export class ParkingService {
     averageDuration: number;
   }> {
     const transactionStats = this.transactionManager.getTransactionStatistics();
-    
+
     return {
       activeTransactions: transactionStats.active,
       totalTransactions: transactionStats.total,
-      successRate: transactionStats.total > 0 ? 
-        (transactionStats.success / transactionStats.total) * 100 : 0,
-      averageDuration: transactionStats.averageDuration
+      successRate:
+        transactionStats.total > 0 ? (transactionStats.success / transactionStats.total) * 100 : 0,
+      averageDuration: transactionStats.averageDuration,
     };
   }
 }

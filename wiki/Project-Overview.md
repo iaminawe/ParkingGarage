@@ -21,7 +21,7 @@ The Parking Garage Management System revolutionizes urban parking by providing a
 Urban parking faces several challenges:
 - **Inefficient Space Utilization**: Manual tracking leads to underutilized spaces
 - **Poor User Experience**: Difficulty finding available spots wastes time and fuel
-- **Revenue Leakage**: Manual payment systems prone to errors and fraud
+- **Revenue Leakage**: Manual systems prone to errors (payment systems: future feature)
 - **Limited Analytics**: Lack of data-driven insights for optimization
 - **Access Control Issues**: Security concerns with traditional systems
 
@@ -35,10 +35,10 @@ Our Parking Garage Management System provides:
 - LED guidance system for spot navigation
 - Predictive availability based on patterns
 
-### 2. Automated Payment & Billing
-- Contactless payment options
-- Automatic billing on exit
-- Digital receipts and invoices
+### 2. Automated Payment & Billing (Future Feature)
+- Contactless payment options (planned)
+- Automatic billing on exit (planned)
+- Digital receipts and invoices (planned)
 - Integration with corporate accounts
 
 ### 3. Intelligent Access Control
@@ -49,7 +49,7 @@ Our Parking Garage Management System provides:
 
 ### 4. Advanced Analytics
 - Occupancy trends and patterns
-- Revenue optimization insights
+- Usage optimization insights (revenue: future feature)
 - Peak hour analysis
 - Customer behavior tracking
 
@@ -75,8 +75,8 @@ Our Parking Garage Management System provides:
 
 ## Business Model
 
-### Revenue Streams
-1. **Hourly/Daily Parking Fees**
+### Revenue Streams (Future Feature)
+1. **Hourly/Daily Parking Fees** (planned)
 2. **Monthly Subscriptions**
 3. **Premium Spot Reservations**
 4. **Corporate Contracts**

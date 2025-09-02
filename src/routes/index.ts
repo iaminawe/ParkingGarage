@@ -32,13 +32,13 @@ router.get('/', (req: Request, res: Response): void => {
         reservations: '/api/reservations',
         payments: '/api/payments',
         transactions: '/api/transactions',
-        documentation: '/api-docs'
+        documentation: '/api-docs',
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   res.json(response.data);
 });
 

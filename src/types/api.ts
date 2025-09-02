@@ -1,6 +1,6 @@
 /**
  * API request and response type definitions
- * 
+ *
  * These interfaces define the structure for HTTP requests and responses
  * used by the REST API endpoints.
  */
@@ -18,7 +18,7 @@ import {
   ParkingSession,
   SearchCriteria,
   FilterOptions,
-  PaginationOptions
+  PaginationOptions,
 } from './models';
 
 // Re-export commonly used types

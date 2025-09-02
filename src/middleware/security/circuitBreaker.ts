@@ -13,9 +13,9 @@ export interface CircuitBreakerOptions {
 }
 
 export enum CircuitBreakerState {
-  CLOSED = 'CLOSED',     // Normal operation
-  OPEN = 'OPEN',         // Blocking requests
-  HALF_OPEN = 'HALF_OPEN' // Testing recovery
+  CLOSED = 'CLOSED', // Normal operation
+  OPEN = 'OPEN', // Blocking requests
+  HALF_OPEN = 'HALF_OPEN', // Testing recovery
 }
 
 export class CircuitBreakerError extends Error {
@@ -27,17 +27,17 @@ export class CircuitBreakerError extends Error {
 
 export class CircuitBreaker {
   private state: CircuitBreakerState = CircuitBreakerState.CLOSED;
-  private failureCount: number = 0;
-  private lastFailureTime: number = 0;
-  private nextAttemptTime: number = 0;
+  private failureCount = 0;
+  private lastFailureTime = 0;
+  private nextAttemptTime = 0;
   private options: CircuitBreakerOptions;
 
   constructor(options: Partial<CircuitBreakerOptions> = {}) {
     this.options = {
       failureThreshold: options.failureThreshold || 5,
       recoveryTimeout: options.recoveryTimeout || 30000, // 30 seconds
-      monitorTimeout: options.monitorTimeout || 5000,   // 5 seconds
-      name: options.name || 'unknown-service'
+      monitorTimeout: options.monitorTimeout || 5000, // 5 seconds
+      name: options.name || 'unknown-service',
     };
   }
 
@@ -50,7 +50,7 @@ export class CircuitBreaker {
       if (Date.now() < this.nextAttemptTime) {
         throw new CircuitBreakerError(this.options.name);
       }
-      
+
       // Try to close circuit (half-open state)
       this.state = CircuitBreakerState.HALF_OPEN;
     }
@@ -70,10 +70,10 @@ export class CircuitBreaker {
    */
   private onSuccess(): void {
     const wasHalfOpen = this.state === CircuitBreakerState.HALF_OPEN;
-    
+
     this.failureCount = 0;
     this.state = CircuitBreakerState.CLOSED;
-    
+
     // Log recovery if we were in half-open state
     if (wasHalfOpen) {
       SecurityAuditUtils.logSecurityEvent({
@@ -82,8 +82,8 @@ export class CircuitBreaker {
         details: {
           service: this.options.name,
           previousState: 'HALF_OPEN',
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
     }
   }
@@ -98,7 +98,7 @@ export class CircuitBreaker {
     if (this.failureCount >= this.options.failureThreshold) {
       this.state = CircuitBreakerState.OPEN;
       this.nextAttemptTime = Date.now() + this.options.recoveryTimeout;
-      
+
       // Log circuit breaker opening
       SecurityAuditUtils.logSecurityEvent({
         event: 'CIRCUIT_BREAKER_OPENED',
@@ -108,8 +108,8 @@ export class CircuitBreaker {
           failureCount: this.failureCount,
           lastError: error?.message,
           recoveryTime: new Date(this.nextAttemptTime).toISOString(),
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
     }
   }
@@ -123,7 +123,7 @@ export class CircuitBreaker {
       failureCount: this.failureCount,
       lastFailureTime: this.lastFailureTime,
       nextAttemptTime: this.nextAttemptTime,
-      options: this.options
+      options: this.options,
     };
   }
 
@@ -133,15 +133,15 @@ export class CircuitBreaker {
   forceOpen(): void {
     this.state = CircuitBreakerState.OPEN;
     this.nextAttemptTime = Date.now() + this.options.recoveryTimeout;
-    
+
     SecurityAuditUtils.logSecurityEvent({
       event: 'CIRCUIT_BREAKER_FORCE_OPEN',
       severity: 'MEDIUM',
       details: {
         service: this.options.name,
         reason: 'Manual intervention',
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
   }
 
@@ -152,15 +152,15 @@ export class CircuitBreaker {
     this.state = CircuitBreakerState.CLOSED;
     this.failureCount = 0;
     this.nextAttemptTime = 0;
-    
+
     SecurityAuditUtils.logSecurityEvent({
       event: 'CIRCUIT_BREAKER_FORCE_CLOSE',
       severity: 'LOW',
       details: {
         service: this.options.name,
         reason: 'Manual intervention',
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
   }
 
@@ -174,7 +174,7 @@ export class CircuitBreaker {
       lastFailureTime: this.lastFailureTime ? new Date(this.lastFailureTime).toISOString() : null,
       nextAttemptTime: this.nextAttemptTime ? new Date(this.nextAttemptTime).toISOString() : null,
       isHealthy: this.state === CircuitBreakerState.CLOSED,
-      timeSinceLastFailure: this.lastFailureTime ? Date.now() - this.lastFailureTime : null
+      timeSinceLastFailure: this.lastFailureTime ? Date.now() - this.lastFailureTime : null,
     };
   }
 }
@@ -200,10 +200,7 @@ export class CircuitBreakerManager {
    */
   getCircuitBreaker(serviceName: string, options?: Partial<CircuitBreakerOptions>): CircuitBreaker {
     if (!this.circuitBreakers.has(serviceName)) {
-      this.circuitBreakers.set(
-        serviceName,
-        new CircuitBreaker({ ...options, name: serviceName })
-      );
+      this.circuitBreakers.set(serviceName, new CircuitBreaker({ ...options, name: serviceName }));
     }
     return this.circuitBreakers.get(serviceName)!;
   }
@@ -225,11 +222,11 @@ export class CircuitBreakerManager {
    */
   getAllStatuses() {
     const statuses: Record<string, any> = {};
-    
+
     Array.from(this.circuitBreakers.entries()).forEach(([name, breaker]) => {
       statuses[name] = breaker.getMetrics();
     });
-    
+
     return statuses;
   }
 
@@ -247,7 +244,7 @@ export class CircuitBreakerManager {
       healthyBreakers,
       unhealthyBreakers,
       overallHealthy: unhealthyBreakers === 0,
-      services: statuses
+      services: statuses,
     };
   }
 
@@ -258,14 +255,14 @@ export class CircuitBreakerManager {
     Array.from(this.circuitBreakers.values()).forEach(breaker => {
       breaker.forceClose();
     });
-    
+
     SecurityAuditUtils.logSecurityEvent({
       event: 'ALL_CIRCUIT_BREAKERS_RESET',
       severity: 'MEDIUM',
       details: {
         count: this.circuitBreakers.size,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
   }
 }
@@ -273,20 +270,13 @@ export class CircuitBreakerManager {
 /**
  * Decorator for automatic circuit breaker protection
  */
-export function withCircuitBreaker(
-  serviceName: string,
-  options?: Partial<CircuitBreakerOptions>
-) {
-  return function(target: any, propertyName: string, descriptor: PropertyDescriptor) {
+export function withCircuitBreaker(serviceName: string, options?: Partial<CircuitBreakerOptions>) {
+  return function (target: any, propertyName: string, descriptor: PropertyDescriptor) {
     const method = descriptor.value;
     const manager = CircuitBreakerManager.getInstance();
 
-    descriptor.value = async function(...args: any[]) {
-      return manager.executeWithBreaker(
-        serviceName,
-        () => method.apply(this, args),
-        options
-      );
+    descriptor.value = async function (...args: any[]) {
+      return manager.executeWithBreaker(serviceName, () => method.apply(this, args), options);
     };
   };
 }

@@ -1,6 +1,6 @@
 /**
  * Repository interface definitions and data access types
- * 
+ *
  * These interfaces define the contracts for data access layer classes,
  * including both TypeScript repositories and JavaScript repositories
  * that will be migrated.
@@ -17,7 +17,7 @@ import {
   PaginationOptions,
   FilterOptions,
   SearchCriteria,
-  ServiceResponse
+  ServiceResponse,
 } from './models';
 
 // Base Repository Interface
@@ -35,11 +35,14 @@ export interface IBaseRepository<TEntity, TKey = string> {
 export interface IGarageRepository extends IBaseRepository<GarageRecord, string> {
   getDefault(): GarageRecord | null;
   findByName(name: string): GarageRecord | null;
-  updateRates(garageId: string, rates: {
-    compact?: number;
-    standard?: number;
-    oversized?: number;
-  }): GarageRecord | null;
+  updateRates(
+    garageId: string,
+    rates: {
+      compact?: number;
+      standard?: number;
+      oversized?: number;
+    }
+  ): GarageRecord | null;
   getFloorConfiguration(garageId: string): Array<{
     number: number;
     bays: number;
@@ -75,12 +78,15 @@ export interface ISpotRepository extends IBaseRepository<SpotRecord, string> {
     available: number;
     occupancyRate: number;
   }>;
-  getStatsByType(): Record<VehicleType, {
-    total: number;
-    occupied: number;
-    available: number;
-    occupancyRate: number;
-  }>;
+  getStatsByType(): Record<
+    VehicleType,
+    {
+      total: number;
+      occupied: number;
+      available: number;
+      occupancyRate: number;
+    }
+  >;
 }
 
 // Vehicle Repository Interface
@@ -93,10 +99,13 @@ export interface IVehicleRepository extends IBaseRepository<VehicleRecord, strin
   findByVehicleType(type: VehicleType): VehicleRecord[];
   findByDateRange(startDate: string, endDate: string): VehicleRecord[];
   findUnpaidVehicles(): VehicleRecord[];
-  searchByLicensePlate(query: string, options?: {
-    exact?: boolean;
-    limit?: number;
-  }): VehicleRecord[];
+  searchByLicensePlate(
+    query: string,
+    options?: {
+      exact?: boolean;
+      limit?: number;
+    }
+  ): VehicleRecord[];
   searchByCriteria(criteria: SearchCriteria): VehicleRecord[];
   markAsPaid(licensePlate: string, amountPaid: number): VehicleRecord | null;
   checkOut(licensePlate: string, hourlyRate?: number): VehicleRecord | null;

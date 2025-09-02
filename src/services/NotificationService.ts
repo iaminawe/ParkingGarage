@@ -1,5 +1,5 @@
 /**
- * NotificationService - Comprehensive notification system with email, SMS, 
+ * NotificationService - Comprehensive notification system with email, SMS,
  * in-app notifications, templates, and user preferences
  */
 
@@ -8,7 +8,7 @@ import EmailService from './EmailService';
 import { SecurityAuditService } from './SecurityAuditService';
 import { env } from '../config/environment';
 
-export type NotificationType = 
+export type NotificationType =
   | 'RESERVATION_CONFIRMED'
   | 'RESERVATION_REMINDER'
   | 'RESERVATION_CANCELLED'
@@ -116,15 +116,15 @@ class NotificationService {
     try {
       // Get user preferences
       const preferences = await this.getUserPreferences(request.userId);
-      
+
       // Filter channels based on preferences
       const enabledChannels = this.filterChannelsByPreferences(request.channels, preferences);
-      
+
       if (enabledChannels.length === 0) {
         return {
           success: false,
           message: 'All notification channels disabled by user preferences',
-          deliveryResults: []
+          deliveryResults: [],
         };
       }
 
@@ -139,7 +139,7 @@ class NotificationService {
         return {
           success: true,
           message: 'Added to digest queue due to quiet hours',
-          deliveryResults: []
+          deliveryResults: [],
         };
       }
 
@@ -165,8 +165,8 @@ class NotificationService {
           notificationType: request.type,
           channels: enabledChannels,
           priority: request.priority,
-          deliveryResults: deliveryResults.map(r => ({ channel: r.channel, success: r.success }))
-        }
+          deliveryResults: deliveryResults.map(r => ({ channel: r.channel, success: r.success })),
+        },
       });
 
       const successCount = deliveryResults.filter(r => r.success).length;
@@ -176,16 +176,16 @@ class NotificationService {
         success,
         notificationId,
         deliveryResults,
-        message: success 
+        message: success
           ? `Notification sent successfully through ${successCount}/${deliveryResults.length} channels`
-          : 'Failed to send notification through any channel'
+          : 'Failed to send notification through any channel',
       };
     } catch (error) {
       console.error('Notification send error:', error);
       return {
         success: false,
         message: 'Failed to send notification',
-        deliveryResults: []
+        deliveryResults: [],
       };
     }
   }
@@ -197,7 +197,12 @@ class NotificationService {
     request: NotificationRequest,
     channel: NotificationChannel,
     preferences: NotificationPreferences
-  ): Promise<{ channel: NotificationChannel; success: boolean; messageId?: string; error?: string }> {
+  ): Promise<{
+    channel: NotificationChannel;
+    success: boolean;
+    messageId?: string;
+    error?: string;
+  }> {
     try {
       switch (channel) {
         case 'EMAIL':
@@ -212,14 +217,14 @@ class NotificationService {
           return {
             channel,
             success: false,
-            error: 'Unsupported notification channel'
+            error: 'Unsupported notification channel',
           };
       }
     } catch (error) {
       return {
         channel,
         success: false,
-        error: (error as Error).message
+        error: (error as Error).message,
       };
     }
   }
@@ -230,42 +235,54 @@ class NotificationService {
   private async sendEmailNotification(
     request: NotificationRequest,
     preferences: NotificationPreferences
-  ): Promise<{ channel: NotificationChannel; success: boolean; messageId?: string; error?: string }> {
+  ): Promise<{
+    channel: NotificationChannel;
+    success: boolean;
+    messageId?: string;
+    error?: string;
+  }> {
     try {
       const user = await prisma.user.findUnique({
         where: { id: request.userId },
-        select: { email: true, firstName: true, lastName: true }
+        select: { email: true, firstName: true, lastName: true },
       });
 
       if (!user?.email) {
         return {
           channel: 'EMAIL',
           success: false,
-          error: 'User email not found'
+          error: 'User email not found',
         };
       }
 
-      const template = await this.getNotificationTemplate(request.type, 'EMAIL', preferences.language);
+      const template = await this.getNotificationTemplate(
+        request.type,
+        'EMAIL',
+        preferences.language
+      );
       const processedContent = this.processTemplate(template, request.templateVariables || {});
 
-      const success = await EmailService.sendEmail({
-        to: user.email,
-        subject: processedContent.subject || request.title,
-        html: processedContent.body,
-        text: request.message,
-        priority: this.mapPriorityToEmail(request.priority)
-      }, request.userId);
+      const success = await EmailService.sendEmail(
+        {
+          to: user.email,
+          subject: processedContent.subject || request.title,
+          html: processedContent.body,
+          text: request.message,
+          priority: this.mapPriorityToEmail(request.priority),
+        },
+        request.userId
+      );
 
       return {
         channel: 'EMAIL',
         success,
-        messageId: success ? `email_${Date.now()}` : undefined
+        messageId: success ? `email_${Date.now()}` : undefined,
       };
     } catch (error) {
       return {
         channel: 'EMAIL',
         success: false,
-        error: (error as Error).message
+        error: (error as Error).message,
       };
     }
   }
@@ -276,36 +293,48 @@ class NotificationService {
   private async sendSMSNotification(
     request: NotificationRequest,
     preferences: NotificationPreferences
-  ): Promise<{ channel: NotificationChannel; success: boolean; messageId?: string; error?: string }> {
+  ): Promise<{
+    channel: NotificationChannel;
+    success: boolean;
+    messageId?: string;
+    error?: string;
+  }> {
     try {
       const user = await prisma.user.findUnique({
         where: { id: request.userId },
-        select: { phoneNumber: true, isPhoneVerified: true }
+        select: { phoneNumber: true, isPhoneVerified: true },
       });
 
       if (!user?.phoneNumber || !user.isPhoneVerified) {
         return {
           channel: 'SMS',
           success: false,
-          error: 'User phone number not found or not verified'
+          error: 'User phone number not found or not verified',
         };
       }
 
-      const template = await this.getNotificationTemplate(request.type, 'SMS', preferences.language);
+      const template = await this.getNotificationTemplate(
+        request.type,
+        'SMS',
+        preferences.language
+      );
       const processedContent = this.processTemplate(template, request.templateVariables || {});
-      
-      const messageId = await this.sendSMS(user.phoneNumber, processedContent.body || request.message);
+
+      const messageId = await this.sendSMS(
+        user.phoneNumber,
+        processedContent.body || request.message
+      );
 
       return {
         channel: 'SMS',
         success: !!messageId,
-        messageId
+        messageId,
       };
     } catch (error) {
       return {
         channel: 'SMS',
         success: false,
-        error: (error as Error).message
+        error: (error as Error).message,
       };
     }
   }
@@ -315,19 +344,24 @@ class NotificationService {
    */
   private async sendInAppNotification(
     request: NotificationRequest
-  ): Promise<{ channel: NotificationChannel; success: boolean; messageId?: string; error?: string }> {
+  ): Promise<{
+    channel: NotificationChannel;
+    success: boolean;
+    messageId?: string;
+    error?: string;
+  }> {
     try {
       const notificationId = await this.createInAppNotification(request);
       return {
         channel: 'IN_APP',
         success: !!notificationId,
-        messageId: notificationId
+        messageId: notificationId,
       };
     } catch (error) {
       return {
         channel: 'IN_APP',
         success: false,
-        error: (error as Error).message
+        error: (error as Error).message,
       };
     }
   }
@@ -338,12 +372,17 @@ class NotificationService {
   private async sendPushNotification(
     request: NotificationRequest,
     preferences: NotificationPreferences
-  ): Promise<{ channel: NotificationChannel; success: boolean; messageId?: string; error?: string }> {
+  ): Promise<{
+    channel: NotificationChannel;
+    success: boolean;
+    messageId?: string;
+    error?: string;
+  }> {
     // Stub implementation - would integrate with Firebase Cloud Messaging, Apple Push Notification service, etc.
     return {
       channel: 'PUSH',
       success: true, // Mock success
-      messageId: `push_${Date.now()}`
+      messageId: `push_${Date.now()}`,
     };
   }
 
@@ -366,7 +405,7 @@ class NotificationService {
       //   to: phoneNumber
       // });
       // return result.sid;
-      
+
       // Mock for now
       return `twilio_${Date.now()}`;
     }
@@ -381,7 +420,7 @@ class NotificationService {
     // This would create a record in a notifications table
     // For now, simulate with a mock ID
     const notificationId = `in_app_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // In production, this would be:
     // await prisma.notification.create({
     //   data: {
@@ -393,7 +432,7 @@ class NotificationService {
     //     expiresAt: request.expiresAt
     //   }
     // });
-    
+
     return notificationId;
   }
 
@@ -417,28 +456,31 @@ class NotificationService {
         'PAYMENT_SUCCESSFUL',
         'SPOT_AVAILABLE',
         'OVERTIME_WARNING',
-        'SECURITY_ALERT'
+        'SECURITY_ALERT',
       ],
       frequency: 'IMMEDIATE',
-      language: 'en'
+      language: 'en',
     };
   }
 
   /**
    * Update user notification preferences
    */
-  async updateUserPreferences(userId: string, preferences: Partial<NotificationPreferences>): Promise<boolean> {
+  async updateUserPreferences(
+    userId: string,
+    preferences: Partial<NotificationPreferences>
+  ): Promise<boolean> {
     try {
       // In production, this would update the user preferences table
       console.log(`Updating notification preferences for user ${userId}:`, preferences);
-      
+
       await this.auditService.logSecurityEvent({
         userId,
         action: 'NOTIFICATION_PREFERENCES_UPDATED',
         category: 'ACCOUNT',
         severity: 'LOW',
         description: 'User updated notification preferences',
-        metadata: { preferences }
+        metadata: { preferences },
       });
 
       return true;
@@ -454,7 +496,7 @@ class NotificationService {
   private async getNotificationTemplate(
     type: NotificationType,
     channel: NotificationChannel,
-    language: string = 'en'
+    language = 'en'
   ): Promise<NotificationTemplate> {
     // Mock templates - in production, these would be stored in database
     const mockTemplates: Record<string, NotificationTemplate> = {
@@ -468,8 +510,8 @@ class NotificationService {
         body: this.getDefaultBody(type, channel),
         variables: ['userName', 'spotNumber', 'amount', 'time'],
         isActive: true,
-        version: 1
-      }
+        version: 1,
+      },
     };
 
     const templateKey = `${type}_${channel}_${language}`;
@@ -497,7 +539,7 @@ class NotificationService {
 
     return {
       subject: processedSubject,
-      body: processedBody
+      body: processedBody,
     };
   }
 
@@ -534,7 +576,7 @@ class NotificationService {
 
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
+
     return currentTime >= preferences.quietHoursStart || currentTime <= preferences.quietHoursEnd;
   }
 
@@ -545,12 +587,12 @@ class NotificationService {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     if (preferences.quietHoursEnd) {
       const [hours, minutes] = preferences.quietHoursEnd.split(':').map(Number);
       tomorrow.setHours(hours, minutes, 0, 0);
     }
-    
+
     return tomorrow;
   }
 
@@ -560,18 +602,18 @@ class NotificationService {
   async scheduleNotification(request: NotificationRequest): Promise<NotificationResult> {
     // In production, this would store in a scheduled notifications table
     console.log(`Scheduling notification for ${request.scheduledFor}:`, request);
-    
+
     return {
       success: true,
       message: `Notification scheduled for ${request.scheduledFor?.toISOString()}`,
-      deliveryResults: []
+      deliveryResults: [],
     };
   }
 
   /**
    * Get user's in-app notifications
    */
-  async getInAppNotifications(userId: string, unreadOnly: boolean = false): Promise<InAppNotification[]> {
+  async getInAppNotifications(userId: string, unreadOnly = false): Promise<InAppNotification[]> {
     // Mock implementation - in production, would query notifications table
     return [];
   }
@@ -594,13 +636,13 @@ class NotificationService {
         provider: 'twilio',
         accountSid: env.TWILIO_ACCOUNT_SID,
         authToken: env.TWILIO_AUTH_TOKEN,
-        fromNumber: env.TWILIO_PHONE_NUMBER || '+1234567890'
+        fromNumber: env.TWILIO_PHONE_NUMBER || '+1234567890',
       };
     }
 
     return {
       provider: 'mock',
-      fromNumber: '+1234567890'
+      fromNumber: '+1234567890',
     };
   }
 
@@ -651,7 +693,7 @@ class NotificationService {
       CHECKOUT_REMINDER: 'Checkout Reminder',
       SECURITY_ALERT: 'Security Alert',
       MAINTENANCE_NOTICE: 'Maintenance Notice',
-      PROMOTION_OFFER: 'Special Offer'
+      PROMOTION_OFFER: 'Special Offer',
     };
     return subjects[type] || 'Notification';
   }
@@ -662,20 +704,24 @@ class NotificationService {
 
   private getDefaultBody(type: NotificationType, channel: NotificationChannel): string {
     const isShort = channel === 'SMS' || channel === 'PUSH';
-    
+
     const bodies = {
-      RESERVATION_CONFIRMED: isShort 
+      RESERVATION_CONFIRMED: isShort
         ? 'Your parking reservation for spot {{spotNumber}} is confirmed.'
         : 'Your parking reservation has been confirmed for spot {{spotNumber}} at {{time}}.',
       PAYMENT_SUCCESSFUL: isShort
         ? 'Payment of ${{amount}} processed successfully.'
-        : 'Your payment of ${{amount}} has been processed successfully. Thank you!'
+        : 'Your payment of ${{amount}} has been processed successfully. Thank you!',
     };
-    
+
     return bodies[type as keyof typeof bodies] || 'You have a new notification.';
   }
 
-  private getDefaultTemplate(type: NotificationType, channel: NotificationChannel, language: string): NotificationTemplate {
+  private getDefaultTemplate(
+    type: NotificationType,
+    channel: NotificationChannel,
+    language: string
+  ): NotificationTemplate {
     return {
       id: `default_${type}_${channel}`,
       type,
@@ -686,7 +732,7 @@ class NotificationService {
       body: this.getDefaultBody(type, channel),
       variables: ['userName', 'spotNumber', 'amount', 'time'],
       isActive: true,
-      version: 1
+      version: 1,
     };
   }
 

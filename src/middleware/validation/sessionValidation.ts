@@ -1,10 +1,10 @@
 /**
  * Session validation middleware
- * 
+ *
  * This module provides Express middleware functions for validating
  * parking session management requests, including session parameters,
  * request bodies, query parameters, and session lifecycle operations.
- * 
+ *
  * @module SessionValidation
  */
 
@@ -68,7 +68,7 @@ export const validateSessionId = (req: Request, res: Response, next: NextFunctio
       success: false,
       message: 'Invalid session ID',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -80,7 +80,11 @@ export const validateSessionId = (req: Request, res: Response, next: NextFunctio
  * Validate session query parameters
  * Validates filtering, sorting, and pagination parameters for session listing
  */
-export const validateSessionQuery = (req: TypedRequest<any, SessionQueryParams>, res: Response, next: NextFunction): void => {
+export const validateSessionQuery = (
+  req: TypedRequest<any, SessionQueryParams>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { status, dateRange, search, limit, offset, sort, order, period, type } = req.query;
   const errors: string[] = [];
 
@@ -162,7 +166,7 @@ export const validateSessionQuery = (req: TypedRequest<any, SessionQueryParams>,
       success: false,
       message: 'Invalid query parameters',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -174,7 +178,11 @@ export const validateSessionQuery = (req: TypedRequest<any, SessionQueryParams>,
  * Validate end session request body
  * Validates optional reason parameter
  */
-export const validateEndSessionRequest = (req: TypedRequest<EndSessionRequestBody>, res: Response, next: NextFunction): void => {
+export const validateEndSessionRequest = (
+  req: TypedRequest<EndSessionRequestBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { reason } = req.body;
   const errors: string[] = [];
 
@@ -195,7 +203,9 @@ export const validateEndSessionRequest = (req: TypedRequest<EndSessionRequestBod
   const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
 
   if (invalidFields.length > 0) {
-    errors.push(`Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`);
+    errors.push(
+      `Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`
+    );
   }
 
   if (errors.length > 0) {
@@ -203,7 +213,7 @@ export const validateEndSessionRequest = (req: TypedRequest<EndSessionRequestBod
       success: false,
       message: 'Invalid end session request',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -215,7 +225,11 @@ export const validateEndSessionRequest = (req: TypedRequest<EndSessionRequestBod
  * Validate cancel session request body
  * Validates optional reason parameter
  */
-export const validateCancelSessionRequest = (req: TypedRequest<CancelSessionRequestBody>, res: Response, next: NextFunction): void => {
+export const validateCancelSessionRequest = (
+  req: TypedRequest<CancelSessionRequestBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { reason } = req.body;
   const errors: string[] = [];
 
@@ -236,7 +250,9 @@ export const validateCancelSessionRequest = (req: TypedRequest<CancelSessionRequ
   const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
 
   if (invalidFields.length > 0) {
-    errors.push(`Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`);
+    errors.push(
+      `Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`
+    );
   }
 
   if (errors.length > 0) {
@@ -244,7 +260,7 @@ export const validateCancelSessionRequest = (req: TypedRequest<CancelSessionRequ
       success: false,
       message: 'Invalid cancel session request',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -256,7 +272,11 @@ export const validateCancelSessionRequest = (req: TypedRequest<CancelSessionRequ
  * Validate extend session request body
  * Validates required additionalHours parameter
  */
-export const validateExtendSessionRequest = (req: TypedRequest<ExtendSessionRequestBody>, res: Response, next: NextFunction): void => {
+export const validateExtendSessionRequest = (
+  req: TypedRequest<ExtendSessionRequestBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { additionalHours } = req.body;
   const errors: string[] = [];
 
@@ -281,7 +301,9 @@ export const validateExtendSessionRequest = (req: TypedRequest<ExtendSessionRequ
   const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
 
   if (invalidFields.length > 0) {
-    errors.push(`Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`);
+    errors.push(
+      `Invalid fields: ${invalidFields.join(', ')}. Valid fields: ${allowedFields.join(', ')}`
+    );
   }
 
   if (errors.length > 0) {
@@ -289,7 +311,7 @@ export const validateExtendSessionRequest = (req: TypedRequest<ExtendSessionRequ
       success: false,
       message: 'Invalid extend session request',
       errors: errors,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -303,12 +325,12 @@ export const validateExtendSessionRequest = (req: TypedRequest<ExtendSessionRequ
  */
 export const validateContentType = (req: Request, res: Response, next: NextFunction): void => {
   const contentType = req.get('Content-Type');
-  
+
   if (!contentType || !contentType.includes('application/json')) {
     res.status(400).json({
       success: false,
       message: 'Content-Type must be application/json',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }
@@ -325,7 +347,7 @@ export const validateRequestBody = (req: Request, res: Response, next: NextFunct
     res.status(400).json({
       success: false,
       message: 'Request body is required',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
     return;
   }

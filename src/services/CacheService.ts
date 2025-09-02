@@ -1,9 +1,9 @@
 /**
  * Cache Service for high-performance data caching
- * 
+ *
  * Implements cache-aside pattern with Redis backend for optimal performance.
  * Supports cache warming, invalidation strategies, and performance monitoring.
- * 
+ *
  * @module CacheService
  */
 
@@ -41,7 +41,7 @@ export interface CacheItem<T> {
 export class CacheService {
   private client: RedisClientType;
   private config: CacheConfig;
-  private isConnected: boolean = false;
+  private isConnected = false;
   private metrics: CacheMetrics = {
     hits: 0,
     misses: 0,
@@ -49,7 +49,7 @@ export class CacheService {
     deletes: 0,
     errors: 0,
     connectionTime: 0,
-    avgResponseTime: 0
+    avgResponseTime: 0,
   };
   private responseTimes: number[] = [];
   private readonly METRICS_WINDOW_SIZE = 1000;
@@ -60,7 +60,7 @@ export class CacheService {
       defaultTTL: 3600, // 1 hour
       maxRetries: 3,
       retryDelayMs: 1000,
-      ...config
+      ...config,
     };
 
     // Create Redis client with optimized configuration
@@ -68,12 +68,12 @@ export class CacheService {
       socket: {
         host: this.config.host,
         port: this.config.port,
-        reconnectStrategy: (retries) => {
+        reconnectStrategy: retries => {
           if (retries > this.config.maxRetries) {
             return new Error('Max retries exceeded');
           }
           return Math.min(retries * this.config.retryDelayMs, 3000);
-        }
+        },
       },
       password: this.config.password,
       database: this.config.db || 0,
@@ -86,7 +86,9 @@ export class CacheService {
    * Initialize cache connection
    */
   async connect(): Promise<void> {
-    if (this.isConnected) return;
+    if (this.isConnected) {
+      return;
+    }
 
     const startTime = Date.now();
     try {
@@ -94,7 +96,7 @@ export class CacheService {
       this.isConnected = true;
       this.metrics.connectionTime = Date.now() - startTime;
       logger.info('Cache service connected successfully', {
-        connectionTime: this.metrics.connectionTime
+        connectionTime: this.metrics.connectionTime,
       });
     } catch (error) {
       this.metrics.errors++;
@@ -107,7 +109,9 @@ export class CacheService {
    * Disconnect from cache
    */
   async disconnect(): Promise<void> {
-    if (!this.isConnected) return;
+    if (!this.isConnected) {
+      return;
+    }
 
     try {
       await this.client.quit();
@@ -137,11 +141,11 @@ export class CacheService {
 
       this.metrics.hits++;
       const parsed = JSON.parse(result) as CacheItem<T>;
-      
+
       // Update hit counter for the item
       parsed.hits++;
       await this.client.set(fullKey, JSON.stringify(parsed), {
-        PX: parsed.ttl * 1000
+        PX: parsed.ttl * 1000,
       });
 
       return parsed.data;
@@ -165,11 +169,11 @@ export class CacheService {
         data,
         timestamp: Date.now(),
         ttl,
-        hits: 0
+        hits: 0,
       };
 
       await this.client.set(fullKey, JSON.stringify(cacheItem), {
-        PX: ttl * 1000
+        PX: ttl * 1000,
       });
 
       const responseTime = Date.now() - startTime;
@@ -205,7 +209,9 @@ export class CacheService {
    * Get multiple items from cache efficiently
    */
   async getMany<T>(keys: string[]): Promise<Map<string, T>> {
-    if (keys.length === 0) return new Map();
+    if (keys.length === 0) {
+      return new Map();
+    }
 
     const startTime = Date.now();
     const fullKeys = keys.map(key => this.getFullKey(key));
@@ -213,7 +219,7 @@ export class CacheService {
 
     try {
       const values = await this.client.mGet(fullKeys);
-      
+
       values.forEach((value, index) => {
         if (value !== null) {
           try {
@@ -244,7 +250,9 @@ export class CacheService {
    * Set multiple items efficiently
    */
   async setMany<T>(items: Map<string, T>, ttlSeconds?: number): Promise<number> {
-    if (items.size === 0) return 0;
+    if (items.size === 0) {
+      return 0;
+    }
 
     const startTime = Date.now();
     const ttl = ttlSeconds || this.config.defaultTTL;
@@ -252,18 +260,18 @@ export class CacheService {
 
     try {
       const pipeline = this.client.multi();
-      
+
       items.forEach((data, key) => {
         const fullKey = this.getFullKey(key);
         const cacheItem: CacheItem<T> = {
           data,
           timestamp: Date.now(),
           ttl,
-          hits: 0
+          hits: 0,
         };
-        
+
         pipeline.set(fullKey, JSON.stringify(cacheItem), {
-          PX: ttl * 1000
+          PX: ttl * 1000,
         });
       });
 
@@ -285,13 +293,15 @@ export class CacheService {
   /**
    * Cache warming for critical data
    */
-  async warmCache(warmingTasks: Array<{
-    key: string;
-    dataLoader: () => Promise<any>;
-    ttl?: number;
-  }>): Promise<number> {
+  async warmCache(
+    warmingTasks: Array<{
+      key: string;
+      dataLoader: () => Promise<any>;
+      ttl?: number;
+    }>
+  ): Promise<number> {
     let warmedCount = 0;
-    
+
     logger.info('Starting cache warming', { taskCount: warmingTasks.length });
 
     for (const task of warmingTasks) {
@@ -306,7 +316,7 @@ export class CacheService {
         // Load and cache data
         const data = await task.dataLoader();
         const success = await this.set(task.key, data, task.ttl);
-        
+
         if (success) {
           warmedCount++;
           logger.debug('Cache key warmed successfully', { key: task.key });
@@ -316,9 +326,9 @@ export class CacheService {
       }
     }
 
-    logger.info('Cache warming completed', { 
-      warmedCount, 
-      totalTasks: warmingTasks.length 
+    logger.info('Cache warming completed', {
+      warmedCount,
+      totalTasks: warmingTasks.length,
     });
 
     return warmedCount;
@@ -331,15 +341,17 @@ export class CacheService {
     try {
       const fullPattern = this.getFullKey(pattern);
       const keys = await this.client.keys(fullPattern);
-      
-      if (keys.length === 0) return 0;
+
+      if (keys.length === 0) {
+        return 0;
+      }
 
       const deletedCount = await this.client.del(keys);
       this.metrics.deletes += deletedCount;
-      
-      logger.info('Cache pattern invalidated', { 
-        pattern, 
-        deletedCount 
+
+      logger.info('Cache pattern invalidated', {
+        pattern,
+        deletedCount,
       });
 
       return deletedCount;
@@ -353,8 +365,8 @@ export class CacheService {
   /**
    * Get cache metrics and health status
    */
-  getMetrics(): CacheMetrics & { 
-    hitRate: number; 
+  getMetrics(): CacheMetrics & {
+    hitRate: number;
     isConnected: boolean;
     keyPrefix: string;
   } {
@@ -365,7 +377,7 @@ export class CacheService {
       ...this.metrics,
       hitRate: Math.round(hitRate * 100) / 100,
       isConnected: this.isConnected,
-      keyPrefix: this.config.keyPrefix || 'parking:'
+      keyPrefix: this.config.keyPrefix || 'parking:',
     };
   }
 
@@ -378,18 +390,18 @@ export class CacheService {
     error?: string;
   }> {
     const startTime = Date.now();
-    
+
     try {
       await this.client.ping();
       return {
         status: 'healthy',
-        responseTime: Date.now() - startTime
+        responseTime: Date.now() - startTime,
       };
     } catch (error) {
       return {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -405,13 +417,13 @@ export class CacheService {
       deletes: 0,
       errors: 0,
       connectionTime: this.metrics.connectionTime,
-      avgResponseTime: 0
+      avgResponseTime: 0,
     };
     this.responseTimes = [];
   }
 
   private setupEventHandlers(): void {
-    this.client.on('error', (error) => {
+    this.client.on('error', error => {
       this.metrics.errors++;
       logger.error('Redis client error', error);
     });
@@ -436,12 +448,12 @@ export class CacheService {
 
   private updateResponseTime(responseTime: number): void {
     this.responseTimes.push(responseTime);
-    
+
     // Keep only recent response times for rolling average
     if (this.responseTimes.length > this.METRICS_WINDOW_SIZE) {
       this.responseTimes = this.responseTimes.slice(-this.METRICS_WINDOW_SIZE);
     }
-    
+
     // Update average response time
     this.metrics.avgResponseTime = Math.round(
       this.responseTimes.reduce((sum, time) => sum + time, 0) / this.responseTimes.length
@@ -457,31 +469,31 @@ export const CacheKeys = {
   VEHICLES_BY_STATUS: (status: string) => `vehicles:status:${status}`,
   VEHICLES_PARKED: 'vehicles:parked',
   VEHICLES_STATS: 'vehicles:stats',
-  
-  // Parking spot related  
+
+  // Parking spot related
   SPOT: (spotId: string) => `spot:${spotId}`,
   SPOTS_AVAILABLE: 'spots:available',
   SPOTS_BY_TYPE: (type: string) => `spots:type:${type}`,
   SPOTS_BY_LEVEL: (level: number) => `spots:level:${level}`,
-  
+
   // Session related
   SESSION: (sessionId: string) => `session:${sessionId}`,
   ACTIVE_SESSIONS: 'sessions:active',
   SESSION_STATS: 'sessions:stats',
-  
+
   // Analytics and reports
   REVENUE_STATS: 'analytics:revenue',
   USAGE_STATS: 'analytics:usage',
   HOURLY_STATS: (date: string) => `analytics:hourly:${date}`,
   DAILY_STATS: (date: string) => `analytics:daily:${date}`,
-  
+
   // Configuration
   GARAGE_CONFIG: 'config:garage',
   RATES_CONFIG: 'config:rates',
-  
+
   // Performance
   SLOW_QUERIES: 'performance:slow_queries',
-  QUERY_STATS: 'performance:query_stats'
+  QUERY_STATS: 'performance:query_stats',
 };
 
 export default CacheService;

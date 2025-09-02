@@ -10,7 +10,7 @@ export class AppError extends Error {
   public isOperational: boolean;
   public status: string;
 
-  constructor(message: string, statusCode: number = 500, isOperational: boolean = true) {
+  constructor(message: string, statusCode = 500, isOperational = true) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
@@ -63,7 +63,7 @@ const sendErrorDev = (err: AppError, res: Response): void => {
     error: err,
     message: err.message,
     stack: err.stack,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -73,7 +73,7 @@ const sendErrorProd = (err: AppError, res: Response): void => {
     res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } else {
     // Programming or other unknown error: don't leak error details
@@ -82,12 +82,17 @@ const sendErrorProd = (err: AppError, res: Response): void => {
     res.status(500).json({
       status: 'error',
       message: 'Something went wrong!',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 };
 
-const errorHandler: ErrorRequestHandler = (err: any, req: Request, res: Response, _next: NextFunction): void => {
+const errorHandler: ErrorRequestHandler = (
+  err: any,
+  req: Request,
+  res: Response,
+  _next: NextFunction
+): void => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
@@ -120,4 +125,5 @@ const errorHandler: ErrorRequestHandler = (err: any, req: Request, res: Response
   }
 };
 
+export { errorHandler };
 export default errorHandler;

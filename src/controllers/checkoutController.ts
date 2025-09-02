@@ -1,20 +1,16 @@
 /**
  * Checkout Controller
- * 
+ *
  * This module handles HTTP requests for vehicle checkout operations,
  * including request processing, error handling, and response formatting
  * for the checkout API endpoints.
- * 
+ *
  * @module CheckoutController
  */
 
 import { Request, Response } from 'express';
-import { CheckoutService } from "../services/checkoutService";
-import { 
-  CheckOutRequest, 
-  CheckOutResponse, 
-  ApiResponse 
-} from '../types/api';
+import { CheckoutService } from '../services/checkoutService';
+import { CheckOutRequest, CheckOutResponse, ApiResponse } from '../types/api';
 
 interface CheckoutOptions {
   applyGracePeriod?: boolean;
@@ -42,27 +38,29 @@ export class CheckoutController {
    * Handle vehicle checkout request
    * POST /api/v1/checkout
    */
-  checkOut = async (req: Request<{}, ApiResponse<CheckOutResponse>, CheckOutRequest & CheckoutOptions>, res: Response<ApiResponse<CheckOutResponse>>): Promise<void> => {
+  checkOut = async (
+    req: Request<{}, ApiResponse<CheckOutResponse>, CheckOutRequest & CheckoutOptions>,
+    res: Response<ApiResponse<CheckOutResponse>>
+  ): Promise<void> => {
     try {
-      const { 
-        licensePlate, 
-        applyGracePeriod = false, 
+      const {
+        licensePlate,
+        applyGracePeriod = false,
         removeRecord = true,
-        checkOutTime 
+        checkOutTime,
       } = req.body;
 
       const result = this.checkoutService.checkOutVehicle(licensePlate, {
         applyGracePeriod,
         removeRecord,
-        checkOutTime
+        checkOutTime,
       });
 
       res.status(200).json({
         success: true,
         ...result,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       this.handleCheckoutError(error as Error, req, res);
     }
@@ -74,34 +72,37 @@ export class CheckoutController {
    */
   simulateCheckout = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { licensePlate, applyGracePeriod = false, checkOutTime }: { licensePlate: string; applyGracePeriod?: boolean; checkOutTime?: string } = req.body;
+      const {
+        licensePlate,
+        applyGracePeriod = false,
+        checkOutTime,
+      }: { licensePlate: string; applyGracePeriod?: boolean; checkOutTime?: string } = req.body;
 
       if (!licensePlate) {
         res.status(400).json({
           success: false,
           message: 'License plate is required for simulation',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
 
       const simulation = this.checkoutService.simulateCheckout(licensePlate, {
         applyGracePeriod,
-        checkOutTime
+        checkOutTime,
       });
 
       res.status(200).json({
         success: true,
         ...simulation,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Checkout simulation failed',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -118,15 +119,14 @@ export class CheckoutController {
         success: true,
         message: 'Checkout statistics retrieved successfully',
         data: { statistics: stats },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve checkout statistics',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -135,7 +135,10 @@ export class CheckoutController {
    * Get vehicles ready for checkout
    * GET /api/v1/checkout/ready
    */
-  getVehiclesReadyForCheckout = async (req: Request<{}, {}, {}, { minMinutes?: string }>, res: Response): Promise<void> => {
+  getVehiclesReadyForCheckout = async (
+    req: Request<{}, {}, {}, { minMinutes?: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { minMinutes = '0' } = req.query;
       const vehicles = this.checkoutService.getVehiclesReadyForCheckout(parseInt(minMinutes, 10));
@@ -147,18 +150,17 @@ export class CheckoutController {
           count: vehicles.length,
           vehicles,
           filters: {
-            minMinutes: parseInt(minMinutes, 10)
-          }
+            minMinutes: parseInt(minMinutes, 10),
+          },
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve vehicles ready for checkout',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -167,13 +169,16 @@ export class CheckoutController {
    * Get current parking estimate for a vehicle
    * GET /api/v1/checkout/estimate/:licensePlate
    */
-  getCurrentEstimate = async (req: Request<{ licensePlate: string }>, res: Response): Promise<void> => {
+  getCurrentEstimate = async (
+    req: Request<{ licensePlate: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { licensePlate } = req.params;
 
       // Use simulation to get current estimate without checking out
       const simulation = this.checkoutService.simulateCheckout(licensePlate, {
-        applyGracePeriod: false
+        applyGracePeriod: false,
       });
 
       if (!simulation.success) {
@@ -181,7 +186,7 @@ export class CheckoutController {
           success: false,
           message: `Cannot get estimate: ${simulation.message}`,
           errors: [simulation.error || 'Unknown error'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -197,19 +202,18 @@ export class CheckoutController {
             duration: estimate.estimatedDuration,
             billing: estimate.estimatedBilling,
             spotId: estimate.spotId,
-            status: estimate.currentStatus
+            status: estimate.currentStatus,
           },
-          note: 'This is an estimate. Final amount may vary based on actual checkout time.'
+          note: 'This is an estimate. Final amount may vary based on actual checkout time.',
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Failed to calculate parking estimate',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -218,7 +222,10 @@ export class CheckoutController {
    * Force checkout for administrative purposes
    * POST /api/v1/checkout/force
    */
-  forceCheckout = async (req: Request<{}, ApiResponse, ForceCheckoutRequest>, res: Response<ApiResponse>): Promise<void> => {
+  forceCheckout = async (
+    req: Request<{}, ApiResponse, ForceCheckoutRequest>,
+    res: Response<ApiResponse>
+  ): Promise<void> => {
     try {
       const { licensePlate, reason, adminKey } = req.body;
 
@@ -227,7 +234,7 @@ export class CheckoutController {
         res.status(403).json({
           success: false,
           message: 'Invalid administrative access key',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -238,9 +245,8 @@ export class CheckoutController {
         success: true,
         ...result,
         message: result.message || 'Force checkout completed',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       this.handleCheckoutError(error as Error, req, res);
     }
@@ -253,7 +259,7 @@ export class CheckoutController {
   healthCheck = async (req: Request, res: Response): Promise<void> => {
     try {
       const stats = this.checkoutService.getCheckoutStats();
-      
+
       res.status(200).json({
         success: true,
         data: {
@@ -263,18 +269,17 @@ export class CheckoutController {
             availableSpots: stats.spots.availableSpots,
             vehiclesParked: stats.vehicles.stillParked,
             totalRevenue: stats.revenue.totalRevenue,
-            pendingRevenue: stats.revenue.pendingRevenue
-          }
+            pendingRevenue: stats.revenue.pendingRevenue,
+          },
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
       res.status(503).json({
         success: false,
         message: 'Service health check failed',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -291,18 +296,21 @@ export class CheckoutController {
         success: false,
         message: 'Vehicle not found',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
 
     // Vehicle already checked out error
-    if (errorMessage.includes('already been checked out') || errorMessage.includes('already checked out')) {
+    if (
+      errorMessage.includes('already been checked out') ||
+      errorMessage.includes('already checked out')
+    ) {
       res.status(409).json({
         success: false,
         message: 'Vehicle already checked out',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -313,7 +321,7 @@ export class CheckoutController {
         success: false,
         message: 'Invalid parking duration',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -324,7 +332,7 @@ export class CheckoutController {
         success: false,
         message: 'Billing calculation failed',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -335,7 +343,7 @@ export class CheckoutController {
         success: false,
         message: 'Spot release failed',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -346,7 +354,7 @@ export class CheckoutController {
         success: false,
         message: 'Data integrity issue',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -357,7 +365,7 @@ export class CheckoutController {
         success: false,
         message: 'Invalid license plate',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -368,7 +376,7 @@ export class CheckoutController {
         success: false,
         message: 'Forced checkout operation failed',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -379,7 +387,7 @@ export class CheckoutController {
         success: false,
         message: 'Checkout operation failed',
         errors: [error.message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -389,7 +397,7 @@ export class CheckoutController {
       success: false,
       message: 'Internal server error during checkout',
       errors: [error.message],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 }

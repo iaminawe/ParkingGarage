@@ -1,21 +1,15 @@
 /**
  * Spot model definition for the parking garage system
- * 
+ *
  * This module defines the Spot class which represents a parking spot
  * in the garage. Each spot has a unique ID, location information,
  * type, status, and optional features.
- * 
+ *
  * @module Spot
  */
 
 import { validateSpot, generateSpotId } from '../utils/validators';
-import type { 
-  SpotData, 
-  SpotRecord, 
-  VehicleType, 
-  SpotStatus, 
-  SpotFeature 
-} from '../types/models';
+import type { SpotData, SpotRecord, VehicleType, SpotStatus, SpotFeature } from '../types/models';
 
 /**
  * Spot input data interface for constructor
@@ -73,14 +67,14 @@ export class Spot implements SpotRecord {
    * @returns New spot instance
    */
   public static createSpot(
-    floor: number, 
-    bay: number, 
-    spotNumber: number, 
-    type: VehicleType = 'standard', 
+    floor: number,
+    bay: number,
+    spotNumber: number,
+    type: VehicleType = 'standard',
     features: SpotFeature[] = []
   ): Spot {
     const id = generateSpotId(floor, bay, spotNumber);
-    
+
     return new Spot({
       id,
       floor,
@@ -89,7 +83,7 @@ export class Spot implements SpotRecord {
       type,
       status: 'available',
       features,
-      currentVehicle: null
+      currentVehicle: null,
     });
   }
 
@@ -154,7 +148,7 @@ export class Spot implements SpotRecord {
    */
   public addFeature(feature: SpotFeature): void {
     const validFeatures: SpotFeature[] = ['ev_charging', 'handicap'];
-    
+
     if (!validFeatures.includes(feature)) {
       throw new Error(`Invalid feature: ${feature}. Valid features: ${validFeatures.join(', ')}`);
     }
@@ -174,7 +168,7 @@ export class Spot implements SpotRecord {
    */
   public removeFeature(feature: SpotFeature): void {
     const index = this.features.indexOf(feature);
-    
+
     if (index === -1) {
       throw new Error(`Spot ${this.id} does not have feature: ${feature}`);
     }
@@ -198,7 +192,7 @@ export class Spot implements SpotRecord {
       features: [...this.features],
       currentVehicle: this.currentVehicle,
       createdAt: this.createdAt,
-      updatedAt: this.updatedAt
+      updatedAt: this.updatedAt,
     };
   }
 

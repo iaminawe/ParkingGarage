@@ -1,17 +1,17 @@
 /**
  * Reservation service for business logic operations
- * 
+ *
  * This module provides business logic for reservation management operations,
  * including CRUD operations, availability checks, and reservation workflows.
- * 
+ *
  * @module ReservationService
  */
 
-import ReservationRepository, { 
-  CreateReservationData, 
-  UpdateReservationData, 
+import ReservationRepository, {
+  CreateReservationData,
+  UpdateReservationData,
   ReservationSearchCriteria,
-  SpotAvailability
+  SpotAvailability,
 } from '../repositories/ReservationRepository';
 import { ParkingSession, SessionStatus } from '@prisma/client';
 import { createLogger } from '../utils/logger';
@@ -93,9 +93,9 @@ export class ReservationService {
    */
   async getAllReservations(
     filters?: ReservationFilters,
-    page: number = 1,
-    limit: number = 20,
-    sortBy: string = 'startTime',
+    page = 1,
+    limit = 20,
+    sortBy = 'startTime',
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<ServiceResponse<PaginatedResult<ParkingSession>>> {
     try {
@@ -103,7 +103,7 @@ export class ReservationService {
       const options = {
         skip: offset,
         take: limit,
-        orderBy: { [sortBy]: sortOrder }
+        orderBy: { [sortBy]: sortOrder },
       };
 
       let reservations: ParkingSession[];
@@ -128,7 +128,7 @@ export class ReservationService {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
-        totalPages
+        totalPages,
       };
 
       this.logger.info('Retrieved reservations list', {
@@ -136,21 +136,20 @@ export class ReservationService {
         totalItems,
         page,
         limit,
-        filters
+        filters,
       });
 
       return {
         success: true,
         data: paginatedResult,
-        message: 'Reservations retrieved successfully'
+        message: 'Reservations retrieved successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to get reservations list', error as Error);
       return {
         success: false,
         message: 'Failed to retrieve reservations',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -169,19 +168,19 @@ export class ReservationService {
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
+                  garage: true,
+                },
+              },
+            },
           },
-          payments: true
-        }
+          payments: true,
+        },
       });
-      
+
       if (!reservation) {
         return {
           success: false,
-          message: 'Reservation not found'
+          message: 'Reservation not found',
         };
       }
 
@@ -190,15 +189,14 @@ export class ReservationService {
       return {
         success: true,
         data: reservation,
-        message: 'Reservation retrieved successfully'
+        message: 'Reservation retrieved successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to get reservation by ID', error as Error, { reservationId: id });
       return {
         success: false,
         message: 'Failed to retrieve reservation',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -224,7 +222,7 @@ export class ReservationService {
           return {
             success: false,
             message: 'Spot is not available for the requested time range',
-            errors: ['Spot conflict detected']
+            errors: ['Spot conflict detected'],
           };
         }
       }
@@ -233,7 +231,7 @@ export class ReservationService {
         ...reservationData,
         status: 'ACTIVE',
         hourlyRate: 5.0, // Default rate
-        totalAmount: 0.0
+        totalAmount: 0.0,
       };
 
       const reservation = await this.reservationRepository.createReservation(createData);
@@ -241,21 +239,20 @@ export class ReservationService {
       this.logger.info('Reservation created successfully', {
         reservationId: reservation.id,
         vehicleId: reservation.vehicleId,
-        spotId: reservation.spotId
+        spotId: reservation.spotId,
       });
 
       return {
         success: true,
         data: reservation,
-        message: 'Reservation created successfully'
+        message: 'Reservation created successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to create reservation', error as Error, { reservationData });
       return {
         success: false,
         message: 'Failed to create reservation',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -276,7 +273,7 @@ export class ReservationService {
       if (!existingReservation) {
         return {
           success: false,
-          message: 'Reservation not found'
+          message: 'Reservation not found',
         };
       }
 
@@ -298,14 +295,14 @@ export class ReservationService {
             return {
               success: false,
               message: 'Updated time/spot is not available',
-              errors: ['Spot conflict detected']
+              errors: ['Spot conflict detected'],
             };
           }
         }
       }
 
       const updateReservationData: UpdateReservationData = {
-        ...updateData
+        ...updateData,
       };
 
       const updatedReservation = await this.reservationRepository.update(
@@ -318,33 +315,32 @@ export class ReservationService {
               include: {
                 floor: {
                   include: {
-                    garage: true
-                  }
-                }
-              }
+                    garage: true,
+                  },
+                },
+              },
             },
-            payments: true
-          }
+            payments: true,
+          },
         }
       );
 
       this.logger.info('Reservation updated successfully', {
         reservationId: id,
-        updatedFields: Object.keys(updateData)
+        updatedFields: Object.keys(updateData),
       });
 
       return {
         success: true,
         data: updatedReservation,
-        message: 'Reservation updated successfully'
+        message: 'Reservation updated successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to update reservation', error as Error, { reservationId: id });
       return {
         success: false,
         message: 'Failed to update reservation',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -355,55 +351,48 @@ export class ReservationService {
    * @param reason - Cancellation reason
    * @returns Success response
    */
-  async cancelReservation(
-    id: string,
-    reason?: string
-  ): Promise<ServiceResponse<ParkingSession>> {
+  async cancelReservation(id: string, reason?: string): Promise<ServiceResponse<ParkingSession>> {
     try {
       const reservation = await this.reservationRepository.findById(id);
       if (!reservation) {
         return {
           success: false,
-          message: 'Reservation not found'
+          message: 'Reservation not found',
         };
       }
 
       if (reservation.status === 'COMPLETED') {
         return {
           success: false,
-          message: 'Cannot cancel a completed reservation'
+          message: 'Cannot cancel a completed reservation',
         };
       }
 
       if (reservation.status === 'CANCELLED') {
         return {
           success: false,
-          message: 'Reservation is already cancelled'
+          message: 'Reservation is already cancelled',
         };
       }
 
-      const cancelledReservation = await this.reservationRepository.cancelReservation(
-        id,
-        reason
-      );
+      const cancelledReservation = await this.reservationRepository.cancelReservation(id, reason);
 
       this.logger.info('Reservation cancelled successfully', {
         reservationId: id,
-        reason
+        reason,
       });
 
       return {
         success: true,
         data: cancelledReservation,
-        message: 'Reservation cancelled successfully'
+        message: 'Reservation cancelled successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to cancel reservation', error as Error, { reservationId: id });
       return {
         success: false,
         message: 'Failed to cancel reservation',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -414,23 +403,20 @@ export class ReservationService {
    * @param endTime - End time (defaults to now)
    * @returns Completed reservation with cost calculation
    */
-  async completeReservation(
-    id: string,
-    endTime?: Date
-  ): Promise<ServiceResponse<ParkingSession>> {
+  async completeReservation(id: string, endTime?: Date): Promise<ServiceResponse<ParkingSession>> {
     try {
       const reservation = await this.reservationRepository.findById(id);
       if (!reservation) {
         return {
           success: false,
-          message: 'Reservation not found'
+          message: 'Reservation not found',
         };
       }
 
       if (reservation.status !== 'ACTIVE') {
         return {
           success: false,
-          message: 'Only active reservations can be completed'
+          message: 'Only active reservations can be completed',
         };
       }
 
@@ -444,21 +430,20 @@ export class ReservationService {
         reservationId: id,
         duration: completedReservation.duration,
         totalAmount: completedReservation.totalAmount,
-        endTime: completionTime
+        endTime: completionTime,
       });
 
       return {
         success: true,
         data: completedReservation,
-        message: 'Reservation completed successfully'
+        message: 'Reservation completed successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to complete reservation', error as Error, { reservationId: id });
       return {
         success: false,
         message: 'Failed to complete reservation',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -468,13 +453,13 @@ export class ReservationService {
    * @param availabilityRequest - Availability check parameters
    * @returns Availability information
    */
-  async checkAvailability(
-    availabilityRequest: AvailabilityRequest
-  ): Promise<ServiceResponse<{
-    availableSpots: string[];
-    totalSpots: number;
-    availableCount: number;
-  }>> {
+  async checkAvailability(availabilityRequest: AvailabilityRequest): Promise<
+    ServiceResponse<{
+      availableSpots: string[];
+      totalSpots: number;
+      availableCount: number;
+    }>
+  > {
     try {
       const { startTime, endTime, spotType, floor } = availabilityRequest;
 
@@ -495,7 +480,7 @@ export class ReservationService {
         startTime,
         endTime,
         spotType,
-        floor
+        floor,
       });
 
       return {
@@ -503,17 +488,16 @@ export class ReservationService {
         data: {
           availableSpots,
           totalSpots,
-          availableCount: availableSpots.length
+          availableCount: availableSpots.length,
         },
-        message: 'Availability checked successfully'
+        message: 'Availability checked successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to check availability', error as Error, { availabilityRequest });
       return {
         success: false,
         message: 'Failed to check availability',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -527,8 +511,8 @@ export class ReservationService {
    */
   async getReservationsByVehicle(
     vehicleId: string,
-    page: number = 1,
-    limit: number = 20
+    page = 1,
+    limit = 20
   ): Promise<ServiceResponse<PaginatedResult<ParkingSession>>> {
     try {
       const offset = (page - 1) * limit;
@@ -542,13 +526,13 @@ export class ReservationService {
             include: {
               floor: {
                 include: {
-                  garage: true
-                }
-              }
-            }
+                  garage: true,
+                },
+              },
+            },
           },
-          payments: true
-        }
+          payments: true,
+        },
       };
 
       const reservations = await this.reservationRepository.findByVehicleId(vehicleId, options);
@@ -562,27 +546,26 @@ export class ReservationService {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
-        totalPages
+        totalPages,
       };
 
       this.logger.info('Retrieved reservations by vehicle', {
         vehicleId,
         count: reservations.length,
-        totalItems
+        totalItems,
       });
 
       return {
         success: true,
         data: paginatedResult,
-        message: 'Vehicle reservations retrieved successfully'
+        message: 'Vehicle reservations retrieved successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to get reservations by vehicle', error as Error, { vehicleId });
       return {
         success: false,
         message: 'Failed to retrieve vehicle reservations',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -596,15 +579,15 @@ export class ReservationService {
    */
   async getReservationsByLicensePlate(
     licensePlate: string,
-    page: number = 1,
-    limit: number = 20
+    page = 1,
+    limit = 20
   ): Promise<ServiceResponse<PaginatedResult<ParkingSession>>> {
     try {
       const offset = (page - 1) * limit;
       const options = {
         skip: offset,
         take: limit,
-        orderBy: { startTime: 'desc' as const }
+        orderBy: { startTime: 'desc' as const },
       };
 
       const reservations = await this.reservationRepository.findByLicensePlate(
@@ -623,28 +606,27 @@ export class ReservationService {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
-        totalPages
+        totalPages,
       };
 
       this.logger.info('Retrieved reservations by license plate', {
         licensePlate,
-        count: reservations.length
+        count: reservations.length,
       });
 
       return {
         success: true,
         data: paginatedResult,
-        message: 'License plate reservations retrieved successfully'
+        message: 'License plate reservations retrieved successfully',
       };
-
     } catch (error) {
-      this.logger.error('Failed to get reservations by license plate', error as Error, { 
-        licensePlate 
+      this.logger.error('Failed to get reservations by license plate', error as Error, {
+        licensePlate,
       });
       return {
         success: false,
         message: 'Failed to retrieve license plate reservations',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -658,34 +640,35 @@ export class ReservationService {
   async getReservationStats(
     startDate?: Date,
     endDate?: Date
-  ): Promise<ServiceResponse<{
-    total: number;
-    byStatus: Record<SessionStatus, number>;
-    totalRevenue: number;
-    averageDuration: number;
-    occupancyRate: number;
-  }>> {
+  ): Promise<
+    ServiceResponse<{
+      total: number;
+      byStatus: Record<SessionStatus, number>;
+      totalRevenue: number;
+      averageDuration: number;
+      occupancyRate: number;
+    }>
+  > {
     try {
       const stats = await this.reservationRepository.getStats(startDate, endDate);
 
       this.logger.info('Retrieved reservation statistics', {
         startDate,
         endDate,
-        stats
+        stats,
       });
 
       return {
         success: true,
         data: stats,
-        message: 'Reservation statistics retrieved successfully'
+        message: 'Reservation statistics retrieved successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to get reservation statistics', error as Error);
       return {
         success: false,
         message: 'Failed to retrieve reservation statistics',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }
@@ -701,9 +684,9 @@ export class ReservationService {
    */
   async searchReservations(
     criteria: ReservationSearchCriteria,
-    page: number = 1,
-    limit: number = 20,
-    sortBy: string = 'startTime',
+    page = 1,
+    limit = 20,
+    sortBy = 'startTime',
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<ServiceResponse<PaginatedResult<ParkingSession>>> {
     try {
@@ -711,7 +694,7 @@ export class ReservationService {
       const options = {
         skip: offset,
         take: limit,
-        orderBy: { [sortBy]: sortOrder }
+        orderBy: { [sortBy]: sortOrder },
       };
 
       const reservations = await this.reservationRepository.search(criteria, options);
@@ -726,27 +709,26 @@ export class ReservationService {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
-        totalPages
+        totalPages,
       };
 
       this.logger.info('Reservation search completed', {
         criteria,
         count: reservations.length,
-        totalItems
+        totalItems,
       });
 
       return {
         success: true,
         data: paginatedResult,
-        message: 'Reservation search completed successfully'
+        message: 'Reservation search completed successfully',
       };
-
     } catch (error) {
       this.logger.error('Failed to search reservations', error as Error, { criteria });
       return {
         success: false,
         message: 'Failed to search reservations',
-        errors: [(error as Error).message]
+        errors: [(error as Error).message],
       };
     }
   }

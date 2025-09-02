@@ -64,7 +64,7 @@ model Vehicle {
 **Key Features:**
 - Unique license plate constraint
 - Owner information storage
-- Financial tracking (rates, amounts, payments)
+- Financial tracking (rates, amounts) - payments: future feature
 - Audit timestamps
 - Relations to spots and sessions
 
@@ -109,8 +109,9 @@ model ParkingSession {
   totalAmount     Float       @default(0.0)
   amountPaid      Float       @default(0.0)
   isPaid          Boolean     @default(false)
-  paymentMethod   PaymentMethod?
-  paymentTime     DateTime?
+  // Payment fields - Future Feature  
+  // paymentMethod   PaymentMethod?
+  // paymentTime     DateTime?
   status          SessionStatus @default(ACTIVE)
   notes           String?
   createdAt       DateTime    @default(now())
@@ -124,7 +125,7 @@ model ParkingSession {
 
 **Key Features:**
 - Complete session lifecycle tracking
-- Financial calculations and payment processing
+- Duration calculations and tracking (payment processing: future feature)
 - Audit trail with timestamps
 - Cascading deletes for data integrity
 

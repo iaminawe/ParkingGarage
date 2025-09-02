@@ -1,10 +1,10 @@
 /**
  * Garage validation middleware
- * 
+ *
  * This module provides validation middleware for garage management endpoints.
  * It validates input data for garage initialization, configuration updates,
  * and rate changes to ensure data integrity before processing.
- * 
+ *
  * @module GarageValidation
  */
 
@@ -46,7 +46,11 @@ interface TypedRequest<T = any, U = any> extends Request {
 /**
  * Validate garage initialization data
  */
-export const validateGarageInitialization = (req: TypedRequest<GarageInitializationBody>, res: Response, next: NextFunction): void => {
+export const validateGarageInitialization = (
+  req: TypedRequest<GarageInitializationBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { body } = req;
   const errors: string[] = [];
 
@@ -68,7 +72,11 @@ export const validateGarageInitialization = (req: TypedRequest<GarageInitializat
       if (typeof floor.bays !== 'number' || floor.bays < 1 || floor.bays > 50) {
         errors.push(`Floor ${index + 1}: bays must be between 1 and 50`);
       }
-      if (typeof floor.spotsPerBay !== 'number' || floor.spotsPerBay < 1 || floor.spotsPerBay > 100) {
+      if (
+        typeof floor.spotsPerBay !== 'number' ||
+        floor.spotsPerBay < 1 ||
+        floor.spotsPerBay > 100
+      ) {
         errors.push(`Floor ${index + 1}: spotsPerBay must be between 1 and 100`);
       }
     });
@@ -81,7 +89,7 @@ export const validateGarageInitialization = (req: TypedRequest<GarageInitializat
     }
 
     // Validate total spots don't exceed reasonable limits
-    const totalSpots = body.floors.reduce((sum, floor) => sum + (floor.bays * floor.spotsPerBay), 0);
+    const totalSpots = body.floors.reduce((sum, floor) => sum + floor.bays * floor.spotsPerBay, 0);
     if (totalSpots > 10000) {
       errors.push('Total garage capacity cannot exceed 10,000 spots');
     }
@@ -90,7 +98,7 @@ export const validateGarageInitialization = (req: TypedRequest<GarageInitializat
   if (errors.length > 0) {
     res.status(400).json({
       error: 'Invalid garage initialization data',
-      details: errors
+      details: errors,
     });
     return;
   }
@@ -101,7 +109,11 @@ export const validateGarageInitialization = (req: TypedRequest<GarageInitializat
 /**
  * Validate rate update data
  */
-export const validateRateUpdate = (req: TypedRequest<RateUpdateBody>, res: Response, next: NextFunction): void => {
+export const validateRateUpdate = (
+  req: TypedRequest<RateUpdateBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { body } = req;
   const errors: string[] = [];
 
@@ -133,7 +145,7 @@ export const validateRateUpdate = (req: TypedRequest<RateUpdateBody>, res: Respo
   if (errors.length > 0) {
     res.status(400).json({
       error: 'Invalid rate update data',
-      details: errors
+      details: errors,
     });
     return;
   }
@@ -144,7 +156,11 @@ export const validateRateUpdate = (req: TypedRequest<RateUpdateBody>, res: Respo
 /**
  * Validate garage configuration query parameters
  */
-export const validateGarageQuery = (req: TypedRequest<any, GarageQueryParams>, res: Response, next: NextFunction): void => {
+export const validateGarageQuery = (
+  req: TypedRequest<any, GarageQueryParams>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { includeStats, includeSpots } = req.query;
   const errors: string[] = [];
 
@@ -160,7 +176,7 @@ export const validateGarageQuery = (req: TypedRequest<any, GarageQueryParams>, r
   if (errors.length > 0) {
     res.status(400).json({
       error: 'Invalid query parameters',
-      details: errors
+      details: errors,
     });
     return;
   }
@@ -179,7 +195,11 @@ export const validateGarageQuery = (req: TypedRequest<any, GarageQueryParams>, r
 /**
  * Validate garage configuration data for updates
  */
-export const validateGarageConfigUpdate = (req: TypedRequest<GarageConfigUpdateBody>, res: Response, next: NextFunction): void => {
+export const validateGarageConfigUpdate = (
+  req: TypedRequest<GarageConfigUpdateBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   const { body } = req;
   const errors: string[] = [];
 
@@ -202,7 +222,7 @@ export const validateGarageConfigUpdate = (req: TypedRequest<GarageConfigUpdateB
   if (errors.length > 0) {
     res.status(400).json({
       error: 'Invalid garage configuration update',
-      details: errors
+      details: errors,
     });
     return;
   }
@@ -222,7 +242,11 @@ export const requireGarageExists = (req: Request, res: Response, next: NextFunct
 /**
  * Sanitize garage name input
  */
-export const sanitizeGarageName = (req: TypedRequest<GarageConfigUpdateBody | GarageInitializationBody>, res: Response, next: NextFunction): void => {
+export const sanitizeGarageName = (
+  req: TypedRequest<GarageConfigUpdateBody | GarageInitializationBody>,
+  res: Response,
+  next: NextFunction
+): void => {
   if (req.body.name && typeof req.body.name === 'string') {
     req.body.name = req.body.name.trim();
   }

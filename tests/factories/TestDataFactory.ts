@@ -590,7 +590,7 @@ export class TestDataFactory {
 
     // Delete in reverse order of dependencies
     if (this.createdEntities.sessions.length > 0) {
-      await client.session.deleteMany({
+      await client.parkingSession.deleteMany({
         where: { id: { in: this.createdEntities.sessions } }
       });
       this.createdEntities.sessions = [];
@@ -604,7 +604,7 @@ export class TestDataFactory {
     }
 
     if (this.createdEntities.spots.length > 0) {
-      await client.spot.deleteMany({
+      await client.parkingSpot.deleteMany({
         where: { id: { in: this.createdEntities.spots } }
       });
       this.createdEntities.spots = [];

@@ -126,7 +126,7 @@ class PricingEngine {
     try {
       // Get base rate
       const baseRate = this.billingService.getSpotTypeRate(context.spotType);
-      
+
       // Calculate surge pricing
       const surgeMultiplier = await this.calculateSurgeMultiplier(context);
       const surgeRate = baseRate * surgeMultiplier;
@@ -163,7 +163,7 @@ class PricingEngine {
         estimatedDuration,
         subtotal: (estimatedDuration / 60) * surgeRate,
         discounts: totalDiscount * (estimatedDuration / 60),
-        total: totalEstimate
+        total: totalEstimate,
       };
 
       return {
@@ -175,7 +175,7 @@ class PricingEngine {
         finalRate,
         totalEstimate: Math.round(totalEstimate * 100) / 100,
         breakdown,
-        validUntil: new Date(Date.now() + 15 * 60 * 1000) // Valid for 15 minutes
+        validUntil: new Date(Date.now() + 15 * 60 * 1000), // Valid for 15 minutes
       };
     } catch (error) {
       console.error('Pricing calculation error:', error);
@@ -192,12 +192,12 @@ class PricingEngine {
     // Time-based surge (peak hours)
     const hour = context.checkInTime.getHours();
     const isWeekend = context.checkInTime.getDay() === 0 || context.checkInTime.getDay() === 6;
-    
+
     // Peak hours: 7-9 AM, 5-7 PM on weekdays
     if (!isWeekend && ((hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19))) {
       multiplier = Math.max(multiplier, 1.5);
     }
-    
+
     // Weekend surge (moderate)
     if (isWeekend && hour >= 10 && hour <= 22) {
       multiplier = Math.max(multiplier, 1.2);
@@ -205,9 +205,11 @@ class PricingEngine {
 
     // Demand-based surge
     const currentOccupancy = await this.getCurrentOccupancy(context.spotType);
-    if (currentOccupancy > 0.8) { // 80% occupancy
+    if (currentOccupancy > 0.8) {
+      // 80% occupancy
       multiplier = Math.max(multiplier, 1.8);
-    } else if (currentOccupancy > 0.6) { // 60% occupancy
+    } else if (currentOccupancy > 0.6) {
+      // 60% occupancy
       multiplier = Math.max(multiplier, 1.3);
     }
 
@@ -230,21 +232,21 @@ class PricingEngine {
   private async calculateMembershipDiscount(
     userId?: string,
     membershipTier?: MembershipTier,
-    rate: number = 0
+    rate = 0
   ): Promise<number> {
     if (!userId && !membershipTier) {
       return 0;
     }
 
     let tier = membershipTier;
-    
+
     // Get user's membership tier if not provided
     if (!tier && userId) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { role: true }
+        select: { role: true },
       });
-      
+
       // Map role to membership tier
       switch (user?.role) {
         case 'VIP':
@@ -278,7 +280,7 @@ class PricingEngine {
    */
   private async calculateDiscountCodeDiscount(
     discountCode?: string,
-    rate: number = 0,
+    rate = 0,
     context?: PricingContext
   ): Promise<number> {
     if (!discountCode) {
@@ -288,7 +290,7 @@ class PricingEngine {
     // In a real implementation, this would query a database
     // For now, simulate some discount codes
     const mockDiscountCodes: Record<string, DiscountCode> = {
-      'WELCOME10': {
+      WELCOME10: {
         id: 'dc1',
         code: 'WELCOME10',
         type: 'PERCENTAGE',
@@ -297,9 +299,9 @@ class PricingEngine {
         validUntil: new Date('2025-12-31'),
         usageLimit: 1000,
         usedCount: 150,
-        isActive: true
+        isActive: true,
       },
-      'SAVE20': {
+      SAVE20: {
         id: 'dc2',
         code: 'SAVE20',
         type: 'PERCENTAGE',
@@ -311,9 +313,9 @@ class PricingEngine {
         usageLimit: 500,
         usedCount: 200,
         applicableSpotTypes: ['standard', 'oversized'],
-        isActive: true
+        isActive: true,
       },
-      'PREMIUM5': {
+      PREMIUM5: {
         id: 'dc3',
         code: 'PREMIUM5',
         type: 'FIXED_AMOUNT',
@@ -321,8 +323,8 @@ class PricingEngine {
         validFrom: new Date('2024-01-01'),
         validUntil: new Date('2025-12-31'),
         membershipTiersOnly: ['PREMIUM', 'VIP'],
-        isActive: true
-      }
+        isActive: true,
+      },
     };
 
     const discount = mockDiscountCodes[discountCode.toUpperCase()];
@@ -342,14 +344,20 @@ class PricingEngine {
     }
 
     // Check spot type applicability
-    if (discount.applicableSpotTypes && context?.spotType && 
-        !discount.applicableSpotTypes.includes(context.spotType)) {
+    if (
+      discount.applicableSpotTypes &&
+      context?.spotType &&
+      !discount.applicableSpotTypes.includes(context.spotType)
+    ) {
       return 0;
     }
 
     // Check membership tier requirement
-    if (discount.membershipTiersOnly && context?.membershipTier &&
-        !discount.membershipTiersOnly.includes(context.membershipTier)) {
+    if (
+      discount.membershipTiersOnly &&
+      context?.membershipTier &&
+      !discount.membershipTiersOnly.includes(context.membershipTier)
+    ) {
       return 0;
     }
 
@@ -380,16 +388,16 @@ class PricingEngine {
       prisma.parkingSpot.count({
         where: {
           spotType: spotType.toUpperCase() as any,
-          isActive: true
-        }
+          isActive: true,
+        },
       }),
       prisma.parkingSpot.count({
         where: {
           spotType: spotType.toUpperCase() as any,
           status: 'OCCUPIED',
-          isActive: true
-        }
-      })
+          isActive: true,
+        },
+      }),
     ]);
 
     return totalSpots > 0 ? occupiedSpots / totalSpots : 0;
@@ -401,15 +409,15 @@ class PricingEngine {
   private async getEventSurgeMultiplier(checkInTime: Date): Promise<number> {
     // In a real implementation, this would check for nearby events
     // from an events database or external API
-    
+
     // Mock implementation: special events on Friday/Saturday nights
     const day = checkInTime.getDay();
     const hour = checkInTime.getHours();
-    
+
     if ((day === 5 || day === 6) && hour >= 18 && hour <= 23) {
       return 1.4; // 40% surge for weekend evenings
     }
-    
+
     return 1.0;
   }
 
@@ -424,7 +432,7 @@ class PricingEngine {
       extendedGracePeriod: 5,
       freeHours: 0,
       specialRates: {},
-      features: []
+      features: [],
     });
 
     this.membershipBenefits.set('PREMIUM', {
@@ -436,9 +444,9 @@ class PricingEngine {
       specialRates: {
         compact: 3.5,
         standard: 4.0,
-        oversized: 5.5
+        oversized: 5.5,
       },
-      features: ['priority_support', 'monthly_reports']
+      features: ['priority_support', 'monthly_reports'],
     });
 
     this.membershipBenefits.set('VIP', {
@@ -450,9 +458,9 @@ class PricingEngine {
       specialRates: {
         compact: 3.0,
         standard: 3.5,
-        oversized: 5.0
+        oversized: 5.0,
       },
-      features: ['priority_support', 'monthly_reports', 'valet_service', 'reserved_spots']
+      features: ['priority_support', 'monthly_reports', 'valet_service', 'reserved_spots'],
     });
 
     this.membershipBenefits.set('CORPORATE', {
@@ -464,9 +472,14 @@ class PricingEngine {
       specialRates: {
         compact: 2.5,
         standard: 3.0,
-        oversized: 4.5
+        oversized: 4.5,
       },
-      features: ['priority_support', 'monthly_reports', 'bulk_billing', 'dedicated_account_manager']
+      features: [
+        'priority_support',
+        'monthly_reports',
+        'bulk_billing',
+        'dedicated_account_manager',
+      ],
     });
   }
 
@@ -484,9 +497,9 @@ class PricingEngine {
       occupancyThreshold: 70,
       peakHours: [
         { start: '07:00', end: '09:00' },
-        { start: '17:00', end: '19:00' }
+        { start: '17:00', end: '19:00' },
       ],
-      isActive: true
+      isActive: true,
     });
 
     this.surgeZones.set('ev_zone', {
@@ -497,10 +510,8 @@ class PricingEngine {
       currentMultiplier: 1.3,
       maxMultiplier: 2.5,
       occupancyThreshold: 60,
-      peakHours: [
-        { start: '08:00', end: '18:00' }
-      ],
-      isActive: true
+      peakHours: [{ start: '08:00', end: '18:00' }],
+      isActive: true,
     });
   }
 
@@ -539,7 +550,7 @@ class PricingEngine {
           day,
           expectedOccupancy: Math.min(expectedOccupancy, 1.0),
           surgeMultiplier,
-          confidence: 0.8
+          confidence: 0.8,
         });
       }
     }
@@ -548,7 +559,9 @@ class PricingEngine {
   /**
    * Get pricing for multiple durations
    */
-  async getPricingOptions(context: PricingContext): Promise<Array<{ duration: number; pricing: PricingResult }>> {
+  async getPricingOptions(
+    context: PricingContext
+  ): Promise<Array<{ duration: number; pricing: PricingResult }>> {
     const durations = [60, 120, 240, 480, 1440]; // 1h, 2h, 4h, 8h, 24h
     const options = [];
 
@@ -571,14 +584,17 @@ class PricingEngine {
   /**
    * Validate discount code
    */
-  async validateDiscountCode(code: string, context?: PricingContext): Promise<{
+  async validateDiscountCode(
+    code: string,
+    context?: PricingContext
+  ): Promise<{
     valid: boolean;
     discount?: DiscountCode;
     reason?: string;
   }> {
     // Mock implementation - in production, this would query the database
     const mockDiscountCodes: Record<string, DiscountCode> = {
-      'WELCOME10': {
+      WELCOME10: {
         id: 'dc1',
         code: 'WELCOME10',
         type: 'PERCENTAGE',
@@ -587,8 +603,8 @@ class PricingEngine {
         validUntil: new Date('2025-12-31'),
         usageLimit: 1000,
         usedCount: 150,
-        isActive: true
-      }
+        isActive: true,
+      },
     };
 
     const discount = mockDiscountCodes[code.toUpperCase()];
@@ -615,7 +631,9 @@ class PricingEngine {
   /**
    * Get current surge information
    */
-  async getCurrentSurgeInfo(): Promise<Array<{ zone: string; multiplier: number; reason: string }>> {
+  async getCurrentSurgeInfo(): Promise<
+    Array<{ zone: string; multiplier: number; reason: string }>
+  > {
     const surgeInfo = [];
 
     for (const [zoneId, zone] of this.surgeZones) {
@@ -632,7 +650,7 @@ class PricingEngine {
         surgeInfo.push({
           zone: zone.name,
           multiplier,
-          reason
+          reason,
         });
       }
     }

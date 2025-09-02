@@ -73,7 +73,7 @@ class EmailService {
     try {
       // Support multiple email providers
       const emailProvider = env.EMAIL_PROVIDER || 'smtp';
-      
+
       let transportConfig: any;
 
       switch (emailProvider.toLowerCase()) {
@@ -86,7 +86,7 @@ class EmailService {
             },
           };
           break;
-        
+
         case 'sendgrid':
           transportConfig = {
             service: 'SendGrid',
@@ -96,7 +96,7 @@ class EmailService {
             },
           };
           break;
-        
+
         case 'smtp':
         default:
           transportConfig = {
@@ -114,7 +114,7 @@ class EmailService {
           break;
       }
 
-      this.transporter = nodemailer.createTransporter(transportConfig);
+      this.transporter = nodemailer.createTransport(transportConfig);
 
       // Verify connection
       if (env.NODE_ENV !== 'test') {
@@ -192,7 +192,11 @@ class EmailService {
   /**
    * Send email verification with secure token
    */
-  async sendEmailVerification(userId: string, email: string, language = 'en'): Promise<EmailVerificationResult> {
+  async sendEmailVerification(
+    userId: string,
+    email: string,
+    language = 'en'
+  ): Promise<EmailVerificationResult> {
     try {
       // Generate secure verification token
       const token = this.generateSecureToken();
@@ -208,16 +212,19 @@ class EmailService {
       });
 
       // Send verification email
-      const success = await this.sendEmail({
-        to: email,
-        templateName: 'EMAIL_VERIFICATION',
-        templateVariables: {
-          verificationUrl: `${env.FRONTEND_URL}/verify-email?token=${token}`,
-          userEmail: email,
-          expirationHours: 24,
+      const success = await this.sendEmail(
+        {
+          to: email,
+          templateName: 'EMAIL_VERIFICATION',
+          templateVariables: {
+            verificationUrl: `${env.FRONTEND_URL}/verify-email?token=${token}`,
+            userEmail: email,
+            expirationHours: 24,
+          },
+          priority: 'high',
         },
-        priority: 'high',
-      }, userId);
+        userId
+      );
 
       if (success) {
         return {
@@ -244,7 +251,11 @@ class EmailService {
   /**
    * Send password reset email with secure token
    */
-  async sendPasswordReset(userId: string, email: string, language = 'en'): Promise<EmailVerificationResult> {
+  async sendPasswordReset(
+    userId: string,
+    email: string,
+    language = 'en'
+  ): Promise<EmailVerificationResult> {
     try {
       // Generate secure reset token
       const token = this.generateSecureToken();
@@ -260,16 +271,19 @@ class EmailService {
       });
 
       // Send reset email
-      const success = await this.sendEmail({
-        to: email,
-        templateName: 'PASSWORD_RESET',
-        templateVariables: {
-          resetUrl: `${env.FRONTEND_URL}/reset-password?token=${token}`,
-          userEmail: email,
-          expirationMinutes: 60,
+      const success = await this.sendEmail(
+        {
+          to: email,
+          templateName: 'PASSWORD_RESET',
+          templateVariables: {
+            resetUrl: `${env.FRONTEND_URL}/reset-password?token=${token}`,
+            userEmail: email,
+            expirationMinutes: 60,
+          },
+          priority: 'high',
         },
-        priority: 'high',
-      }, userId);
+        userId
+      );
 
       if (success) {
         await this.auditService.logSecurityEvent({
@@ -305,7 +319,12 @@ class EmailService {
   /**
    * Send security alert notification
    */
-  async sendSecurityAlert(userId: string, email: string, alertType: string, details: any): Promise<boolean> {
+  async sendSecurityAlert(
+    userId: string,
+    email: string,
+    alertType: string,
+    details: any
+  ): Promise<boolean> {
     try {
       const alertTemplates = {
         SUSPICIOUS_LOGIN: 'SECURITY_ALERT_LOGIN',
@@ -316,17 +335,21 @@ class EmailService {
         NEW_DEVICE_LOGIN: 'SECURITY_ALERT_NEW_DEVICE',
       };
 
-      return await this.sendEmail({
-        to: email,
-        templateName: alertTemplates[alertType as keyof typeof alertTemplates] || 'SECURITY_ALERT_GENERIC',
-        templateVariables: {
-          userEmail: email,
-          alertType,
-          timestamp: new Date().toISOString(),
-          ...details,
+      return await this.sendEmail(
+        {
+          to: email,
+          templateName:
+            alertTemplates[alertType as keyof typeof alertTemplates] || 'SECURITY_ALERT_GENERIC',
+          templateVariables: {
+            userEmail: email,
+            alertType,
+            timestamp: new Date().toISOString(),
+            ...details,
+          },
+          priority: 'high',
         },
-        priority: 'high',
-      }, userId);
+        userId
+      );
     } catch (error) {
       console.error('Send security alert error:', error);
       return false;
@@ -338,8 +361,11 @@ class EmailService {
    */
   private async processTemplate(options: EmailOptions): Promise<EmailOptions> {
     try {
-      const template = await this.getEmailTemplate(options.templateName!, options.templateVariables?.language || 'en');
-      
+      const template = await this.getEmailTemplate(
+        options.templateName!,
+        options.templateVariables?.language || 'en'
+      );
+
       if (!template) {
         throw new Error(`Template not found: ${options.templateName}`);
       }
@@ -483,7 +509,7 @@ class EmailService {
     // Check per-recipient rate limit
     const recipientKey = `recipient:${email}`;
     const recipientLimit = this.rateLimiter.get(recipientKey);
-    
+
     if (recipientLimit) {
       if (now < recipientLimit.resetTime) {
         if (recipientLimit.count >= this.MAX_EMAILS_PER_RECIPIENT_HOUR) {
@@ -501,7 +527,7 @@ class EmailService {
     // Check global rate limit
     const globalKey = 'global';
     const globalLimit = this.rateLimiter.get(globalKey);
-    
+
     if (globalLimit) {
       if (now < globalLimit.resetTime) {
         if (globalLimit.count >= this.MAX_EMAILS_PER_HOUR) {
@@ -534,7 +560,10 @@ class EmailService {
         // Sort by priority
         this.emailQueue.sort((a, b) => {
           const priorityOrder = { high: 3, normal: 2, low: 1 };
-          return (priorityOrder[b.priority || 'normal'] || 2) - (priorityOrder[a.priority || 'normal'] || 2);
+          return (
+            (priorityOrder[b.priority || 'normal'] || 2) -
+            (priorityOrder[a.priority || 'normal'] || 2)
+          );
         });
 
         // Process up to 10 emails per batch
@@ -579,7 +608,9 @@ class EmailService {
   /**
    * Verify email token
    */
-  async verifyEmailToken(token: string): Promise<{ success: boolean; userId?: string; message: string }> {
+  async verifyEmailToken(
+    token: string
+  ): Promise<{ success: boolean; userId?: string; message: string }> {
     try {
       const user = await prisma.user.findFirst({
         where: {
@@ -631,7 +662,9 @@ class EmailService {
   /**
    * Verify password reset token
    */
-  async verifyPasswordResetToken(token: string): Promise<{ success: boolean; userId?: string; message: string }> {
+  async verifyPasswordResetToken(
+    token: string
+  ): Promise<{ success: boolean; userId?: string; message: string }> {
     try {
       const user = await prisma.user.findFirst({
         where: {

@@ -1,6 +1,6 @@
 /**
  * TypeScript Migration Plan and Dependency Analysis
- * 
+ *
  * This file contains the analysis of dependencies between JavaScript modules
  * and provides a structured plan for migrating them to TypeScript in the
  * optimal order to minimize circular dependencies and breaking changes.
@@ -25,7 +25,7 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
     importedBy: [
       'src/services/garageService.js',
       'src/services/spotService.js',
-      'src/services/analyticsService.js'
+      'src/services/analyticsService.js',
     ],
     complexity: 'low',
     migrationPriority: 1,
@@ -35,8 +35,8 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Singleton pattern implementation',
       'No external dependencies',
       'Simple Map-based storage',
-      'Well-defined interface'
-    ]
+      'Well-defined interface',
+    ],
   },
   {
     module: 'src/models/spot.js',
@@ -45,7 +45,7 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'src/models/garage.js',
       'src/services/spotService.js',
       'src/services/garageService.js',
-      'src/services/spotAssignmentService.js'
+      'src/services/spotAssignmentService.js',
     ],
     complexity: 'medium',
     migrationPriority: 2,
@@ -55,8 +55,8 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Class-based model with methods',
       'Validation dependencies',
       'Well-structured with clear interface',
-      'Used by multiple services'
-    ]
+      'Used by multiple services',
+    ],
   },
   {
     module: 'src/models/vehicle.js',
@@ -64,7 +64,7 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
     importedBy: [
       'src/services/checkinService.js',
       'src/services/checkoutService.js',
-      'src/services/analyticsService.js'
+      'src/services/analyticsService.js',
     ],
     complexity: 'medium',
     migrationPriority: 2,
@@ -74,16 +74,13 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Class-based model with business logic',
       'Billing calculation methods',
       'Validation dependencies',
-      'Core domain model'
-    ]
+      'Core domain model',
+    ],
   },
   {
     module: 'src/models/garage.js',
     dependsOn: ['src/models/spot.js', 'src/utils/validators.js'],
-    importedBy: [
-      'src/services/garageService.js',
-      'src/services/analyticsService.js'
-    ],
+    importedBy: ['src/services/garageService.js', 'src/services/analyticsService.js'],
     complexity: 'medium',
     migrationPriority: 3,
     riskLevel: 'medium',
@@ -92,19 +89,13 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Depends on Spot model',
       'Complex configuration structure',
       'Floor and bay management',
-      'Rate calculations'
-    ]
+      'Rate calculations',
+    ],
   },
   {
     module: 'src/services/spotAssignmentService.js',
-    dependsOn: [
-      'src/repositories/spotRepository.js',
-      'src/models/spot.js'
-    ],
-    importedBy: [
-      'src/services/checkinService.js',
-      'src/routes/spots.js'
-    ],
+    dependsOn: ['src/repositories/spotRepository.js', 'src/models/spot.js'],
+    importedBy: ['src/services/checkinService.js', 'src/routes/spots.js'],
     complexity: 'high',
     migrationPriority: 4,
     riskLevel: 'medium',
@@ -113,16 +104,13 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Complex algorithm implementation',
       'Repository dependencies',
       'Scoring and optimization logic',
-      'Business rule implementation'
-    ]
+      'Business rule implementation',
+    ],
   },
   {
     module: 'src/services/billingService.js',
     dependsOn: ['src/utils/timeCalculator.js'],
-    importedBy: [
-      'src/services/checkoutService.js',
-      'src/controllers/checkoutController.js'
-    ],
+    importedBy: ['src/services/checkoutService.js', 'src/controllers/checkoutController.js'],
     complexity: 'high',
     migrationPriority: 4,
     riskLevel: 'medium',
@@ -131,20 +119,17 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Complex billing calculations',
       'Rate type handling',
       'Feature premium calculations',
-      'Grace period logic'
-    ]
+      'Grace period logic',
+    ],
   },
   {
     module: 'src/services/analyticsService.js',
     dependsOn: [
       'src/repositories/garageRepository.js',
       'src/repositories/spotRepository.js',
-      'src/repositories/vehicleRepository.js'
+      'src/repositories/vehicleRepository.js',
     ],
-    importedBy: [
-      'src/controllers/statsController.js',
-      'src/routes/stats.js'
-    ],
+    importedBy: ['src/controllers/statsController.js', 'src/routes/stats.js'],
     complexity: 'high',
     migrationPriority: 5,
     riskLevel: 'high',
@@ -153,15 +138,12 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Multiple repository dependencies',
       'Complex statistical calculations',
       'Revenue and trend analysis',
-      'Performance-critical code'
-    ]
+      'Performance-critical code',
+    ],
   },
   {
     module: 'src/app.js',
-    dependsOn: [
-      'src/routes/*.js',
-      'src/middleware/errorHandler.js'
-    ],
+    dependsOn: ['src/routes/*.js', 'src/middleware/errorHandler.js'],
     importedBy: ['src/server.js'],
     complexity: 'medium',
     migrationPriority: 6,
@@ -171,15 +153,12 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Express application setup',
       'Middleware configuration',
       'Route mounting',
-      'Security configuration'
-    ]
+      'Security configuration',
+    ],
   },
   {
     module: 'src/server.js',
-    dependsOn: [
-      'src/app.js',
-      'src/utils/seedData.js'
-    ],
+    dependsOn: ['src/app.js', 'src/utils/seedData.js'],
     importedBy: [],
     complexity: 'low',
     migrationPriority: 7,
@@ -189,27 +168,19 @@ export const JAVASCRIPT_MODULES_ANALYSIS: ModuleDependency[] = [
       'Server startup logic',
       'Process management',
       'Graceful shutdown',
-      'Environment configuration'
-    ]
+      'Environment configuration',
+    ],
   },
   {
     module: 'src/routes/vehicles.js',
-    dependsOn: [
-      'src/controllers/VehicleController.js',
-      'src/middleware/validation/*.js'
-    ],
+    dependsOn: ['src/controllers/VehicleController.js', 'src/middleware/validation/*.js'],
     importedBy: ['src/routes/index.js'],
     complexity: 'medium',
     migrationPriority: 8,
     riskLevel: 'low',
     estimatedEffort: '3 hours',
-    notes: [
-      'Route definitions',
-      'Middleware chaining',
-      'Validation integration',
-      'Error handling'
-    ]
-  }
+    notes: ['Route definitions', 'Middleware chaining', 'Validation integration', 'Error handling'],
+  },
 ];
 
 // Migration Plan Phases
@@ -231,190 +202,152 @@ export const MIGRATION_PHASES: MigrationPhase[] = [
     name: 'Foundation',
     description: 'Migrate core utilities and data storage without external dependencies',
     duration: '1-2 days',
-    modules: [
-      'src/storage/memoryStore.js'
-    ],
+    modules: ['src/storage/memoryStore.js'],
     objectives: [
       'Establish TypeScript foundation',
       'Create singleton pattern types',
       'Implement Map-based storage types',
-      'No breaking changes'
+      'No breaking changes',
     ],
-    risks: [
-      'Minimal risk - no dependencies'
-    ],
+    risks: ['Minimal risk - no dependencies'],
     prerequisites: [
       'TypeScript configuration complete',
       'Build system configured',
-      'Testing infrastructure ready'
+      'Testing infrastructure ready',
     ],
-    deliverables: [
-      'src/storage/MemoryStore.ts',
-      'Updated type definitions',
-      'Unit tests passing'
-    ]
+    deliverables: ['src/storage/MemoryStore.ts', 'Updated type definitions', 'Unit tests passing'],
   },
   {
     phase: 2,
     name: 'Domain Models',
     description: 'Migrate core domain models (Spot, Vehicle) with their business logic',
     duration: '2-3 days',
-    modules: [
-      'src/models/spot.js',
-      'src/models/vehicle.js'
-    ],
+    modules: ['src/models/spot.js', 'src/models/vehicle.js'],
     objectives: [
       'Convert class-based models to TypeScript',
       'Maintain existing API contracts',
       'Strengthen type safety',
-      'Preserve business logic'
+      'Preserve business logic',
     ],
-    risks: [
-      'Validation logic complexity',
-      'Method signature changes',
-      'Inheritance patterns'
-    ],
+    risks: ['Validation logic complexity', 'Method signature changes', 'Inheritance patterns'],
     prerequisites: [
       'Validator utilities migrated',
       'Phase 1 complete',
-      'Type definitions available'
+      'Type definitions available',
     ],
     deliverables: [
       'src/models/Spot.ts',
       'src/models/Vehicle.ts',
       'Enhanced type definitions',
-      'Model tests updated'
-    ]
+      'Model tests updated',
+    ],
   },
   {
     phase: 3,
     name: 'Complex Models',
     description: 'Migrate garage model with dependencies on other models',
     duration: '1-2 days',
-    modules: [
-      'src/models/garage.js'
-    ],
+    modules: ['src/models/garage.js'],
     objectives: [
       'Handle inter-model dependencies',
       'Complex configuration types',
       'Rate calculation logic',
-      'Floor/bay management'
+      'Floor/bay management',
     ],
     risks: [
       'Circular dependency potential',
       'Complex nested structures',
-      'Configuration validation'
+      'Configuration validation',
     ],
-    prerequisites: [
-      'Phase 2 complete',
-      'Spot model migrated',
-      'Repository interfaces ready'
-    ],
-    deliverables: [
-      'src/models/Garage.ts',
-      'Configuration type definitions',
-      'Integration tests'
-    ]
+    prerequisites: ['Phase 2 complete', 'Spot model migrated', 'Repository interfaces ready'],
+    deliverables: ['src/models/Garage.ts', 'Configuration type definitions', 'Integration tests'],
   },
   {
     phase: 4,
     name: 'Business Services',
     description: 'Migrate complex business logic services',
     duration: '3-4 days',
-    modules: [
-      'src/services/spotAssignmentService.js',
-      'src/services/billingService.js'
-    ],
+    modules: ['src/services/spotAssignmentService.js', 'src/services/billingService.js'],
     objectives: [
       'Complex algorithm implementations',
       'Business rule enforcement',
       'Performance optimization',
-      'Service interface compliance'
+      'Service interface compliance',
     ],
     risks: [
       'Algorithm complexity',
       'Performance regressions',
       'Business logic changes',
-      'Repository integration'
+      'Repository integration',
     ],
     prerequisites: [
       'Phase 3 complete',
       'Repository interfaces defined',
-      'Time calculator utilities ready'
+      'Time calculator utilities ready',
     ],
     deliverables: [
       'src/services/SpotAssignmentService.ts',
       'src/services/BillingService.ts',
       'Service interface implementations',
-      'Performance benchmarks'
-    ]
+      'Performance benchmarks',
+    ],
   },
   {
     phase: 5,
     name: 'Analytics & Reporting',
     description: 'Migrate analytics service with multiple dependencies',
     duration: '2-3 days',
-    modules: [
-      'src/services/analyticsService.js'
-    ],
+    modules: ['src/services/analyticsService.js'],
     objectives: [
       'Statistical calculation accuracy',
       'Multi-repository coordination',
       'Performance optimization',
-      'Data aggregation logic'
+      'Data aggregation logic',
     ],
     risks: [
       'High complexity',
       'Multiple dependencies',
       'Performance critical code',
-      'Data consistency'
+      'Data consistency',
     ],
     prerequisites: [
       'All repository interfaces complete',
       'Phase 4 complete',
-      'Performance monitoring ready'
+      'Performance monitoring ready',
     ],
     deliverables: [
       'src/services/AnalyticsService.ts',
       'Statistical type definitions',
       'Performance tests',
-      'Data validation'
-    ]
+      'Data validation',
+    ],
   },
   {
     phase: 6,
     name: 'Application Layer',
     description: 'Migrate application setup and server components',
     duration: '2 days',
-    modules: [
-      'src/app.js',
-      'src/server.js',
-      'src/routes/vehicles.js'
-    ],
+    modules: ['src/app.js', 'src/server.js', 'src/routes/vehicles.js'],
     objectives: [
       'Express application typing',
       'Middleware integration',
       'Route type safety',
-      'Error handling enhancement'
+      'Error handling enhancement',
     ],
-    risks: [
-      'Middleware compatibility',
-      'Route handler types',
-      'Express version dependencies'
-    ],
+    risks: ['Middleware compatibility', 'Route handler types', 'Express version dependencies'],
     prerequisites: [
       'All service migrations complete',
       'Middleware types defined',
-      'Route validation ready'
+      'Route validation ready',
     ],
     deliverables: [
       'src/app.ts',
       'src/server.ts',
       'src/routes/vehicles.ts',
       'Application startup types',
-      'Integration tests'
-    ]
-  }
+      'Integration tests',
+    ],
+  },
 ];
 
 // Risk Assessment
@@ -436,15 +369,15 @@ export const MIGRATION_RISKS: RiskAssessment[] = [
         risk: 'Model interdependencies creating circular imports',
         impact: 'high',
         probability: 'medium',
-        mitigation: 'Use interface segregation and dependency injection patterns'
+        mitigation: 'Use interface segregation and dependency injection patterns',
       },
       {
         risk: 'Service layer circular dependencies',
         impact: 'medium',
         probability: 'low',
-        mitigation: 'Extract interfaces and use dependency inversion'
-      }
-    ]
+        mitigation: 'Extract interfaces and use dependency inversion',
+      },
+    ],
   },
   {
     category: 'Type Safety',
@@ -453,15 +386,15 @@ export const MIGRATION_RISKS: RiskAssessment[] = [
         risk: 'Loose typing in existing JavaScript code',
         impact: 'medium',
         probability: 'high',
-        mitigation: 'Gradual typing approach with strict null checks'
+        mitigation: 'Gradual typing approach with strict null checks',
       },
       {
         risk: 'Dynamic property access patterns',
         impact: 'medium',
         probability: 'medium',
-        mitigation: 'Use index signatures and mapped types'
-      }
-    ]
+        mitigation: 'Use index signatures and mapped types',
+      },
+    ],
   },
   {
     category: 'Performance',
@@ -470,15 +403,15 @@ export const MIGRATION_RISKS: RiskAssessment[] = [
         risk: 'TypeScript compilation overhead',
         impact: 'low',
         probability: 'low',
-        mitigation: 'Optimize build configuration and use incremental compilation'
+        mitigation: 'Optimize build configuration and use incremental compilation',
       },
       {
         risk: 'Runtime type checking overhead',
         impact: 'medium',
         probability: 'low',
-        mitigation: 'Use compile-time types only, avoid runtime type guards where possible'
-      }
-    ]
+        mitigation: 'Use compile-time types only, avoid runtime type guards where possible',
+      },
+    ],
   },
   {
     category: 'Integration',
@@ -487,16 +420,16 @@ export const MIGRATION_RISKS: RiskAssessment[] = [
         risk: 'Middleware compatibility issues',
         impact: 'high',
         probability: 'medium',
-        mitigation: 'Create proper Express middleware types and test thoroughly'
+        mitigation: 'Create proper Express middleware types and test thoroughly',
       },
       {
         risk: 'Third-party library type conflicts',
         impact: 'medium',
         probability: 'medium',
-        mitigation: 'Use @types packages and create custom declarations where needed'
-      }
-    ]
-  }
+        mitigation: 'Use @types packages and create custom declarations where needed',
+      },
+    ],
+  },
 ];
 
 // Conversion Guidelines
@@ -525,8 +458,8 @@ export const CONVERSION_GUIDELINES: ConversionGuideline[] = [
     notes: [
       'Move validation to interface level where possible',
       'Keep runtime validation for external data',
-      'Use branded types for validated data'
-    ]
+      'Use branded types for validated data',
+    ],
   },
   {
     pattern: 'Dynamic Property Access',
@@ -540,8 +473,8 @@ interface DynamicObject {
     notes: [
       'Use keyof for known object shapes',
       'Use index signatures for truly dynamic objects',
-      'Consider mapped types for transformation'
-    ]
+      'Consider mapped types for transformation',
+    ],
   },
   {
     pattern: 'Callback Functions',
@@ -555,9 +488,9 @@ interface DynamicObject {
     notes: [
       'Use generic types for flexible callbacks',
       'Define callback interfaces for complex cases',
-      'Consider Promise-based alternatives'
-    ]
-  }
+      'Consider Promise-based alternatives',
+    ],
+  },
 ];
 
 // Success Metrics
@@ -571,28 +504,28 @@ export const SUCCESS_METRICS: SuccessMetric[] = [
   {
     metric: 'Type Coverage',
     target: '> 90%',
-    measurement: 'TypeScript compiler strict mode with no any types'
+    measurement: 'TypeScript compiler strict mode with no any types',
   },
   {
     metric: 'Build Time',
     target: '< 10% increase',
-    measurement: 'Compare compilation time before and after migration'
+    measurement: 'Compare compilation time before and after migration',
   },
   {
     metric: 'Test Coverage',
     target: '100% tests passing',
-    measurement: 'All existing tests should pass without modification'
+    measurement: 'All existing tests should pass without modification',
   },
   {
     metric: 'Performance',
     target: 'No regression',
-    measurement: 'Runtime performance benchmarks'
+    measurement: 'Runtime performance benchmarks',
   },
   {
     metric: 'Bundle Size',
     target: '< 5% increase',
-    measurement: 'Production bundle size comparison'
-  }
+    measurement: 'Production bundle size comparison',
+  },
 ];
 
 export default {
@@ -600,5 +533,5 @@ export default {
   MIGRATION_PHASES,
   MIGRATION_RISKS,
   CONVERSION_GUIDELINES,
-  SUCCESS_METRICS
+  SUCCESS_METRICS,
 };

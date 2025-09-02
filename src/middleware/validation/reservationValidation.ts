@@ -1,26 +1,22 @@
 /**
  * Reservation validation middleware
- * 
+ *
  * This module provides validation middleware for reservation-related API endpoints.
  * Validates input data, enforces business rules, and ensures data integrity.
- * 
+ *
  * @module ReservationValidation
  */
 
 import { Request, Response, NextFunction } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
-import { 
-  HTTP_STATUS, 
-  API_RESPONSES,
-  PARKING 
-} from '../../config/constants';
+import { HTTP_STATUS, API_RESPONSES, PARKING } from '../../config/constants';
 
 /**
  * Handle validation errors and return appropriate response
  */
 const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
   const errors = validationResult(req);
-  
+
   if (!errors.isEmpty()) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: false,
@@ -28,12 +24,12 @@ const handleValidationErrors = (req: Request, res: Response, next: NextFunction)
       errors: errors.array().map(error => ({
         field: error.type === 'field' ? error.path : 'unknown',
         message: error.msg,
-        value: error.type === 'field' ? error.value : undefined
-      }))
+        value: error.type === 'field' ? error.value : undefined,
+      })),
     });
     return;
   }
-  
+
   next();
 };
 
@@ -58,7 +54,7 @@ export const validateReservationCreate = [
     .withMessage('Start time is required')
     .isISO8601()
     .withMessage('Start time must be a valid ISO 8601 date')
-    .custom((value) => {
+    .custom(value => {
       const startTime = new Date(value);
       const now = new Date();
       if (startTime < now) {
@@ -104,27 +100,18 @@ export const validateReservationCreate = [
     .isLength({ max: 500 })
     .withMessage('Notes cannot exceed 500 characters'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
  * Validation for reservation update requests
  */
 export const validateReservationUpdate = [
-  body('spotId')
-    .optional()
-    .isUUID()
-    .withMessage('Spot ID must be a valid UUID'),
+  body('spotId').optional().isUUID().withMessage('Spot ID must be a valid UUID'),
 
-  body('startTime')
-    .optional()
-    .isISO8601()
-    .withMessage('Start time must be a valid ISO 8601 date'),
+  body('startTime').optional().isISO8601().withMessage('Start time must be a valid ISO 8601 date'),
 
-  body('endTime')
-    .optional()
-    .isISO8601()
-    .withMessage('End time must be a valid ISO 8601 date'),
+  body('endTime').optional().isISO8601().withMessage('End time must be a valid ISO 8601 date'),
 
   body('expectedEndTime')
     .optional()
@@ -144,7 +131,7 @@ export const validateReservationUpdate = [
     .withMessage('Notes cannot exceed 500 characters'),
 
   // Custom validation for date consistency
-  body().custom((body) => {
+  body().custom(body => {
     if (body.startTime && body.endTime) {
       const startTime = new Date(body.startTime);
       const endTime = new Date(body.endTime);
@@ -155,29 +142,25 @@ export const validateReservationUpdate = [
     return true;
   }),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
  * Validation for reservation ID parameter
  */
 export const validateReservationId = [
-  param('id')
-    .isUUID()
-    .withMessage('Reservation ID must be a valid UUID'),
+  param('id').isUUID().withMessage('Reservation ID must be a valid UUID'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
  * Validation for vehicle ID parameter
  */
 export const validateVehicleId = [
-  param('vehicleId')
-    .isUUID()
-    .withMessage('Vehicle ID must be a valid UUID'),
+  param('vehicleId').isUUID().withMessage('Vehicle ID must be a valid UUID'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
@@ -190,17 +173,14 @@ export const validateLicensePlate = [
     .matches(/^[A-Z0-9\s-]{2,10}$/i)
     .withMessage('License plate format is invalid'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
  * Validation for reservation filters/search parameters
  */
 export const validateReservationFilters = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
 
   query('limit')
     .optional()
@@ -217,15 +197,9 @@ export const validateReservationFilters = [
     .isIn(['asc', 'desc'])
     .withMessage('Sort order must be either asc or desc'),
 
-  query('vehicleId')
-    .optional()
-    .isUUID()
-    .withMessage('Vehicle ID must be a valid UUID'),
+  query('vehicleId').optional().isUUID().withMessage('Vehicle ID must be a valid UUID'),
 
-  query('spotId')
-    .optional()
-    .isUUID()
-    .withMessage('Spot ID must be a valid UUID'),
+  query('spotId').optional().isUUID().withMessage('Spot ID must be a valid UUID'),
 
   query('licensePlate')
     .optional()
@@ -247,25 +221,13 @@ export const validateReservationFilters = [
     .isISO8601()
     .withMessage('startBefore must be a valid ISO 8601 date'),
 
-  query('endAfter')
-    .optional()
-    .isISO8601()
-    .withMessage('endAfter must be a valid ISO 8601 date'),
+  query('endAfter').optional().isISO8601().withMessage('endAfter must be a valid ISO 8601 date'),
 
-  query('endBefore')
-    .optional()
-    .isISO8601()
-    .withMessage('endBefore must be a valid ISO 8601 date'),
+  query('endBefore').optional().isISO8601().withMessage('endBefore must be a valid ISO 8601 date'),
 
-  query('isPaid')
-    .optional()
-    .isBoolean()
-    .withMessage('isPaid must be a boolean value'),
+  query('isPaid').optional().isBoolean().withMessage('isPaid must be a boolean value'),
 
-  query('floor')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Floor must be a positive integer'),
+  query('floor').optional().isInt({ min: 1 }).withMessage('Floor must be a positive integer'),
 
   query('spotType')
     .optional()
@@ -282,7 +244,7 @@ export const validateReservationFilters = [
     .isISO8601()
     .withMessage('createdBefore must be a valid ISO 8601 date'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
@@ -294,7 +256,7 @@ export const validateAvailabilityCheck = [
     .withMessage('Start time is required')
     .isISO8601()
     .withMessage('Start time must be a valid ISO 8601 date')
-    .custom((value) => {
+    .custom(value => {
       const startTime = new Date(value);
       const now = new Date();
       if (startTime < now) {
@@ -330,12 +292,9 @@ export const validateAvailabilityCheck = [
     .isIn(Object.values(PARKING.SPOT_TYPES))
     .withMessage(`Spot type must be one of: ${Object.values(PARKING.SPOT_TYPES).join(', ')}`),
 
-  query('floor')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Floor must be a positive integer'),
+  query('floor').optional().isInt({ min: 1 }).withMessage('Floor must be a positive integer'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
@@ -346,7 +305,7 @@ export const validateReservationComplete = [
     .optional()
     .isISO8601()
     .withMessage('End time must be a valid ISO 8601 date')
-    .custom((value) => {
+    .custom(value => {
       if (value) {
         const endTime = new Date(value);
         const now = new Date();
@@ -357,7 +316,7 @@ export const validateReservationComplete = [
       return true;
     }),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
@@ -371,17 +330,14 @@ export const validateReservationCancel = [
     .isLength({ max: 500 })
     .withMessage('Cancellation reason cannot exceed 500 characters'),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 /**
  * Validation for date range queries (statistics, reports, etc.)
  */
 export const validateDateRange = [
-  query('startDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Start date must be a valid ISO 8601 date'),
+  query('startDate').optional().isISO8601().withMessage('Start date must be a valid ISO 8601 date'),
 
   query('endDate')
     .optional()
@@ -398,7 +354,7 @@ export const validateDateRange = [
       return true;
     }),
 
-  handleValidationErrors
+  handleValidationErrors,
 ];
 
 export default {
@@ -411,5 +367,5 @@ export default {
   validateAvailabilityCheck,
   validateReservationComplete,
   validateReservationCancel,
-  validateDateRange
+  validateDateRange,
 };

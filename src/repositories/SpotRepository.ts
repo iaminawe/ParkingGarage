@@ -1,19 +1,19 @@
 /**
  * Spot repository for data access operations using Prisma
- * 
+ *
  * This module provides data access methods for parking spots using
  * the PrismaAdapter pattern. It handles spot CRUD operations,
  * occupancy management, and provides optimized queries.
- * 
+ *
  * @module SpotRepository
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
 import { ParkingSpot, Prisma, SpotType, SpotStatus } from '@prisma/client';
-import type { 
+import type {
   QueryOptions,
   PaginatedResult,
-  IAdapterLogger
+  IAdapterLogger,
 } from '../adapters/interfaces/BaseAdapter';
 import { DatabaseService } from '../services/DatabaseService';
 import { createLogger } from '../utils/logger';
@@ -83,13 +83,10 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
   protected readonly modelName = 'parkingSpot';
   protected readonly delegate: Prisma.ParkingSpotDelegate;
 
-  constructor(
-    databaseService?: DatabaseService,
-    logger?: IAdapterLogger
-  ) {
+  constructor(databaseService?: DatabaseService, logger?: IAdapterLogger) {
     const dbService = databaseService || DatabaseService.getInstance();
     const prismaClient = dbService.getClient();
-    
+
     super(prismaClient, logger || createLogger('SpotRepository'));
     this.delegate = prismaClient.parkingSpot;
   }
@@ -111,17 +108,17 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
         where: {
           floorId,
           spotNumber,
-          isActive: true
+          isActive: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found spot by spot number', {
         floorId,
         spotNumber,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find spot by number: ${spotNumber}`);
   }
@@ -132,10 +129,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
    * @param options - Query options
    * @returns Array of spots matching the status
    */
-  async findByStatus(
-    status: SpotStatus,
-    options?: QueryOptions
-  ): Promise<ParkingSpot[]> {
+  async findByStatus(status: SpotStatus, options?: QueryOptions): Promise<ParkingSpot[]> {
     return this.findMany({ status }, options);
   }
 
@@ -163,10 +157,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
    * @param options - Query options
    * @returns Array of spots matching the type
    */
-  async findByType(
-    spotType: SpotType,
-    options?: QueryOptions
-  ): Promise<ParkingSpot[]> {
+  async findByType(spotType: SpotType, options?: QueryOptions): Promise<ParkingSpot[]> {
     return this.findMany({ spotType }, options);
   }
 
@@ -176,10 +167,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
    * @param options - Query options
    * @returns Array of spots on the level
    */
-  async findByLevel(
-    level: number,
-    options?: QueryOptions
-  ): Promise<ParkingSpot[]> {
+  async findByLevel(level: number, options?: QueryOptions): Promise<ParkingSpot[]> {
     return this.findMany({ level }, options);
   }
 
@@ -204,10 +192,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
    * @param options - Query options
    * @returns Array of spots in the floor
    */
-  async findByFloor(
-    floorId: string,
-    options?: QueryOptions
-  ): Promise<ParkingSpot[]> {
+  async findByFloor(floorId: string, options?: QueryOptions): Promise<ParkingSpot[]> {
     return this.findMany({ floorId }, options);
   }
 
@@ -217,10 +202,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
    * @param options - Query options
    * @returns Array of spots in the section
    */
-  async findBySection(
-    section: string,
-    options?: QueryOptions
-  ): Promise<ParkingSpot[]> {
+  async findBySection(section: string, options?: QueryOptions): Promise<ParkingSpot[]> {
     return this.findMany({ section }, options);
   }
 
@@ -230,31 +212,28 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
    * @param options - Query options
    * @returns Spot occupied by the vehicle or null
    */
-  async findByVehicle(
-    vehicleId: string,
-    options?: QueryOptions
-  ): Promise<ParkingSpot | null> {
+  async findByVehicle(vehicleId: string, options?: QueryOptions): Promise<ParkingSpot | null> {
     return this.executeWithRetry(async () => {
       const result = await this.delegate.findFirst({
         where: {
           currentVehicles: {
             some: {
-              id: vehicleId
-            }
+              id: vehicleId,
+            },
           },
-          isActive: true
+          isActive: true,
         },
         include: {
-          currentVehicles: true
+          currentVehicles: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Found spot by vehicle', {
         vehicleId,
-        found: !!result
+        found: !!result,
       });
-      
+
       return result;
     }, `find spot by vehicle: ${vehicleId}`);
   }
@@ -265,13 +244,10 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
    * @param options - Query options
    * @returns Array of spots matching all criteria
    */
-  async search(
-    criteria: SpotSearchCriteria,
-    options?: QueryOptions
-  ): Promise<ParkingSpot[]> {
+  async search(criteria: SpotSearchCriteria, options?: QueryOptions): Promise<ParkingSpot[]> {
     return this.executeWithRetry(async () => {
       const whereClause: Prisma.ParkingSpotWhereInput = {
-        isActive: true
+        isActive: true,
       };
 
       // Exact matches
@@ -298,7 +274,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
       // Spot number search
       if (criteria.spotNumber) {
         whereClause.spotNumber = {
-          contains: criteria.spotNumber
+          contains: criteria.spotNumber,
         };
       }
 
@@ -312,16 +288,16 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
         include: {
           floor: true,
           currentVehicles: true,
-          vehicles: true
+          vehicles: true,
         },
-        ...this.buildQueryOptions(options)
+        ...this.buildQueryOptions(options),
       });
-      
+
       this.logger.debug('Spot search completed', {
         criteria,
-        count: result.length
+        count: result.length,
       });
-      
+
       return result;
     }, 'search spots');
   }
@@ -339,8 +315,8 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
         where: {
           id: spotId,
           status: 'AVAILABLE',
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
       if (!spot) {
@@ -349,19 +325,19 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
 
       // Update spot status (vehicle assignment handled through Vehicle relation)
       const result = await this.update(spotId, {
-        status: 'OCCUPIED'
+        status: 'OCCUPIED',
       });
 
       // Update the vehicle to reference this spot
       await this.prisma.vehicle.update({
         where: { id: vehicleId },
-        data: { currentSpotId: spotId }
+        data: { currentSpotId: spotId },
       });
 
       this.logger.info('Spot occupied', {
         spotId,
         vehicleId,
-        spotNumber: spot.spotNumber
+        spotNumber: spot.spotNumber,
       });
 
       return result;
@@ -380,8 +356,8 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
         where: {
           id: spotId,
           status: 'OCCUPIED',
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
       if (!spot) {
@@ -390,18 +366,18 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
 
       // Update spot status
       const result = await this.update(spotId, {
-        status: 'AVAILABLE'
+        status: 'AVAILABLE',
       });
 
       // Clear vehicle's current spot reference
       await this.prisma.vehicle.updateMany({
         where: { currentSpotId: spotId },
-        data: { currentSpotId: null }
+        data: { currentSpotId: null },
       });
 
       this.logger.info('Spot vacated', {
         spotId,
-        spotNumber: spot.spotNumber
+        spotNumber: spot.spotNumber,
       });
 
       return result;
@@ -416,7 +392,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
   async getStats(floorId?: string): Promise<SpotStats> {
     return this.executeWithRetry(async () => {
       const whereClause = floorId ? { floorId } : {};
-      
+
       // Get total count
       const totalCount = await this.count(whereClause);
 
@@ -431,9 +407,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
       `;
 
       // Count by type
-      const typeCounts = await this.prisma.$queryRaw<
-        Array<{ spotType: SpotType; count: bigint }>
-      >`
+      const typeCounts = await this.prisma.$queryRaw<Array<{ spotType: SpotType; count: bigint }>>`
         SELECT spotType, COUNT(*) as count
         FROM parking_spots
         WHERE isActive = 1 ${floorId ? Prisma.sql`AND floorId = ${floorId}` : Prisma.empty}
@@ -441,9 +415,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
       `;
 
       // Count by level
-      const levelCounts = await this.prisma.$queryRaw<
-        Array<{ level: number; count: bigint }>
-      >`
+      const levelCounts = await this.prisma.$queryRaw<Array<{ level: number; count: bigint }>>`
         SELECT level, COUNT(*) as count
         FROM parking_spots
         WHERE isActive = 1 ${floorId ? Prisma.sql`AND floorId = ${floorId}` : Prisma.empty}
@@ -460,7 +432,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
         maintenance: 0,
         byType: {} as Record<SpotType, number>,
         byLevel: {} as Record<number, number>,
-        occupancyRate: 0
+        occupancyRate: 0,
       };
 
       // Process status counts
@@ -503,9 +475,9 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
 
       this.logger.debug('Spot statistics calculated', {
         floorId,
-        stats
+        stats,
       });
-      
+
       return stats;
     }, 'get spot statistics');
   }
@@ -528,7 +500,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
     return this.executeWithRetry(async () => {
       const whereClause: any = {
         floorId,
-        isActive: true
+        isActive: true,
       };
 
       if (spotType) {
@@ -538,11 +510,11 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
       const total = await this.count(whereClause);
       const available = await this.count({
         ...whereClause,
-        status: 'AVAILABLE'
+        status: 'AVAILABLE',
       });
       const occupied = await this.count({
         ...whereClause,
-        status: 'OCCUPIED'
+        status: 'OCCUPIED',
       });
 
       const availabilityRate = total > 0 ? Math.round((available / total) * 10000) / 100 : 0;
@@ -551,13 +523,13 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
         total,
         available,
         occupied,
-        availabilityRate
+        availabilityRate,
       };
 
       this.logger.debug('Availability statistics calculated', {
         floorId,
         spotType,
-        stats
+        stats,
       });
 
       return stats;
@@ -587,7 +559,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
         section,
         spotNumber,
         spotType,
-        status: 'AVAILABLE' as SpotStatus
+        status: 'AVAILABLE' as SpotStatus,
       }));
 
       await this.createMany(spotsData);
@@ -599,8 +571,8 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
           level,
           section,
           spotNumber: { in: spotNumbers },
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
       this.logger.info('Bulk created spots', {
@@ -608,7 +580,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
         level,
         section,
         count: createdSpots.length,
-        spotType
+        spotType,
       });
 
       return createdSpots;
@@ -626,8 +598,8 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
       // First find the vehicle by license plate
       const vehicle = await this.prisma.vehicle.findFirst({
         where: {
-          licensePlate: licensePlate.toUpperCase()
-        }
+          licensePlate: licensePlate.toUpperCase(),
+        },
       });
 
       if (!vehicle) {
@@ -639,7 +611,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
     } catch (error) {
       this.logger.error('Failed to occupy spot', error as Error, {
         spotId,
-        licensePlate
+        licensePlate,
       });
       return false;
     }
@@ -656,7 +628,7 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
       return true;
     } catch (error) {
       this.logger.error('Failed to vacate spot', error as Error, {
-        spotId
+        spotId,
       });
       return false;
     }

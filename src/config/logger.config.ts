@@ -1,6 +1,6 @@
 /**
  * Advanced logging configuration using Winston
- * 
+ *
  * Features:
  * - Structured logging with JSON format
  * - Log rotation with daily rotate file
@@ -9,7 +9,7 @@
  * - Environment-specific configuration
  * - Error stack trace capture
  * - Performance-optimized for production
- * 
+ *
  * @module LoggerConfig
  */
 
@@ -47,11 +47,15 @@ const developmentFormat = winston.format.combine(
   winston.format.colorize({ all: true }),
   winston.format.printf(({ level, message, timestamp, stack, correlationId, ...meta }) => {
     const correlation = correlationId ? `[${correlationId}] ` : '';
-    const metaStr = Object.keys(meta).length ? `
-Meta: ${JSON.stringify(meta, null, 2)}` : '';
-    const stackStr = stack ? `
-Stack: ${stack}` : '';
-    
+    const metaStr = Object.keys(meta).length
+      ? `
+Meta: ${JSON.stringify(meta, null, 2)}`
+      : '';
+    const stackStr = stack
+      ? `
+Stack: ${stack}`
+      : '';
+
     return `${timestamp} ${level}: ${correlation}${message}${metaStr}${stackStr}`;
   })
 );
@@ -61,10 +65,9 @@ const productionFormat = winston.format.combine(
   winston.format.timestamp(),
   winston.format.errors({ stack: true }),
   winston.format.json(),
-  winston.format.printf((info) => {
+  winston.format.printf(info => {
     // Ensure consistent structure
-    const { timestamp, level, message, correlationId, userId, method, url, ip, userAgent, duration, statusCode, error, stack, ...rest } = info;
-    return JSON.stringify({
+    const {
       timestamp,
       level,
       message,
@@ -79,6 +82,22 @@ const productionFormat = winston.format.combine(
       error,
       stack,
       ...rest
+    } = info;
+    return JSON.stringify({
+      timestamp,
+      level,
+      message,
+      correlationId,
+      userId,
+      method,
+      url,
+      ip,
+      userAgent,
+      duration,
+      statusCode,
+      error,
+      stack,
+      ...rest,
     });
   })
 );
@@ -248,12 +267,12 @@ export class StructuredLogger {
 // Request context extractor
 export function extractRequestContext(req: Request): CorrelationContext {
   return {
-    correlationId: req.headers['x-correlation-id'] as string || generateCorrelationId(),
+    correlationId: (req.headers['x-correlation-id'] as string) || generateCorrelationId(),
     userId: (req as any).user?.id,
     method: req.method,
     url: req.url,
-    ip: req.ip || req.connection.remoteAddress,
-    userAgent: req.get('User-Agent'),
+    ip: req.ip || req.connection.remoteAddress || 'unknown',
+    userAgent: req.get('User-Agent') || 'unknown',
   };
 }
 

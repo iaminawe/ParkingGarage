@@ -1,10 +1,10 @@
 /**
  * Billing Service
- * 
+ *
  * This module handles fee calculations for parking sessions including
  * base rates, spot-type specific rates, EV charging premiums,
  * rate type multipliers, and promotional discounts.
- * 
+ *
  * @module BillingService
  */
 
@@ -121,17 +121,17 @@ export interface BillingSummary {
  * Default hourly rates by spot type (in USD)
  */
 const DEFAULT_RATES: Record<VehicleType, number> = {
-  compact: 4.00,
-  standard: 5.00,
-  oversized: 7.00
+  compact: 4.0,
+  standard: 5.0,
+  oversized: 7.0,
 };
 
 /**
  * Feature premiums (per hour)
  */
 const FEATURE_PREMIUMS: Record<SpotFeature, number> = {
-  ev_charging: 3.00,
-  handicap: 0.00 // No premium for handicap spots
+  ev_charging: 3.0,
+  handicap: 0.0, // No premium for handicap spots
 };
 
 /**
@@ -139,16 +139,16 @@ const FEATURE_PREMIUMS: Record<SpotFeature, number> = {
  */
 const RATE_TYPE_MULTIPLIERS: Record<RateType, number> = {
   hourly: 1.0,
-  daily: 0.8,    // 20% discount for daily rate
-  monthly: 0.6   // 40% discount for monthly rate
+  daily: 0.8, // 20% discount for daily rate
+  monthly: 0.6, // 40% discount for monthly rate
 };
 
 /**
  * Maximum hours for rate type calculations
  */
 const RATE_TYPE_CAPS: Record<'daily' | 'monthly', number> = {
-  daily: 8,      // Daily rate caps at 8 hours
-  monthly: 24    // Monthly rate caps at 24 hours per day
+  daily: 8, // Daily rate caps at 8 hours
+  monthly: 24, // Monthly rate caps at 24 hours per day
 };
 
 /**
@@ -180,7 +180,7 @@ export class BillingService {
       rateType = 'hourly',
       customRate = null,
       applyGrace = false,
-      gracePeriodMinutes = 5
+      gracePeriodMinutes = 5,
     } = params;
 
     // Input validation
@@ -211,8 +211,8 @@ export class BillingService {
           baseCharge: 0,
           featurePremiums: {},
           rateTypeAdjustment: 0,
-          gracePeriodApplied: true
-        }
+          gracePeriodApplied: true,
+        },
       });
     }
 
@@ -230,8 +230,8 @@ export class BillingService {
 
     // Apply rate type adjustments
     const { adjustedAmount, discount } = this.applyRateTypeAdjustment(
-      subtotal, 
-      billableHours, 
+      subtotal,
+      billableHours,
       rateType
     );
 
@@ -249,11 +249,11 @@ export class BillingService {
       spotFeatures,
       rateType,
       breakdown: {
-        baseCharge: Math.round((billableHours * baseRate) * 100) / 100,
+        baseCharge: Math.round(billableHours * baseRate * 100) / 100,
         featurePremiums: premiumBreakdown,
         rateTypeAdjustment: Math.round((adjustedAmount - subtotal) * 100) / 100,
-        gracePeriodApplied: false
-      }
+        gracePeriodApplied: false,
+      },
     });
   }
 
@@ -283,7 +283,7 @@ export class BillingService {
 
     return {
       totalPremiums: Math.round(totalPremiums * 100) / 100,
-      premiumBreakdown
+      premiumBreakdown,
     };
   }
 
@@ -295,8 +295,8 @@ export class BillingService {
    * @returns Adjusted amount and discount
    */
   public applyRateTypeAdjustment(
-    subtotal: number, 
-    billableHours: number, 
+    subtotal: number,
+    billableHours: number,
     rateType: RateType
   ): RateAdjustmentResult {
     if (rateType === 'hourly') {
@@ -322,7 +322,7 @@ export class BillingService {
 
     return {
       adjustedAmount: Math.max(0, adjustedAmount),
-      discount: Math.max(0, discount)
+      discount: Math.max(0, discount),
     };
   }
 
@@ -348,25 +348,25 @@ export class BillingService {
       duration: {
         totalMinutes: data.totalMinutes,
         totalHours: Math.round((data.totalMinutes / 60) * 100) / 100,
-        billableHours: data.billableHours
+        billableHours: data.billableHours,
       },
       rates: {
         baseRatePerHour: data.baseRate,
         featurePremiumsPerHour: data.premiums,
-        effectiveRatePerHour: data.baseRate + data.premiums
+        effectiveRatePerHour: data.baseRate + data.premiums,
       },
       billing: {
         subtotal: data.subtotal,
         rateTypeDiscount: data.rateTypeDiscount,
-        totalAmount: data.totalAmount
+        totalAmount: data.totalAmount,
       },
       spotInfo: {
         type: data.spotType,
-        features: data.spotFeatures
+        features: data.spotFeatures,
       },
       rateType: data.rateType,
       breakdown: data.breakdown,
-      calculatedAt: new Date().toISOString()
+      calculatedAt: new Date().toISOString(),
     };
   }
 
@@ -454,9 +454,9 @@ export class BillingService {
    * @returns Current estimated cost
    */
   public calculateCurrentEstimate(
-    checkInTime: string, 
-    spotType: VehicleType, 
-    spotFeatures: SpotFeature[] = [], 
+    checkInTime: string,
+    spotType: VehicleType,
+    spotFeatures: SpotFeature[] = [],
     rateType: RateType = 'hourly'
   ): BillingResult {
     const now = new Date();
@@ -467,7 +467,7 @@ export class BillingService {
       totalMinutes,
       spotType,
       spotFeatures,
-      rateType
+      rateType,
     });
   }
 
@@ -483,7 +483,7 @@ export class BillingService {
       averageCost: 0,
       bySpotType: {},
       byRateType: {},
-      byFeatures: {}
+      byFeatures: {},
     };
 
     vehicles.forEach(vehicle => {
@@ -492,9 +492,9 @@ export class BillingService {
       }
     });
 
-    summary.averageCost = vehicles.length > 0 ? 
-      Math.round((summary.totalRevenue / vehicles.length) * 100) / 100 : 0;
-    
+    summary.averageCost =
+      vehicles.length > 0 ? Math.round((summary.totalRevenue / vehicles.length) * 100) / 100 : 0;
+
     summary.totalRevenue = Math.round(summary.totalRevenue * 100) / 100;
 
     return summary;

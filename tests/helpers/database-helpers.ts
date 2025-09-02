@@ -24,7 +24,7 @@ export async function setupTestDatabase(): Promise<DatabaseService> {
   
   try {
     // Create a fresh database service instance
-    const databaseService = DatabaseService.getInstance(true); // Force new instance
+    const databaseService = DatabaseService.getInstance(); // Get instance
     
     // Reset the database schema
     await resetTestDatabase();
@@ -152,7 +152,6 @@ export async function seedTestDatabase(databaseService: DatabaseService): Promis
       data: [
         {
           name: 'Downtown Parking Garage',
-          address: '123 Main St',
           city: 'Test City',
           state: 'TC',
           zipCode: '12345',
@@ -162,7 +161,6 @@ export async function seedTestDatabase(databaseService: DatabaseService): Promis
         },
         {
           name: 'Airport Parking Garage',
-          address: '456 Airport Blvd',
           city: 'Test City',
           state: 'TC',
           zipCode: '12346',
@@ -188,11 +186,11 @@ export async function clearTestDatabase(databaseService: DatabaseService): Promi
   
   try {
     // Delete in reverse order of dependencies to avoid foreign key constraints
-    await prisma.session.deleteMany({});
+    await prisma.parkingSession.deleteMany({});
     await prisma.ticket.deleteMany({});
     await prisma.payment.deleteMany({});
     await prisma.vehicle.deleteMany({});
-    await prisma.spot.deleteMany({});
+    await prisma.parkingSpot.deleteMany({});
     await prisma.garage.deleteMany({});
     await prisma.user.deleteMany({});
     
@@ -217,8 +215,8 @@ export async function getDatabaseStats(databaseService: DatabaseService): Promis
   
   const [vehicles, spots, sessions, users, garages] = await Promise.all([
     prisma.vehicle.count(),
-    prisma.spot.count(),
-    prisma.session.count(),
+    prisma.parkingSpot.count(),
+    prisma.parkingSession.count(),
     prisma.user.count(),
     prisma.garage.count()
   ]);
@@ -434,7 +432,7 @@ export async function createIsolatedTestDatabase(testId: string): Promise<{
   
   try {
     // Create database service
-    const databaseService = DatabaseService.getInstance(true);
+    const databaseService = DatabaseService.getInstance();
     
     // Apply schema
     await applyTestMigrations();

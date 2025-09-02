@@ -1,9 +1,9 @@
 /**
  * Adapter exports
- * 
+ *
  * This module exports all adapter classes and interfaces
  * for use throughout the application.
- * 
+ *
  * @module Adapters
  */
 

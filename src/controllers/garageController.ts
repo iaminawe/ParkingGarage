@@ -1,19 +1,16 @@
 /**
  * Garage controller for handling garage management API endpoints
- * 
+ *
  * This controller handles HTTP requests for garage configuration,
  * initialization, and management operations. It orchestrates between
  * the request/response layer and the garage service layer.
- * 
+ *
  * @module GarageController
  */
 
 import { Request, Response } from 'express';
 import { GarageService } from '../services/garageService';
-import { 
-  UpdateGarageConfigRequest,
-  ApiResponse 
-} from '../types/api';
+import { UpdateGarageConfigRequest, ApiResponse } from '../types/api';
 import { GarageRecord } from '../types/models';
 
 interface GarageInitRequest {
@@ -43,19 +40,22 @@ export class GarageController {
   /**
    * GET /api/v1/garage - Get current garage configuration
    */
-  getGarageConfiguration = async (req: Request<{}, ApiResponse<GarageRecord>, {}, GarageConfigQuery>, res: Response<ApiResponse<GarageRecord>>): Promise<void> => {
+  getGarageConfiguration = async (
+    req: Request<{}, ApiResponse<GarageRecord>, {}, GarageConfigQuery>,
+    res: Response<ApiResponse<GarageRecord>>
+  ): Promise<void> => {
     try {
       const { includeStats, includeSpots } = req.query;
-      
+
       const configuration = await this.garageService.getGarageConfiguration({
         includeStats: includeStats === 'true',
-        includeSpots: includeSpots === 'true'
+        includeSpots: includeSpots === 'true',
       });
 
       res.json({
         success: true,
         data: configuration,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       if ((error as Error).message.includes('not initialized')) {
@@ -63,7 +63,7 @@ export class GarageController {
           success: false,
           message: 'Garage not initialized',
           errors: ['Please initialize the garage first using POST /api/v1/garage/initialize'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -72,7 +72,7 @@ export class GarageController {
         success: false,
         message: 'Failed to retrieve garage configuration',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -80,20 +80,23 @@ export class GarageController {
   /**
    * POST /api/v1/garage/initialize - Initialize garage with floors, bays, and spots
    */
-  initializeGarage = async (req: Request<{}, ApiResponse<GarageRecord>, GarageInitRequest>, res: Response<ApiResponse<GarageRecord>>): Promise<void> => {
+  initializeGarage = async (
+    req: Request<{}, ApiResponse<GarageRecord>, GarageInitRequest>,
+    res: Response<ApiResponse<GarageRecord>>
+  ): Promise<void> => {
     try {
       const { name, floors } = req.body;
 
       const result = await this.garageService.initializeGarage({
         name,
-        floors
+        floors,
       });
 
       res.status(201).json({
         success: true,
         message: 'Garage initialized successfully',
         data: result,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       if ((error as Error).message.includes('already initialized')) {
@@ -101,7 +104,7 @@ export class GarageController {
           success: false,
           message: 'Garage already exists',
           errors: ['Garage is already initialized. Use update endpoints to modify configuration.'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -110,7 +113,7 @@ export class GarageController {
         success: false,
         message: 'Garage initialization failed',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -118,7 +121,10 @@ export class GarageController {
   /**
    * PUT /api/v1/garage/rates - Update garage pricing rates
    */
-  updateGarageRates = async (req: Request<{}, ApiResponse, Record<string, number>>, res: Response<ApiResponse>): Promise<void> => {
+  updateGarageRates = async (
+    req: Request<{}, ApiResponse, Record<string, number>>,
+    res: Response<ApiResponse>
+  ): Promise<void> => {
     try {
       const rateUpdates = req.body;
 
@@ -130,9 +136,9 @@ export class GarageController {
         data: {
           updatedRates: result.updatedRates,
           currentRates: result.currentRates,
-          updatedAt: result.updatedAt
+          updatedAt: result.updatedAt,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       if ((error as Error).message.includes('not initialized')) {
@@ -140,7 +146,7 @@ export class GarageController {
           success: false,
           message: 'Garage not initialized',
           errors: ['Please initialize the garage first using POST /api/v1/garage/initialize'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -149,7 +155,7 @@ export class GarageController {
         success: false,
         message: 'Rate update failed',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -157,7 +163,10 @@ export class GarageController {
   /**
    * PUT /api/v1/garage/config - Update garage configuration (name, etc.)
    */
-  updateGarageConfiguration = async (req: Request<{}, ApiResponse<GarageRecord>, UpdateGarageConfigRequest>, res: Response<ApiResponse<GarageRecord>>): Promise<void> => {
+  updateGarageConfiguration = async (
+    req: Request<{}, ApiResponse<GarageRecord>, UpdateGarageConfigRequest>,
+    res: Response<ApiResponse<GarageRecord>>
+  ): Promise<void> => {
     try {
       const configUpdates = req.body;
 
@@ -167,7 +176,7 @@ export class GarageController {
         success: true,
         message: result.message,
         data: result.configuration,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       if ((error as Error).message.includes('not initialized')) {
@@ -175,7 +184,7 @@ export class GarageController {
           success: false,
           message: 'Garage not initialized',
           errors: ['Please initialize the garage first using POST /api/v1/garage/initialize'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -184,7 +193,7 @@ export class GarageController {
         success: false,
         message: 'Configuration update failed',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -199,7 +208,7 @@ export class GarageController {
       res.json({
         success: true,
         data: statistics,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       if ((error as Error).message.includes('not initialized')) {
@@ -207,7 +216,7 @@ export class GarageController {
           success: false,
           message: 'Garage not initialized',
           errors: ['Please initialize the garage first using POST /api/v1/garage/initialize'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -216,7 +225,7 @@ export class GarageController {
         success: false,
         message: 'Failed to retrieve garage statistics',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -232,18 +241,18 @@ export class GarageController {
         success: true,
         data: {
           initialized: isInitialized,
-          message: isInitialized 
+          message: isInitialized
             ? 'Garage is initialized and ready for operations'
-            : 'Garage is not initialized. Please initialize using POST /api/v1/garage/initialize'
+            : 'Garage is not initialized. Please initialize using POST /api/v1/garage/initialize',
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Failed to check garage status',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -259,16 +268,16 @@ export class GarageController {
         success: true,
         message: result.message,
         data: {
-          resetAt: result.timestamp
+          resetAt: result.timestamp,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       res.status(500).json({
         success: false,
         message: 'Failed to reset garage',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -284,9 +293,9 @@ export class GarageController {
         success: true,
         data: {
           rates: configuration.rates,
-          lastUpdated: configuration.lastUpdated
+          lastUpdated: configuration.lastUpdated,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       if ((error as Error).message.includes('not initialized')) {
@@ -294,7 +303,7 @@ export class GarageController {
           success: false,
           message: 'Garage not initialized',
           errors: ['Please initialize the garage first using POST /api/v1/garage/initialize'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -303,7 +312,7 @@ export class GarageController {
         success: false,
         message: 'Failed to retrieve garage rates',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };
@@ -322,9 +331,9 @@ export class GarageController {
           totalCapacity: configuration.totalCapacity,
           totalFloors: configuration.totalFloors,
           floorsConfiguration: configuration.floorsConfiguration,
-          occupancy: configuration.statistics
+          occupancy: configuration.statistics,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       if ((error as Error).message.includes('not initialized')) {
@@ -332,7 +341,7 @@ export class GarageController {
           success: false,
           message: 'Garage not initialized',
           errors: ['Please initialize the garage first using POST /api/v1/garage/initialize'],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         return;
       }
@@ -341,7 +350,7 @@ export class GarageController {
         success: false,
         message: 'Failed to retrieve garage capacity',
         errors: [(error as Error).message],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   };

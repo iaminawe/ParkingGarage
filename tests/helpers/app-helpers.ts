@@ -17,7 +17,7 @@ import vehicleRoutes from '../../src/routes/vehicles';
 import authRoutes from '../../src/routes/auth';
 import spotRoutes from '../../src/routes/spots';
 import sessionRoutes from '../../src/routes/sessions';
-import garageRoutes from '../../src/routes/garages';
+import garageRoutes from '../../src/routes/garage';
 import statsRoutes from '../../src/routes/stats';
 
 /**
@@ -418,7 +418,10 @@ export async function cleanupTestApp(app: Application): Promise<void> {
   
   // Clear any intervals or timeouts that might be running
   const highestId = setTimeout(() => {}, 0);
-  for (let i = 0; i < highestId; i++) {
+  const maxId = typeof highestId === 'number' ? highestId : parseInt(String(highestId));
+  clearTimeout(highestId);
+  
+  for (let i = 0; i < maxId; i++) {
     clearTimeout(i);
     clearInterval(i);
   }

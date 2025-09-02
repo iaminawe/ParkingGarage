@@ -1,13 +1,13 @@
 /**
  * Secrets management configuration
- * 
+ *
  * Features:
  * - Secure secret storage and retrieval
  * - Environment-specific secret management
  * - Encryption for sensitive data
  * - Secret rotation utilities
  * - Development vs production handling
- * 
+ *
  * @module SecretsConfig
  */
 
@@ -39,7 +39,12 @@ export interface Secret {
 // Secret storage interface
 export interface SecretStore {
   get(key: string): Promise<string | null>;
-  set(key: string, value: string, category: SecretCategory, options?: { expiresAt?: Date; rotationInterval?: number }): Promise<void>;
+  set(
+    key: string,
+    value: string,
+    category: SecretCategory,
+    options?: { expiresAt?: Date; rotationInterval?: number }
+  ): Promise<void>;
   delete(key: string): Promise<boolean>;
   list(category?: SecretCategory): Promise<Secret[]>;
   rotate(key: string): Promise<string>;
@@ -53,7 +58,7 @@ class MemorySecretStore implements SecretStore {
   constructor() {
     // Use environment encryption key or generate one for development
     this.encryptionKey = env.ENCRYPTION_KEY || this.generateEncryptionKey();
-    
+
     if (!env.ENCRYPTION_KEY && env.NODE_ENV === 'production') {
       throw new Error('ENCRYPTION_KEY must be set in production');
     }
@@ -75,7 +80,11 @@ class MemorySecretStore implements SecretStore {
     const textParts = encryptedText.split(':');
     const iv = Buffer.from(textParts.shift()!, 'hex');
     const encrypted = textParts.join(':');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(this.encryptionKey, 'hex'), iv);
+    const decipher = crypto.createDecipheriv(
+      'aes-256-cbc',
+      Buffer.from(this.encryptionKey, 'hex'),
+      iv
+    );
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
@@ -143,7 +152,7 @@ class MemorySecretStore implements SecretStore {
 
     // Generate new value based on secret type
     let newValue: string;
-    
+
     switch (secret.category) {
       case SecretCategory.JWT:
         newValue = this.generateSecureToken(64);
@@ -196,7 +205,7 @@ export class SecretsManager {
       await this.store.set('jwt.secret', env.JWT_SECRET, SecretCategory.JWT, {
         rotationInterval: env.NODE_ENV === 'production' ? 30 : undefined,
       });
-      
+
       if (env.JWT_REFRESH_SECRET) {
         await this.store.set('jwt.refresh_secret', env.JWT_REFRESH_SECRET, SecretCategory.JWT, {
           rotationInterval: env.NODE_ENV === 'production' ? 60 : undefined,
@@ -210,18 +219,26 @@ export class SecretsManager {
       if (env.EMAIL_PASSWORD) {
         await this.store.set('email.password', env.EMAIL_PASSWORD, SecretCategory.EMAIL);
       }
-      
+
       if (env.SENDGRID_API_KEY) {
         await this.store.set('email.sendgrid_api_key', env.SENDGRID_API_KEY, SecretCategory.EMAIL);
       }
 
       // OAuth secrets
       if (env.GOOGLE_CLIENT_SECRET) {
-        await this.store.set('oauth.google_client_secret', env.GOOGLE_CLIENT_SECRET, SecretCategory.OAUTH);
+        await this.store.set(
+          'oauth.google_client_secret',
+          env.GOOGLE_CLIENT_SECRET,
+          SecretCategory.OAUTH
+        );
       }
-      
+
       if (env.GITHUB_CLIENT_SECRET) {
-        await this.store.set('oauth.github_client_secret', env.GITHUB_CLIENT_SECRET, SecretCategory.OAUTH);
+        await this.store.set(
+          'oauth.github_client_secret',
+          env.GITHUB_CLIENT_SECRET,
+          SecretCategory.OAUTH
+        );
       }
 
       // External API secrets
@@ -242,13 +259,16 @@ export class SecretsManager {
       return; // Only rotate in production
     }
 
-    setInterval(async () => {
-      try {
-        await this.checkAndRotateExpiredSecrets();
-      } catch (error) {
-        systemLogger.error('Secret rotation check failed', error as Error);
-      }
-    }, 24 * 60 * 60 * 1000); // Check daily
+    setInterval(
+      async () => {
+        try {
+          await this.checkAndRotateExpiredSecrets();
+        } catch (error) {
+          systemLogger.error('Secret rotation check failed', error as Error);
+        }
+      },
+      24 * 60 * 60 * 1000
+    ); // Check daily
   }
 
   // Check and rotate expired secrets
@@ -325,7 +345,7 @@ export class SecretsManager {
   }
 
   // Generate secure secrets
-  generateSecureSecret(length: number = 32): string {
+  generateSecureSecret(length = 32): string {
     return crypto.randomBytes(length).toString('base64').slice(0, length);
   }
 

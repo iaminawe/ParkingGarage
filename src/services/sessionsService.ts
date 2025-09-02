@@ -1,9 +1,9 @@
 /**
  * Sessions Service
- * 
+ *
  * Business logic for parking session management operations.
  * Handles session lifecycle, analytics, filtering, and data export.
- * 
+ *
  * @module SessionsService
  */
 
@@ -74,15 +74,15 @@ export class SessionsService {
 
       // Calculate pagination
       const total = filteredSessions.length;
-      const totalPages = Math.ceil(total / ((filters as any).limit));
-      const currentPage = Math.floor(((filters as any).offset) / ((filters as any).limit)) + 1;
+      const totalPages = Math.ceil(total / (filters as any).limit);
+      const currentPage = Math.floor((filters as any).offset / (filters as any).limit) + 1;
       const hasNextPage = currentPage < totalPages;
       const hasPreviousPage = currentPage > 1;
 
       // Apply pagination
       const paginatedSessions = filteredSessions.slice(
-        ((filters as any).offset) || 0,
-        (((filters as any).offset) || 0) + (((filters as any).limit) || 50)
+        (filters as any).offset || 0,
+        ((filters as any).offset || 0) + ((filters as any).limit || 50)
       );
 
       // Enhance sessions with additional data
@@ -92,13 +92,13 @@ export class SessionsService {
         data: enhancedSessions,
         pagination: {
           total,
-          limit: ((filters as any).limit),
-          offset: ((filters as any).offset) || 0,
+          limit: (filters as any).limit,
+          offset: (filters as any).offset || 0,
           page: currentPage,
           totalPages,
           hasNextPage,
-          hasPreviousPage
-        }
+          hasPreviousPage,
+        },
       };
     } catch (error) {
       console.error('SessionsService.getSessions error:', error);
@@ -109,7 +109,9 @@ export class SessionsService {
   /**
    * Get session statistics
    */
-  async getSessionStats(period: 'today' | 'week' | 'month' | 'year' | 'all'): Promise<SessionStats> {
+  async getSessionStats(
+    period: 'today' | 'week' | 'month' | 'year' | 'all'
+  ): Promise<SessionStats> {
     try {
       const allSessions = await this.sessionsRepository.findAll();
       const filteredSessions = this.filterSessionsByPeriod(allSessions, period);
@@ -124,10 +126,14 @@ export class SessionsService {
         .filter(s => s.status === 'completed')
         .reduce((sum, s) => sum + (s.cost || 0), 0);
 
-      const completedWithDuration = filteredSessions.filter(s => s.status === 'completed' && s.duration);
-      const averageDuration = completedWithDuration.length > 0
-        ? completedWithDuration.reduce((sum, s) => sum + (s.duration || 0), 0) / completedWithDuration.length
-        : 0;
+      const completedWithDuration = filteredSessions.filter(
+        s => s.status === 'completed' && s.duration
+      );
+      const averageDuration =
+        completedWithDuration.length > 0
+          ? completedWithDuration.reduce((sum, s) => sum + (s.duration || 0), 0) /
+            completedWithDuration.length
+          : 0;
 
       const averageCost = completedSessions > 0 ? totalRevenue / completedSessions : 0;
 
@@ -167,7 +173,7 @@ export class SessionsService {
       const statusBreakdown: Record<string, number> = {
         active: activeSessions,
         completed: completedSessions,
-        cancelled: cancelledSessions
+        cancelled: cancelledSessions,
       };
 
       return {
@@ -182,7 +188,7 @@ export class SessionsService {
         todayRevenue,
         peakHour,
         vehicleTypeBreakdown,
-        statusBreakdown
+        statusBreakdown,
       };
     } catch (error) {
       console.error('SessionsService.getSessionStats error:', error);
@@ -199,7 +205,7 @@ export class SessionsService {
   ): Promise<SessionAnalytics> {
     try {
       const allSessions = await this.sessionsRepository.findAll();
-      
+
       switch (type) {
         case 'revenue':
           return this.getRevenueAnalytics(allSessions, period);
@@ -243,7 +249,7 @@ export class SessionsService {
   async endSession(sessionId: any, reason: any = 'Manual end') {
     try {
       const session = await this.sessionsRepository.findById(sessionId);
-      
+
       if (!session) {
         throw new Error(`Session with ID '${sessionId}' not found`);
       }
@@ -255,7 +261,7 @@ export class SessionsService {
       const endTime = new Date();
       const startTime = new Date(session.createdAt);
       const durationMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60));
-      
+
       // Calculate cost (simplified - in real app would use proper billing service)
       const hourlyRate = this.getHourlyRateForVehicleType(session.vehicleType);
       const hours = Math.ceil(durationMinutes / 60);
@@ -267,7 +273,7 @@ export class SessionsService {
         endTime: endTime.toISOString(),
         duration: durationMinutes,
         cost: Math.round(cost * 100) / 100, // Round to 2 decimal places
-        endReason: reason
+        endReason: reason,
       });
 
       // Free up the parking spot
@@ -279,7 +285,7 @@ export class SessionsService {
         session: updatedSession,
         duration: durationMinutes,
         cost: Math.round(cost * 100) / 100,
-        message: 'Session ended successfully'
+        message: 'Session ended successfully',
       };
     } catch (error) {
       console.error('SessionsService.endSession error:', error);
@@ -293,7 +299,7 @@ export class SessionsService {
   async cancelSession(sessionId: any, reason: any = 'Manual cancellation') {
     try {
       const session = await this.sessionsRepository.findById(sessionId);
-      
+
       if (!session) {
         throw new Error(`Session with ID '${sessionId}' not found`);
       }
@@ -303,7 +309,7 @@ export class SessionsService {
         status: 'cancelled',
         endTime: new Date().toISOString(),
         endReason: reason,
-        cost: 0 // No charge for cancelled sessions
+        cost: 0, // No charge for cancelled sessions
       });
 
       // Free up the parking spot
@@ -313,7 +319,7 @@ export class SessionsService {
 
       return {
         session: updatedSession,
-        message: 'Session cancelled successfully'
+        message: 'Session cancelled successfully',
       };
     } catch (error) {
       console.error('SessionsService.cancelSession error:', error);
@@ -327,7 +333,7 @@ export class SessionsService {
   async extendSession(sessionId: any, additionalHours: number) {
     try {
       const session = await this.sessionsRepository.findById(sessionId);
-      
+
       if (!session) {
         throw new Error(`Session with ID '${sessionId}' not found`);
       }
@@ -342,13 +348,13 @@ export class SessionsService {
 
       // Update expected end time (if it was set)
       const currentExpectedEnd = session.expectedEndTime ? new Date(session.expectedEndTime) : null;
-      const newExpectedEnd = currentExpectedEnd 
-        ? new Date(currentExpectedEnd.getTime() + (additionalHours * 60 * 60 * 1000))
+      const newExpectedEnd = currentExpectedEnd
+        ? new Date(currentExpectedEnd.getTime() + additionalHours * 60 * 60 * 1000)
         : null;
 
       const updatedSession = await this.sessionsRepository.update(sessionId, {
         expectedEndTime: newExpectedEnd?.toISOString(),
-        notes: `Extended by ${additionalHours} hour(s). Additional cost: $${additionalCost.toFixed(2)}`
+        notes: `Extended by ${additionalHours} hour(s). Additional cost: $${additionalCost.toFixed(2)}`,
       });
 
       return {
@@ -356,7 +362,7 @@ export class SessionsService {
         additionalHours,
         additionalCost: Math.round(additionalCost * 100) / 100,
         newExpectedEndTime: newExpectedEnd?.toISOString(),
-        message: `Session extended by ${additionalHours} hour(s)`
+        message: `Session extended by ${additionalHours} hour(s)`,
       };
     } catch (error) {
       console.error('SessionsService.extendSession error:', error);
@@ -377,7 +383,7 @@ export class SessionsService {
         limit: 10000, // Large limit for export
         offset: 0,
         sort: 'createdAt',
-        order: 'desc'
+        order: 'desc',
       });
 
       // CSV headers
@@ -395,7 +401,7 @@ export class SessionsService {
         'End Time',
         'Duration (minutes)',
         'Cost',
-        'End Reason'
+        'End Reason',
       ];
 
       // CSV rows
@@ -413,7 +419,7 @@ export class SessionsService {
         session.endTime || '',
         session.duration?.toString() || '',
         session.cost?.toString() || '',
-        session.endReason || ''
+        session.endReason || '',
       ]);
 
       // Combine headers and rows
@@ -444,12 +450,13 @@ export class SessionsService {
     // Search filter
     if (filters.search.trim()) {
       const searchTerm = filters.search.toLowerCase().trim();
-      filtered = filtered.filter(session =>
-        session.licensePlate?.toLowerCase().includes(searchTerm) ||
-        session.vehicleMake?.toLowerCase().includes(searchTerm) ||
-        session.vehicleModel?.toLowerCase().includes(searchTerm) ||
-        session.spotId?.toLowerCase().includes(searchTerm) ||
-        session.id.toLowerCase().includes(searchTerm)
+      filtered = filtered.filter(
+        session =>
+          session.licensePlate?.toLowerCase().includes(searchTerm) ||
+          session.vehicleMake?.toLowerCase().includes(searchTerm) ||
+          session.vehicleModel?.toLowerCase().includes(searchTerm) ||
+          session.spotId?.toLowerCase().includes(searchTerm) ||
+          session.id.toLowerCase().includes(searchTerm)
       );
     }
 
@@ -457,7 +464,9 @@ export class SessionsService {
   }
 
   private filterSessionsByPeriod(sessions: ParkingSession[], period: any): ParkingSession[] {
-    if (period === 'all') return sessions;
+    if (period === 'all') {
+      return sessions;
+    }
 
     const now = new Date();
     let startDate: Date;
@@ -489,7 +498,11 @@ export class SessionsService {
     });
   }
 
-  private applySorting(sessions: ParkingSession[], sort: any, order: 'asc' | 'desc'): ParkingSession[] {
+  private applySorting(
+    sessions: ParkingSession[],
+    sort: any,
+    order: 'asc' | 'desc'
+  ): ParkingSession[] {
     return sessions.sort((a, b) => {
       let aVal: any, bVal: any;
 
@@ -537,14 +550,14 @@ export class SessionsService {
     // Simplified rate calculation - in real app would fetch from configuration
     switch (vehicleType?.toLowerCase()) {
       case 'compact':
-        return 4.00;
+        return 4.0;
       case 'electric':
-        return 6.00;
+        return 6.0;
       case 'oversized':
       case 'truck':
-        return 8.00;
+        return 8.0;
       default:
-        return 5.00; // Standard rate
+        return 5.0; // Standard rate
     }
   }
 
@@ -556,12 +569,11 @@ export class SessionsService {
     const summary = {
       totalRevenue: completedSessions.reduce((sum, s) => sum + (s.cost || 0), 0),
       averageRevenue: 0,
-      totalSessions: completedSessions.length
+      totalSessions: completedSessions.length,
     };
 
-    summary.averageRevenue = summary.totalSessions > 0 
-      ? summary.totalRevenue / summary.totalSessions 
-      : 0;
+    summary.averageRevenue =
+      summary.totalSessions > 0 ? summary.totalRevenue / summary.totalSessions : 0;
 
     return { type: 'revenue', period: period as any, data, summary };
   }
@@ -574,7 +586,7 @@ export class SessionsService {
       averageDuration: 0,
       totalSessions: completedSessions.length,
       shortestSession: 0,
-      longestSession: 0
+      longestSession: 0,
     };
 
     if (completedSessions.length > 0) {
@@ -598,17 +610,17 @@ export class SessionsService {
     const data = Array.from({ length: 24 }, (_, hour) => ({
       hour,
       sessionCount: hourCounts[hour] || 0,
-      label: `${hour.toString().padStart(2, '0')}:00`
+      label: `${hour.toString().padStart(2, '0')}:00`,
     }));
 
-    const peakEntry = data.reduce((max, current) => 
+    const peakEntry = data.reduce((max, current) =>
       current.sessionCount > max.sessionCount ? current : max
     );
 
     const summary = {
       peakHour: peakEntry.hour,
       peakSessionCount: peakEntry.sessionCount,
-      totalSessions: sessions.length
+      totalSessions: sessions.length,
     };
 
     return { type: 'peak', period: period as any, data, summary };
@@ -620,7 +632,7 @@ export class SessionsService {
     const summary = {
       trend: 'stable',
       growthRate: 0,
-      totalSessions: sessions.length
+      totalSessions: sessions.length,
     };
 
     return { type: 'trends', period: period as any, data, summary };

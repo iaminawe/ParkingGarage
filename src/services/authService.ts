@@ -6,12 +6,12 @@ import { prisma } from '../config/database';
 import { env } from '../config/environment';
 import { CacheService } from './CacheService';
 import { EmailService } from './EmailService';
-import { 
-  SECURITY, 
-  TIME_CONSTANTS, 
+import {
+  SECURITY,
+  TIME_CONSTANTS,
   API_RESPONSES,
   VALIDATION,
-  type UserRole 
+  type UserRole,
 } from '../config/constants';
 
 export interface SignupData {
@@ -105,22 +105,27 @@ class AuthService {
   /**
    * Generate JWT tokens (access and refresh)
    */
-  generateTokens(user: User): { token: string; refreshToken: string; expiresAt: Date; refreshExpiresAt: Date } {
+  generateTokens(user: User): {
+    token: string;
+    refreshToken: string;
+    expiresAt: Date;
+    refreshExpiresAt: Date;
+  } {
     const payload: TokenPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role as UserRole
+      role: user.role as UserRole,
     };
 
-    const token = jwt.sign(payload, this.JWT_SECRET, { 
-      expiresIn: this.JWT_EXPIRES_IN as string
+    const token = jwt.sign(payload, this.JWT_SECRET, {
+      expiresIn: this.JWT_EXPIRES_IN as string,
     });
-    
+
     const refreshToken = jwt.sign(
-      { userId: user.id, type: SECURITY.TOKEN_TYPE_REFRESH }, 
-      this.JWT_REFRESH_SECRET, 
-      { 
-        expiresIn: this.JWT_REFRESH_EXPIRES_IN as string
+      { userId: user.id, type: SECURITY.TOKEN_TYPE_REFRESH },
+      this.JWT_REFRESH_SECRET,
+      {
+        expiresIn: this.JWT_REFRESH_EXPIRES_IN as string,
       }
     );
 
@@ -151,8 +156,10 @@ class AuthService {
    * Check if user account is locked due to too many failed login attempts
    */
   private async isAccountLocked(user: User): Promise<boolean> {
-    if (!user.lockoutUntil) return false;
-    
+    if (!user.lockoutUntil) {
+      return false;
+    }
+
     if (user.lockoutUntil > new Date()) {
       return true;
     }
@@ -162,8 +169,8 @@ class AuthService {
       where: { id: user.id },
       data: {
         loginAttempts: 0,
-        lockoutUntil: null
-      }
+        lockoutUntil: null,
+      },
     });
 
     return false;
@@ -174,7 +181,9 @@ class AuthService {
    */
   private async handleFailedLogin(userId: string): Promise<void> {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     const loginAttempts = user.loginAttempts + 1;
     const updateData: any = { loginAttempts };
@@ -188,7 +197,7 @@ class AuthService {
 
     await prisma.user.update({
       where: { id: userId },
-      data: updateData
+      data: updateData,
     });
   }
 
@@ -202,13 +211,15 @@ class AuthService {
         lastLoginAt: new Date(),
         lastLoginIP: deviceInfo?.ipAddress,
         loginAttempts: 0,
-        lockoutUntil: null
-      }
+        lockoutUntil: null,
+      },
     });
 
     // Log security event for monitoring
     if (env.NODE_ENV === 'production') {
-      console.log(`Successful login: user=${userId}, ip=${deviceInfo?.ipAddress}, userAgent=${deviceInfo?.userAgent}`);
+      console.log(
+        `Successful login: user=${userId}, ip=${deviceInfo?.ipAddress}, userAgent=${deviceInfo?.userAgent}`
+      );
     }
   }
 
@@ -219,13 +230,13 @@ class AuthService {
     try {
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
-        where: { email: data.email.toLowerCase() }
+        where: { email: data.email.toLowerCase() },
       });
 
       if (existingUser) {
         return {
           success: false,
-          message: API_RESPONSES.ERRORS.USER_EXISTS
+          message: API_RESPONSES.ERRORS.USER_EXISTS,
         };
       }
 
@@ -239,8 +250,8 @@ class AuthService {
           passwordHash,
           firstName: data.firstName,
           lastName: data.lastName,
-          role: 'USER'
-        }
+          role: 'USER',
+        },
       });
 
       // Generate tokens
@@ -253,26 +264,25 @@ class AuthService {
           token,
           refreshToken,
           expiresAt,
-          refreshExpiresAt
-        }
+          refreshExpiresAt,
+        },
       });
 
       // Return success response (exclude password hash)
       const { passwordHash: _, ...userWithoutPassword } = user;
-      
+
       return {
         success: true,
         user: userWithoutPassword,
         token,
         refreshToken,
-        message: API_RESPONSES.SUCCESS.SIGNUP
+        message: API_RESPONSES.SUCCESS.SIGNUP,
       };
-
     } catch (error) {
       console.error('Signup error:', error);
       return {
         success: false,
-        message: 'Registration failed. Please try again.'
+        message: 'Registration failed. Please try again.',
       };
     }
   }
@@ -284,13 +294,13 @@ class AuthService {
     try {
       // Find user by email
       const user = await prisma.user.findUnique({
-        where: { email: data.email.toLowerCase() }
+        where: { email: data.email.toLowerCase() },
       });
 
       if (!user) {
         return {
           success: false,
-          message: API_RESPONSES.ERRORS.INVALID_CREDENTIALS
+          message: API_RESPONSES.ERRORS.INVALID_CREDENTIALS,
         };
       }
 
@@ -298,7 +308,7 @@ class AuthService {
       if (!user.isActive) {
         return {
           success: false,
-          message: API_RESPONSES.ERRORS.ACCOUNT_DEACTIVATED
+          message: API_RESPONSES.ERRORS.ACCOUNT_DEACTIVATED,
         };
       }
 
@@ -306,18 +316,18 @@ class AuthService {
       if (await this.isAccountLocked(user)) {
         return {
           success: false,
-          message: API_RESPONSES.ERRORS.ACCOUNT_LOCKED
+          message: API_RESPONSES.ERRORS.ACCOUNT_LOCKED,
         };
       }
 
       // Verify password
       const isPasswordValid = await this.comparePassword(data.password, user.passwordHash);
-      
+
       if (!isPasswordValid) {
         await this.handleFailedLogin(user.id);
         return {
           success: false,
-          message: API_RESPONSES.ERRORS.INVALID_CREDENTIALS
+          message: API_RESPONSES.ERRORS.INVALID_CREDENTIALS,
         };
       }
 
@@ -337,26 +347,25 @@ class AuthService {
           refreshExpiresAt,
           deviceInfo: deviceInfo?.userAgent,
           ipAddress: deviceInfo?.ipAddress,
-          deviceFingerprint: deviceInfo?.deviceFingerprint
-        }
+          deviceFingerprint: deviceInfo?.deviceFingerprint,
+        },
       });
 
       // Return success response (exclude password hash)
       const { passwordHash: _, loginAttempts, lockoutUntil, ...userWithoutSensitiveData } = user;
-      
+
       return {
         success: true,
         user: userWithoutSensitiveData,
         token,
         refreshToken,
-        message: API_RESPONSES.SUCCESS.LOGIN
+        message: API_RESPONSES.SUCCESS.LOGIN,
       };
-
     } catch (error) {
       console.error('Login error:', error);
       return {
         success: false,
-        message: 'Login failed. Please try again.'
+        message: 'Login failed. Please try again.',
       };
     }
   }
@@ -371,35 +380,40 @@ class AuthService {
       if (!payload) {
         return {
           success: false,
-          message: 'Invalid refresh token'
+          message: 'Invalid refresh token',
         };
       }
 
       // Find user session
       const session = await prisma.userSession.findUnique({
         where: { refreshToken },
-        include: { user: true }
+        include: { user: true },
       });
 
       if (!session || session.isRevoked || session.refreshExpiresAt! < new Date()) {
         return {
           success: false,
-          message: 'Refresh token expired or invalid'
+          message: 'Refresh token expired or invalid',
         };
       }
 
       const user = session.user;
-      
+
       // Check if user is still active
       if (!user.isActive) {
         return {
           success: false,
-          message: 'Account is deactivated'
+          message: 'Account is deactivated',
         };
       }
 
       // Generate new tokens
-      const { token: newToken, refreshToken: newRefreshToken, expiresAt, refreshExpiresAt } = this.generateTokens(user);
+      const {
+        token: newToken,
+        refreshToken: newRefreshToken,
+        expiresAt,
+        refreshExpiresAt,
+      } = this.generateTokens(user);
 
       // Update session with new tokens
       await prisma.userSession.update({
@@ -408,26 +422,25 @@ class AuthService {
           token: newToken,
           refreshToken: newRefreshToken,
           expiresAt,
-          refreshExpiresAt
-        }
+          refreshExpiresAt,
+        },
       });
 
       // Return success response
       const { passwordHash: _, loginAttempts, lockoutUntil, ...userWithoutSensitiveData } = user;
-      
+
       return {
         success: true,
         user: userWithoutSensitiveData,
         token: newToken,
         refreshToken: newRefreshToken,
-        message: 'Token refreshed successfully'
+        message: 'Token refreshed successfully',
       };
-
     } catch (error) {
       console.error('Token refresh error:', error);
       return {
         success: false,
-        message: 'Token refresh failed'
+        message: 'Token refresh failed',
       };
     }
   }
@@ -439,13 +452,13 @@ class AuthService {
     try {
       // Find session to get expiry time for blacklisting
       const session = await prisma.userSession.findUnique({
-        where: { token }
+        where: { token },
       });
 
       // Revoke session
       await prisma.userSession.updateMany({
         where: { token },
-        data: { isRevoked: true }
+        data: { isRevoked: true },
       });
 
       // Blacklist token to prevent reuse
@@ -455,14 +468,13 @@ class AuthService {
 
       return {
         success: true,
-        message: 'Logged out successfully'
+        message: 'Logged out successfully',
       };
-
     } catch (error) {
       console.error('Logout error:', error);
       return {
         success: false,
-        message: 'Logout failed'
+        message: 'Logout failed',
       };
     }
   }
@@ -470,23 +482,25 @@ class AuthService {
   /**
    * Logout from all devices (revoke all sessions for user)
    */
-  async logoutAllDevices(userId: string): Promise<{ success: boolean; message: string; count: number }> {
+  async logoutAllDevices(
+    userId: string
+  ): Promise<{ success: boolean; message: string; count: number }> {
     try {
       // Get all active sessions for token blacklisting
       const sessions = await prisma.userSession.findMany({
         where: {
           userId,
-          isRevoked: false
-        }
+          isRevoked: false,
+        },
       });
 
       // Revoke all sessions
       const result = await prisma.userSession.updateMany({
         where: {
           userId,
-          isRevoked: false
+          isRevoked: false,
         },
-        data: { isRevoked: true }
+        data: { isRevoked: true },
       });
 
       // Blacklist all tokens
@@ -497,15 +511,14 @@ class AuthService {
       return {
         success: true,
         message: `Logged out from ${result.count} device(s) successfully`,
-        count: result.count
+        count: result.count,
       };
-
     } catch (error) {
       console.error('Logout all devices error:', error);
       return {
         success: false,
         message: 'Logout from all devices failed',
-        count: 0
+        count: 0,
       };
     }
   }
@@ -542,7 +555,7 @@ class AuthService {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -552,11 +565,13 @@ class AuthService {
   async getUserByToken(token: string): Promise<User | null> {
     try {
       const payload = this.verifyToken(token);
-      if (!payload) return null;
+      if (!payload) {
+        return null;
+      }
 
       const session = await prisma.userSession.findUnique({
         where: { token },
-        include: { user: true }
+        include: { user: true },
       });
 
       if (!session || session.isRevoked || session.expiresAt < new Date()) {
@@ -576,15 +591,15 @@ class AuthService {
   async cleanupExpiredSessions(): Promise<number> {
     try {
       const cutoffDate = new Date(Date.now() - TIME_CONSTANTS.EXPIRED_SESSION_GRACE_PERIOD_MS);
-      
+
       const result = await prisma.userSession.deleteMany({
         where: {
           OR: [
             { expiresAt: { lt: cutoffDate } },
             { refreshExpiresAt: { lt: cutoffDate } },
-            { isRevoked: true }
-          ]
-        }
+            { isRevoked: true },
+          ],
+        },
       });
 
       if (env.NODE_ENV === 'development' && result.count > 0) {
@@ -604,11 +619,11 @@ class AuthService {
   async revokeAllUserSessions(userId: string): Promise<number> {
     try {
       const result = await prisma.userSession.updateMany({
-        where: { 
+        where: {
           userId,
-          isRevoked: false 
+          isRevoked: false,
         },
-        data: { isRevoked: true }
+        data: { isRevoked: true },
       });
 
       return result.count;
@@ -627,8 +642,8 @@ class AuthService {
         where: {
           userId,
           isRevoked: false,
-          expiresAt: { gt: new Date() }
-        }
+          expiresAt: { gt: new Date() },
+        },
       });
     } catch (error) {
       console.error('Error counting active sessions:', error);
@@ -644,7 +659,7 @@ class AuthService {
       const expiry = expiresAt || new Date(Date.now() + TIME_CONSTANTS.SESSION_DURATION_MS);
       const key = `blacklist:${token}`;
       const ttl = Math.max(0, Math.floor((expiry.getTime() - Date.now()) / 1000));
-      
+
       if (ttl > 0) {
         await this.cacheService.set(key, 'blacklisted', ttl);
       }
@@ -676,17 +691,17 @@ class AuthService {
       const oldestSession = await prisma.userSession.findFirst({
         where: {
           userId,
-          isRevoked: false
+          isRevoked: false,
         },
         orderBy: {
-          createdAt: 'asc'
-        }
+          createdAt: 'asc',
+        },
       });
 
       if (oldestSession) {
         await prisma.userSession.update({
           where: { id: oldestSession.id },
-          data: { isRevoked: true }
+          data: { isRevoked: true },
         });
 
         // Blacklist the token
@@ -707,17 +722,19 @@ class AuthService {
   /**
    * Initiate password reset process
    */
-  async requestPasswordReset(data: PasswordResetData): Promise<{ success: boolean; message: string }> {
+  async requestPasswordReset(
+    data: PasswordResetData
+  ): Promise<{ success: boolean; message: string }> {
     try {
       const user = await prisma.user.findUnique({
-        where: { email: data.email.toLowerCase() }
+        where: { email: data.email.toLowerCase() },
       });
 
       // Always return success to prevent email enumeration
       if (!user) {
         return {
           success: true,
-          message: 'If an account with this email exists, a password reset link has been sent.'
+          message: 'If an account with this email exists, a password reset link has been sent.',
         };
       }
 
@@ -731,22 +748,26 @@ class AuthService {
         where: { id: user.id },
         data: {
           passwordResetToken: tokenHash,
-          passwordResetExpires: expiresAt
-        }
+          passwordResetExpires: expiresAt,
+        },
       });
 
       // Send password reset email
-      await this.emailService.sendPasswordResetEmail(user.email, resetToken, user.firstName || 'User');
+      await this.emailService.sendPasswordResetEmail(
+        user.email,
+        resetToken,
+        user.firstName || 'User'
+      );
 
       return {
         success: true,
-        message: 'If an account with this email exists, a password reset link has been sent.'
+        message: 'If an account with this email exists, a password reset link has been sent.',
       };
     } catch (error) {
       console.error('Password reset request error:', error);
       return {
         success: true, // Always return success for security
-        message: 'If an account with this email exists, a password reset link has been sent.'
+        message: 'If an account with this email exists, a password reset link has been sent.',
       };
     }
   }
@@ -762,7 +783,7 @@ class AuthService {
         return {
           success: false,
           message: API_RESPONSES.ERRORS.WEAK_PASSWORD,
-          errors: passwordValidation.errors
+          errors: passwordValidation.errors,
         };
       }
 
@@ -770,13 +791,16 @@ class AuthService {
       const users = await prisma.user.findMany({
         where: {
           passwordResetToken: { not: null },
-          passwordResetExpires: { gt: new Date() }
-        }
+          passwordResetExpires: { gt: new Date() },
+        },
       });
 
       let validUser = null;
       for (const user of users) {
-        if (user.passwordResetToken && await bcrypt.compare(data.token, user.passwordResetToken)) {
+        if (
+          user.passwordResetToken &&
+          (await bcrypt.compare(data.token, user.passwordResetToken))
+        ) {
           validUser = user;
           break;
         }
@@ -785,13 +809,13 @@ class AuthService {
       if (!validUser) {
         return {
           success: false,
-          message: 'Invalid or expired password reset token'
+          message: 'Invalid or expired password reset token',
         };
       }
 
       // Hash new password and update user
       const newPasswordHash = await this.hashPassword(data.newPassword);
-      
+
       await prisma.user.update({
         where: { id: validUser.id },
         data: {
@@ -800,8 +824,8 @@ class AuthService {
           passwordResetExpires: null,
           // Reset login attempts on password change
           loginAttempts: 0,
-          lockoutUntil: null
-        }
+          lockoutUntil: null,
+        },
       });
 
       // Revoke all existing sessions for security
@@ -809,13 +833,13 @@ class AuthService {
 
       return {
         success: true,
-        message: 'Password reset successful. Please log in with your new password.'
+        message: 'Password reset successful. Please log in with your new password.',
       };
     } catch (error) {
       console.error('Password reset confirmation error:', error);
       return {
         success: false,
-        message: 'Password reset failed. Please try again.'
+        message: 'Password reset failed. Please try again.',
       };
     }
   }
@@ -826,22 +850,25 @@ class AuthService {
   async changePassword(data: ChangePasswordData): Promise<AuthResult> {
     try {
       const user = await prisma.user.findUnique({
-        where: { id: data.userId }
+        where: { id: data.userId },
       });
 
       if (!user) {
         return {
           success: false,
-          message: 'User not found'
+          message: 'User not found',
         };
       }
 
       // Verify current password
-      const isCurrentPasswordValid = await this.comparePassword(data.currentPassword, user.passwordHash);
+      const isCurrentPasswordValid = await this.comparePassword(
+        data.currentPassword,
+        user.passwordHash
+      );
       if (!isCurrentPasswordValid) {
         return {
           success: false,
-          message: 'Current password is incorrect'
+          message: 'Current password is incorrect',
         };
       }
 
@@ -851,7 +878,7 @@ class AuthService {
         return {
           success: false,
           message: API_RESPONSES.ERRORS.WEAK_PASSWORD,
-          errors: passwordValidation.errors
+          errors: passwordValidation.errors,
         };
       }
 
@@ -860,30 +887,30 @@ class AuthService {
       if (isSamePassword) {
         return {
           success: false,
-          message: 'New password must be different from current password'
+          message: 'New password must be different from current password',
         };
       }
 
       // Hash and update new password
       const newPasswordHash = await this.hashPassword(data.newPassword);
-      
+
       await prisma.user.update({
         where: { id: user.id },
         data: {
           passwordHash: newPasswordHash,
-          lastPasswordChange: new Date()
-        }
+          lastPasswordChange: new Date(),
+        },
       });
 
       return {
         success: true,
-        message: API_RESPONSES.SUCCESS.PASSWORD_CHANGED
+        message: API_RESPONSES.SUCCESS.PASSWORD_CHANGED,
       };
     } catch (error) {
       console.error('Change password error:', error);
       return {
         success: false,
-        message: 'Password change failed. Please try again.'
+        message: 'Password change failed. Please try again.',
       };
     }
   }
