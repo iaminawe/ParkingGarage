@@ -3,13 +3,13 @@
  *
  * This controller handles HTTP requests for garage statistics,
  * occupancy reports, revenue analytics, and operational insights.
- * It uses the AnalyticsService for comprehensive data analysis.
+ * It uses the ReportingService for comprehensive data analysis.
  *
  * @module StatsController
  */
 
 import { Request, Response } from 'express';
-const AnalyticsService = require('../services/analyticsService');
+import { ReportingService } from '../services/ReportingService';
 import { StatsResponse, ReportRequest, ApiResponse, HealthCheckResponse } from '../types/api';
 import { GarageStats } from '../types/models';
 
@@ -39,7 +39,7 @@ export class StatsController {
   private analyticsService: any;
 
   constructor() {
-    this.analyticsService = new AnalyticsService();
+    this.reportingService = new ReportingService();
   }
 
   /**
