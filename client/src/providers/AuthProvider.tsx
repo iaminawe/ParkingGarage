@@ -37,9 +37,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
 
+    // Map seeded users to appropriate roles
     let role: User['role'] = 'customer'
-    if (email.includes('admin')) role = 'admin'
-    else if (email.includes('operator') || email.includes('manager')) role = 'operator'
+    if (email.includes('admin') || email === 'user1@example.com') {
+      role = 'admin'
+    } else if (email.includes('operator') || email.includes('manager') || 
+               email === 'user2@example.com' || email === 'user3@example.com') {
+      role = 'operator'
+    }
 
     return {
       id: Math.random().toString(36).substr(2, 9),
