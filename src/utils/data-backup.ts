@@ -144,7 +144,7 @@ export class DataBackupUtility {
       const collections = [
         { name: 'spots', data: Array.from(memoryStore.spots.entries()) },
         { name: 'vehicles', data: Array.from(memoryStore.vehicles.entries()) },
-        { name: 'sessions', data: Array.from(memoryStore.sessions.entries()) },
+        { name: 'sessions', data: [] }, // Memory store doesn't have sessions
         { name: 'garageConfig', data: Array.from(memoryStore.garageConfig.entries()) },
         { name: 'spotsByFloorBay', data: Array.from(memoryStore.spotsByFloorBay.entries()).map(([key, value]) => [key, Array.from(value)]) },
         { name: 'occupiedSpots', data: Array.from(memoryStore.occupiedSpots) }
@@ -329,10 +329,7 @@ export class DataBackupUtility {
           }
           break;
         case 'sessions':
-          memoryStore.sessions.clear();
-          for (const [key, value] of data) {
-            memoryStore.sessions.set(key, value);
-          }
+          // Memory store doesn't have sessions, skipping
           break;
         case 'garageConfig':
           memoryStore.garageConfig.clear();

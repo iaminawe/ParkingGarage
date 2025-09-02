@@ -593,5 +593,96 @@ class SecurityAuditService {
   }
 }
 
-export default new SecurityAuditService();
+const securityAuditServiceInstance = new SecurityAuditService();
+
+/**
+ * Static utility methods for the SecurityAuditService
+ */
+export class SecurityAuditUtils {
+  /**
+   * Simplified static method for quick security event logging
+   */
+  static async logSecurityEvent(event: {
+    event: string;
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    userId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    endpoint?: string;
+    details?: Record<string, any>;
+  }): Promise<void> {
+    try {
+      const auditEvent: SecurityEvent = {
+        userId: event.userId,
+        action: event.event,
+        category: this.mapEventToCategory(event.event),
+        severity: event.severity,
+        description: `Security event: ${event.event}`,
+        ipAddress: event.ipAddress,
+        userAgent: event.userAgent,
+        metadata: {
+          endpoint: event.endpoint,
+          ...event.details
+        }
+      };
+
+      await securityAuditServiceInstance.logSecurityEvent(auditEvent);
+    } catch (error) {
+      console.error('Failed to log security event:', error);
+      // Don't throw - logging failures shouldn't break the application
+    }
+  }
+
+  /**
+   * Map event types to categories
+   */
+  private static mapEventToCategory(eventType: string): SecurityEvent['category'] {
+    if (eventType.includes('AUTH') || eventType.includes('LOGIN')) return 'AUTH';
+    if (eventType.includes('SQL_INJECTION') || eventType.includes('XSS')) return 'SECURITY';
+    if (eventType.includes('RATE_LIMIT')) return 'SYSTEM';
+    if (eventType.includes('DATA')) return 'DATA_ACCESS';
+    return 'SECURITY';
+  }
+
+  /**
+   * Log multiple related security events in batch
+   */
+  static async logSecurityEvents(events: Array<Parameters<typeof SecurityAuditUtils.logSecurityEvent>[0]>): Promise<void> {
+    try {
+      await Promise.all(events.map(event => SecurityAuditUtils.logSecurityEvent(event)));
+    } catch (error) {
+      console.error('Failed to log security events batch:', error);
+    }
+  }
+
+  /**
+   * Create security alert for immediate attention
+   */
+  static async createSecurityAlert(alert: {
+    title: string;
+    description: string;
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    userId?: string;
+    ipAddress?: string;
+    endpoint?: string;
+    evidence?: Record<string, any>;
+  }): Promise<void> {
+    await SecurityAuditUtils.logSecurityEvent({
+      event: `SECURITY_ALERT_${alert.severity}`,
+      severity: alert.severity,
+      userId: alert.userId,
+      ipAddress: alert.ipAddress,
+      endpoint: alert.endpoint,
+      details: {
+        title: alert.title,
+        description: alert.description,
+        evidence: alert.evidence,
+        timestamp: new Date().toISOString(),
+        requiresInvestigation: alert.severity === 'HIGH' || alert.severity === 'CRITICAL'
+      }
+    });
+  }
+}
+
+export default securityAuditServiceInstance;
 export { SecurityAuditService };

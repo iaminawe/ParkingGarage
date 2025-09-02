@@ -48,12 +48,12 @@ export interface SessionAnalytics {
 }
 
 export class SessionsService {
-  private sessionsRepository: SessionsRepository;
+  private sessionsRepository: SessionRepository;
   private vehicleRepository: VehicleRepository;
   private spotRepository: SpotRepository;
 
   constructor() {
-    this.sessionsRepository = new SessionsRepository();
+    this.sessionsRepository = new SessionRepository();
     this.vehicleRepository = new VehicleRepository();
     this.spotRepository = new SpotRepository();
   }
@@ -419,7 +419,7 @@ export class SessionsService {
       // Combine headers and rows
       const csvContent = [headers, ...rows]
         .map(row => row.map(field => `"${field}"`).join(','))
-        .join('\n');
+        .join('\\n');
 
       return csvContent;
     } catch (error) {

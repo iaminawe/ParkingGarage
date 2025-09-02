@@ -32,7 +32,9 @@ tags:
   - name: Statistics
     description: Analytics and statistics
   - name: Health
-    description: Health check endpoints
+    description: Health check and monitoring endpoints
+  - name: Monitoring
+    description: Application performance and metrics endpoints
 
 paths:
   /garage:
@@ -1039,8 +1041,8 @@ paths:
     get:
       tags:
         - Health
-      summary: API health check
-      description: Check if the API server is running
+      summary: Basic health check
+      description: Check if the API server is running and healthy
       operationId: healthCheck
       responses:
         '200':
@@ -1049,6 +1051,112 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: API is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnhealthyResponse'
+
+  /health/detailed:
+    get:
+      tags:
+        - Health
+      summary: Detailed health check
+      description: Get comprehensive health information including system metrics and dependency status
+      operationId: detailedHealthCheck
+      responses:
+        '200':
+          description: Detailed health information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedHealthResponse'
+        '503':
+          description: System unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnhealthyResponse'
+
+  /health/ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness probe
+      description: Check if the application is ready to receive traffic (for Kubernetes readiness probe)
+      operationId: readinessCheck
+      responses:
+        '200':
+          description: Application is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: Application not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+
+  /health/live:
+    get:
+      tags:
+        - Health
+      summary: Liveness probe
+      description: Check if the application is alive (for Kubernetes liveness probe)
+      operationId: livenessCheck
+      responses:
+        '200':
+          description: Application is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LivenessResponse'
+        '503':
+          description: Application should be restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LivenessResponse'
+
+  /health/metrics:
+    get:
+      tags:
+        - Monitoring
+      summary: Application metrics
+      description: Get application metrics in Prometheus format for scraping
+      operationId: getMetrics
+      produces:
+        - text/plain
+      responses:
+        '200':
+          description: Metrics retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Metrics in Prometheus format
+        '500':
+          description: Error retrieving metrics
+
+  /health/debug:
+    get:
+      tags:
+        - Monitoring
+      summary: Debug information
+      description: Get debug information (development only)
+      operationId: getDebugInfo
+      responses:
+        '200':
+          description: Debug information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DebugResponse'
+        '404':
+          description: Debug endpoint not available in production
 
 components:
   schemas:
@@ -2006,13 +2114,19 @@ components:
 
     HealthResponse:
       type: object
+      required:
+        - status
+        - timestamp
+        - uptime
       properties:
         status:
           type: string
-          enum: [healthy, unhealthy]
+          enum: [healthy, degraded, unhealthy]
+          description: Overall health status
         timestamp:
           type: string
           format: date-time
+          description: Timestamp of health check
         uptime:
           type: number
           description: Server uptime in seconds
@@ -2022,6 +2136,237 @@ components:
         version:
           type: string
           description: API version
+        duration:
+          type: number
+          description: Health check duration in milliseconds
+
+    UnhealthyResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - error
+      properties:
+        status:
+          type: string
+          enum: [unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        error:
+          type: string
+          description: Error message
+        duration:
+          type: number
+          description: Health check duration in milliseconds
+
+    DetailedHealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - checks
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          description: Server uptime in seconds
+        version:
+          type: string
+        environment:
+          type: string
+        duration:
+          type: number
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Check name
+              status:
+                type: string
+                enum: [healthy, degraded, unhealthy]
+              message:
+                type: string
+                description: Check result message
+              duration:
+                type: number
+                description: Check duration in milliseconds
+              metadata:
+                type: object
+                description: Additional check metadata
+        system:
+          type: object
+          properties:
+            memory:
+              type: object
+              properties:
+                used:
+                  type: number
+                  description: Used memory in MB
+                total:
+                  type: number
+                  description: Total memory in MB
+                external:
+                  type: number
+                  description: External memory in MB
+                rss:
+                  type: number
+                  description: RSS memory in MB
+            cpu:
+              type: object
+              properties:
+                user:
+                  type: number
+                  description: User CPU time in microseconds
+                system:
+                  type: number
+                  description: System CPU time in microseconds
+            loadAverage:
+              type: array
+              items:
+                type: number
+              description: System load average
+            platform:
+              type: object
+              properties:
+                node:
+                  type: string
+                  description: Node.js version
+                platform:
+                  type: string
+                  description: Operating system platform
+                arch:
+                  type: string
+                  description: CPU architecture
+        configuration:
+          type: object
+          properties:
+            logLevel:
+              type: string
+            metricsEnabled:
+              type: boolean
+            sentryEnabled:
+              type: boolean
+
+    ReadinessResponse:
+      type: object
+      required:
+        - ready
+        - timestamp
+      properties:
+        ready:
+          type: boolean
+          description: Whether application is ready for traffic
+        timestamp:
+          type: string
+          format: date-time
+        duration:
+          type: number
+          description: Check duration in milliseconds
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+                enum: [healthy, degraded, unhealthy]
+              message:
+                type: string
+              duration:
+                type: number
+
+    LivenessResponse:
+      type: object
+      required:
+        - alive
+        - timestamp
+      properties:
+        alive:
+          type: boolean
+          description: Whether application is alive
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: number
+          description: Server uptime in seconds
+        duration:
+          type: number
+          description: Check duration in milliseconds
+        memory:
+          type: object
+          properties:
+            used:
+              type: number
+              description: Used memory in MB
+            total:
+              type: number
+              description: Total memory in MB
+            percent:
+              type: number
+              description: Memory usage percentage
+
+    DebugResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        environment:
+          type: string
+        configuration:
+          type: object
+          description: Non-sensitive configuration values
+        metrics:
+          type: object
+          properties:
+            total:
+              type: number
+              description: Total metrics count
+            recent:
+              type: array
+              items:
+                type: object
+              description: Recent metric entries
+        process:
+          type: object
+          properties:
+            pid:
+              type: number
+            version:
+              type: string
+            platform:
+              type: string
+            arch:
+              type: string
+            uptime:
+              type: number
+            memoryUsage:
+              type: object
+            cpuUsage:
+              type: object
+        request:
+          type: object
+          properties:
+            correlationId:
+              type: string
+            method:
+              type: string
+            url:
+              type: string
+            headers:
+              type: object
 
   securitySchemes:
     ApiKeyAuth:

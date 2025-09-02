@@ -34,6 +34,7 @@ export interface PerformanceAlert {
   type: 'SLOW_REQUEST' | 'HIGH_ERROR_RATE' | 'MEMORY_LEAK' | 'DB_SLOW' | 'CACHE_MISS_HIGH';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   message: string;
+  name: string;
   metrics: any;
   timestamp: number;
 }
@@ -396,8 +397,7 @@ export class PerformanceMonitor {
 
     // Log errors
     if (metrics.statusCode >= 400) {
-      logger.error('Request error', {
-        requestId: metrics.requestId,
+      logger.error(`Request error: ${metrics.method} ${metrics.path} - Status: ${metrics.statusCode}, Response Time: ${responseTime}ms`, undefined, {
         method: metrics.method,
         path: metrics.path,
         statusCode: metrics.statusCode,
@@ -452,6 +452,7 @@ export class PerformanceMonitor {
       type,
       severity,
       message,
+      name: `PerformanceAlert_${type}`,
       metrics,
       timestamp: Date.now()
     };
@@ -465,9 +466,21 @@ export class PerformanceMonitor {
 
     // Log critical alerts
     if (severity === 'CRITICAL') {
-      logger.error('Performance alert', alert);
+      logger.error(`Performance alert - ${alert.type}: ${alert.message}`, undefined, {
+        type: alert.type,
+        severity: alert.severity,
+        message: alert.message,
+        metrics: alert.metrics,
+        timestamp: alert.timestamp
+      });
     } else if (severity === 'HIGH') {
-      logger.warn('Performance alert', alert);
+      logger.warn(`Performance alert - ${alert.type}: ${alert.message}`, {
+        type: alert.type,
+        severity: alert.severity,
+        message: alert.message,
+        metrics: alert.metrics,
+        timestamp: alert.timestamp
+      });
     }
   }
 

@@ -9,25 +9,18 @@
  * @module Repositories
  */
 
-<<<<<<< HEAD
-// Import and export individual repository classes
-import { VehicleRepository } from './VehicleRepository';
-import { SpotRepository } from './SpotRepository';
-import { SessionRepository } from './SessionRepository';
-import { GarageRepository } from './garageRepository';
-
-export { VehicleRepository, SpotRepository, SessionRepository, GarageRepository };
-=======
 // Modern Prisma-based repositories
 export { VehicleRepository } from './VehicleRepository';
 export { SpotRepository } from './SpotRepository';
 export { SessionRepository } from './SessionRepository';
 export { TicketRepository } from './TicketRepository';
 export { PaymentRepository } from './PaymentRepository';
+export { UserRepository } from './UserRepository';
+export { TransactionRepository } from './TransactionRepository';
+export { ReservationRepository } from './ReservationRepository';
 
 // Legacy exports for backward compatibility
 export { SessionRepository as SessionsRepository } from './SessionRepository';
->>>>>>> origin/main
 
 // Database service
 export { DatabaseService } from '../services/DatabaseService';
@@ -39,6 +32,9 @@ import { SpotRepository } from './SpotRepository';
 import { SessionRepository } from './SessionRepository';
 import { TicketRepository } from './TicketRepository';
 import { PaymentRepository } from './PaymentRepository';
+import { UserRepository } from './UserRepository';
+import { TransactionRepository } from './TransactionRepository';
+import { ReservationRepository } from './ReservationRepository';
 
 /**
  * Repository factory for creating repository instances with shared database service
@@ -53,6 +49,9 @@ export class RepositoryFactory {
   private sessionRepo?: SessionRepository;
   private ticketRepo?: TicketRepository;
   private paymentRepo?: PaymentRepository;
+  private userRepo?: UserRepository;
+  private transactionRepo?: TransactionRepository;
+  private reservationRepo?: ReservationRepository;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -122,6 +121,36 @@ export class RepositoryFactory {
   }
 
   /**
+   * Get UserRepository instance
+   */
+  getUserRepository(): UserRepository {
+    if (!this.userRepo) {
+      this.userRepo = new UserRepository(this.databaseService);
+    }
+    return this.userRepo;
+  }
+
+  /**
+   * Get TransactionRepository instance
+   */
+  getTransactionRepository(): TransactionRepository {
+    if (!this.transactionRepo) {
+      this.transactionRepo = new TransactionRepository(this.databaseService);
+    }
+    return this.transactionRepo;
+  }
+
+  /**
+   * Get ReservationRepository instance
+   */
+  getReservationRepository(): ReservationRepository {
+    if (!this.reservationRepo) {
+      this.reservationRepo = new ReservationRepository(this.databaseService);
+    }
+    return this.reservationRepo;
+  }
+
+  /**
    * Get database service instance
    */
   getDatabaseService(): DatabaseService {
@@ -143,12 +172,11 @@ export interface IRepositories {
   vehicleRepository: VehicleRepository;
   spotRepository: SpotRepository;
   sessionRepository: SessionRepository;
-<<<<<<< HEAD
-  garageRepository: GarageRepository;
-=======
   ticketRepository: TicketRepository;
   paymentRepository: PaymentRepository;
->>>>>>> origin/main
+  userRepository: UserRepository;
+  transactionRepository: TransactionRepository;
+  reservationRepository: ReservationRepository;
 }
 
 /**
@@ -160,18 +188,14 @@ export function createRepositories(databaseService?: DatabaseService): IReposito
   const factory = RepositoryFactory.getInstance(databaseService);
   
   return {
-<<<<<<< HEAD
-    vehicleRepository: new VehicleRepository(),
-    spotRepository: new SpotRepository(),
-    sessionRepository: new SessionRepository(),
-    garageRepository: new GarageRepository()
-=======
     vehicleRepository: factory.getVehicleRepository(),
     spotRepository: factory.getSpotRepository(),
     sessionRepository: factory.getSessionRepository(),
     ticketRepository: factory.getTicketRepository(),
-    paymentRepository: factory.getPaymentRepository()
->>>>>>> origin/main
+    paymentRepository: factory.getPaymentRepository(),
+    userRepository: factory.getUserRepository(),
+    transactionRepository: factory.getTransactionRepository(),
+    reservationRepository: factory.getReservationRepository()
   };
 }
 
@@ -234,3 +258,24 @@ export type {
   PaymentSearchCriteria,
   PaymentStats
 } from './PaymentRepository';
+
+export type {
+  CreateUserData,
+  UpdateUserData,
+  UserSearchCriteria,
+  UserStats
+} from './UserRepository';
+
+export type {
+  CreateTransactionData,
+  UpdateTransactionData,
+  TransactionSearchCriteria,
+  TransactionStats
+} from './TransactionRepository';
+
+export type {
+  ReservationData,
+  CreateReservationData,
+  ReservationSearchCriteria,
+  ReservationStats
+} from './ReservationRepository';

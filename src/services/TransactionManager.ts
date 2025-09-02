@@ -11,7 +11,7 @@
  * @module TransactionManager
  */
 
-import { PrismaClient, Prisma } from '../generated/prisma';
+import { PrismaClient, Prisma } from '@prisma/client';
 import {
   ITransactionManager,
   ITransactionContext,

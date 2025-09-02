@@ -1,692 +1,614 @@
-# Deployment Guide
+# Production Deployment Guide
 
 ## Overview
 
-This guide covers deployment procedures for the Parking Garage Management System across development, staging, and production environments using Docker, Kubernetes, and CI/CD pipelines.
-
-## Deployment Environments
-
-### Development
-- **URL**: http://localhost:3000
-- **Purpose**: Local development and testing
-- **Deploy**: Manual or hot-reload
-- **Database**: Local PostgreSQL
-
-### Staging
-- **URL**: https://staging.parkinggarage.com
-- **Purpose**: Pre-production testing
-- **Deploy**: Automatic on develop branch
-- **Database**: Staging RDS instance
-
-### Production
-- **URL**: https://api.parkinggarage.com
-- **Purpose**: Live system
-- **Deploy**: Manual approval required
-- **Database**: Production RDS with read replicas
+This guide provides comprehensive instructions for deploying the Parking Garage Management System to production environments. The system includes automated deployment scripts, database setup, monitoring, and maintenance procedures.
 
 ## Prerequisites
 
-### Required Tools
-- Docker 20+
-- Kubernetes 1.25+
-- kubectl
-- Helm 3+
-- AWS CLI (for AWS deployment)
-- Terraform (for infrastructure)
+### System Requirements
 
-### Access Requirements
-- GitHub repository access
-- Docker Hub account
-- Cloud provider account (AWS/GCP/Azure)
-- Domain name and SSL certificates
+**Minimum Production Requirements:**
+- **OS**: Ubuntu 20.04+ / CentOS 8+ / Amazon Linux 2
+- **CPU**: 2 cores, 2.4GHz
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 20GB available space (10GB for system, 10GB for database growth)
+- **Network**: Stable internet connection, ports 80/443 available
 
-## Docker Deployment
+**Software Dependencies:**
+- **Node.js**: v18.0.0 or higher
+- **npm**: v8.0.0 or higher
+- **Git**: Latest stable version
+- **PM2**: Process manager (installed via npm)
+- **Nginx**: Reverse proxy (optional but recommended)
+- **Certbot**: SSL certificates (for HTTPS)
 
-### Building Docker Images
+### Pre-deployment Checklist
+
+- [ ] Server meets minimum requirements
+- [ ] Domain name configured (optional)
+- [ ] SSL certificate available (recommended)
+- [ ] Firewall rules configured
+- [ ] Backup storage available
+- [ ] Monitoring tools configured
+
+## Automated Deployment
+
+### Quick Deployment (Recommended)
+
+```bash
+# 1. Clone repository
+git clone https://github.com/your-org/ParkingGarage.git
+cd ParkingGarage
+
+# 2. Run automated deployment
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+The automated script will:
+- Install dependencies
+- Configure environment
+- Initialize database
+- Start services
+- Setup monitoring
+- Configure backup procedures
+
+### Manual Deployment
+
+#### Step 1: Environment Setup
+
+```bash
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 18
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install PM2 globally
+sudo npm install -g pm2
+
+# Install Nginx (optional)
+sudo apt install nginx -y
+
+# Create application user
+sudo useradd -m -s /bin/bash parkinggarage
+sudo usermod -aG sudo parkinggarage
+```
+
+#### Step 2: Application Setup
+
+```bash
+# Switch to application user
+sudo su - parkinggarage
+
+# Clone repository
+git clone https://github.com/your-org/ParkingGarage.git
+cd ParkingGarage
+
+# Install dependencies
+npm ci --production
+
+# Create data directories
+mkdir -p data logs backups
+
+# Set permissions
+chmod 755 data logs backups
+```
+
+#### Step 3: Database Configuration
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit environment variables
+nano .env
+
+# Initialize database
+npx prisma generate
+npx prisma db push
+npx prisma db seed
+
+# Verify database setup
+node scripts/health-check.js database
+```
+
+#### Step 4: Production Environment
+
+Create `/home/parkinggarage/ParkingGarage/.env`:
+
+```bash
+# Server Configuration
+NODE_ENV=production
+PORT=3000
+HOST=0.0.0.0
+
+# Database Configuration
+DATABASE_URL="file:/home/parkinggarage/ParkingGarage/data/parkinggarage.db"
+
+# CORS Configuration
+ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+
+# Security
+JWT_SECRET=your-super-secure-jwt-secret-minimum-32-characters
+JWT_EXPIRES_IN=7d
+
+# Logging
+LOG_LEVEL=info
+LOG_FILE=logs/app.log
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Email Configuration (optional)
+EMAIL_FROM=noreply@yourdomain.com
+SENDGRID_API_KEY=your-sendgrid-api-key
+
+# Monitoring
+HEALTH_CHECK_INTERVAL=30000
+ENABLE_METRICS=true
+METRICS_PORT=9090
+```
+
+#### Step 5: Process Management
+
+```bash
+# Create PM2 ecosystem file
+cat > ecosystem.config.js << EOF
+module.exports = {
+  apps: [{
+    name: 'parkinggarage',
+    script: 'dist/src/server.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    error_file: 'logs/err.log',
+    out_file: 'logs/out.log',
+    log_file: 'logs/combined.log',
+    time: true,
+    max_memory_restart: '1G',
+    restart_delay: 1000,
+    max_restarts: 10,
+    min_uptime: '10s'
+  }]
+}
+EOF
+
+# Build application
+npm run build
+
+# Start with PM2
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+```
+
+#### Step 6: Reverse Proxy (Nginx)
+
+Create `/etc/nginx/sites-available/parkinggarage`:
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/json;
+
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+    limit_req zone=api burst=20 nodelay;
+
+    # API proxy
+    location /api/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+
+    # Health check endpoint
+    location /health {
+        proxy_pass http://localhost:3000;
+        access_log off;
+        proxy_read_timeout 5s;
+        proxy_connect_timeout 5s;
+    }
+
+    # Static files (if serving frontend)
+    location / {
+        try_files $uri $uri/ @fallback;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location @fallback {
+        proxy_pass http://localhost:3000;
+    }
+
+    # Security
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Logging
+    access_log /var/log/nginx/parkinggarage.access.log;
+    error_log /var/log/nginx/parkinggarage.error.log;
+}
+```
+
+Enable the site:
+```bash
+sudo ln -s /etc/nginx/sites-available/parkinggarage /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+#### Step 7: SSL Certificate (HTTPS)
+
+```bash
+# Install Certbot
+sudo apt install certbot python3-certbot-nginx -y
+
+# Obtain SSL certificate
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+
+# Auto-renewal
+sudo crontab -e
+# Add: 0 12 * * * /usr/bin/certbot renew --quiet
+```
+
+## Monitoring and Health Checks
+
+### Automated Health Monitoring
+
+Create `scripts/health-check.sh`:
+
+```bash
+#!/bin/bash
+
+# Configuration
+APP_URL="http://localhost:3000"
+HEALTH_ENDPOINT="/health"
+LOG_FILE="/home/parkinggarage/ParkingGarage/logs/health.log"
+ALERT_EMAIL="admin@yourdomain.com"
+MAX_RESPONSE_TIME=5 # seconds
+
+# Functions
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a $LOG_FILE
+}
+
+send_alert() {
+    local subject="$1"
+    local message="$2"
+    echo "$message" | mail -s "$subject" $ALERT_EMAIL 2>/dev/null || true
+}
+
+# Health checks
+check_api_health() {
+    local response_time
+    local http_status
+    
+    response_time=$(curl -w "%{time_total}" -s -o /dev/null $APP_URL$HEALTH_ENDPOINT --max-time $MAX_RESPONSE_TIME || echo "timeout")
+    http_status=$(curl -s -o /dev/null -w "%{http_code}" $APP_URL$HEALTH_ENDPOINT --max-time $MAX_RESPONSE_TIME || echo "000")
+    
+    if [ "$http_status" = "200" ] && [ "$response_time" != "timeout" ]; then
+        log "✅ API Health: OK (${response_time}s)"
+        return 0
+    else
+        log "❌ API Health: FAILED (HTTP: $http_status, Time: ${response_time}s)"
+        send_alert "API Health Check Failed" "HTTP Status: $http_status\nResponse Time: ${response_time}s"
+        return 1
+    fi
+}
+
+check_database_health() {
+    local db_path="/var/lib/parkinggarage/parkinggarage.db"
+    
+    if [ -f "$db_path" ] && sqlite3 "$db_path" "PRAGMA integrity_check;" | grep -q "ok"; then
+        log "✅ Database Health: OK"
+        return 0
+    else
+        log "❌ Database Health: FAILED"
+        send_alert "Database Health Check Failed" "Database integrity check failed or file missing"
+        return 1
+    fi
+}
+
+# Main health check execution
+main() {
+    log "Starting health check..."
+    
+    local checks_passed=0
+    local total_checks=2
+    
+    check_api_health && ((checks_passed++))
+    check_database_health && ((checks_passed++))
+    
+    log "Health check completed: $checks_passed/$total_checks checks passed"
+    
+    if [ $checks_passed -eq $total_checks ]; then
+        exit 0
+    else
+        exit 1
+    fi
+}
+
+# Run health check
+main
+```
+
+## Backup and Recovery
+
+### Automated Backup System
+
+Create `scripts/backup.sh`:
+
+```bash
+#!/bin/bash
+
+set -e
+
+# Configuration
+BACKUP_DIR="/var/backups/parkinggarage"
+SOURCE_DB="/var/lib/parkinggarage/parkinggarage.db"
+RETENTION_DAYS=30
+
+# Create backup directory
+mkdir -p $BACKUP_DIR
+
+# Generate backup filename
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_FILE="$BACKUP_DIR/parkinggarage_$TIMESTAMP.db"
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# Create database backup
+log "Creating database backup..."
+if [ -f "$SOURCE_DB" ]; then
+    cp "$SOURCE_DB" "$BACKUP_FILE"
+    
+    # Verify backup integrity
+    if sqlite3 "$BACKUP_FILE" "PRAGMA integrity_check;" | grep -q "ok"; then
+        log "✅ Backup created successfully: $(basename $BACKUP_FILE)"
+        
+        # Compress backup
+        gzip "$BACKUP_FILE"
+        BACKUP_FILE="$BACKUP_FILE.gz"
+        log "Backup compressed: $(basename $BACKUP_FILE)"
+        
+    else
+        log "❌ Backup integrity check failed"
+        rm -f "$BACKUP_FILE"
+        exit 1
+    fi
+else
+    log "❌ Source database not found: $SOURCE_DB"
+    exit 1
+fi
+
+# Cleanup old backups
+log "Cleaning up old backups..."
+find $BACKUP_DIR -name "parkinggarage_*.db.gz" -mtime +$RETENTION_DAYS -delete
+OLD_COUNT=$(find $BACKUP_DIR -name "parkinggarage_*.db.gz" -mtime +$RETENTION_DAYS | wc -l)
+if [ $OLD_COUNT -gt 0 ]; then
+    log "Removed $OLD_COUNT old backup(s)"
+fi
+
+# Backup summary
+TOTAL_BACKUPS=$(ls -1 $BACKUP_DIR/parkinggarage_*.db.gz 2>/dev/null | wc -l)
+BACKUP_SIZE=$(du -sh $BACKUP_DIR 2>/dev/null | cut -f1)
+log "Backup completed. Total backups: $TOTAL_BACKUPS, Total size: $BACKUP_SIZE"
+```
+
+## Container Deployment (Docker)
+
+### Docker Configuration
+
+Create `Dockerfile`:
 
 ```dockerfile
-# Dockerfile
+# Multi-stage build for production optimization
 FROM node:18-alpine AS builder
 
+# Set working directory
 WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
-RUN npm ci --only=production
 
-FROM node:18-alpine
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci --include=dev
 
-WORKDIR /app
-COPY --from=builder /app/node_modules ./node_modules
+# Copy source code
 COPY . .
 
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build application
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create app user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S parkinggarage -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production --ignore-scripts
+
+# Copy built application
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Copy other necessary files
+COPY --chown=parkinggarage:nodejs scripts ./scripts
+COPY --chown=parkinggarage:nodejs .env.example ./
+
+# Create data directory
+RUN mkdir -p data logs && \
+    chown -R parkinggarage:nodejs data logs
+
+# Set proper permissions
+RUN chmod +x scripts/*.sh
+
+# Switch to non-root user
+USER parkinggarage
+
+# Expose port
 EXPOSE 3000
-USER node
 
-CMD ["node", "src/index.js"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node scripts/health-check.js || exit 1
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start application
+CMD ["node", "dist/src/server.js"]
 ```
-
-### Build Commands
-```bash
-# Build image
-docker build -t parkinggarage/api:latest .
-
-# Tag for versioning
-docker tag parkinggarage/api:latest parkinggarage/api:v1.0.0
-
-# Push to registry
-docker push parkinggarage/api:v1.0.0
-```
-
-### Docker Compose (Development)
-```yaml
-# docker-compose.yml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:14
-    environment:
-      POSTGRES_DB: parking_garage
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:6-alpine
-    ports:
-      - "6379:6379"
-
-  api:
-    build: .
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres:5432/parking_garage
-      REDIS_URL: redis://redis:6379
-    ports:
-      - "3000:3000"
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - .:/app
-      - /app/node_modules
-
-volumes:
-  postgres_data:
-```
-
-## Kubernetes Deployment
-
-### Namespace Configuration
-```yaml
-# k8s/namespace.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: parking-garage
-```
-
-### Deployment Configuration
-```yaml
-# k8s/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: parking-api
-  namespace: parking-garage
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: parking-api
-  template:
-    metadata:
-      labels:
-        app: parking-api
-    spec:
-      containers:
-      - name: api
-        image: parkinggarage/api:v1.0.0
-        ports:
-        - containerPort: 3000
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: parking-secrets
-              key: database-url
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: parking-secrets
-              key: redis-url
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-```
-
-### Service Configuration
-```yaml
-# k8s/service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: parking-api-service
-  namespace: parking-garage
-spec:
-  selector:
-    app: parking-api
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 3000
-  type: LoadBalancer
-```
-
-### Ingress Configuration
-```yaml
-# k8s/ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: parking-api-ingress
-  namespace: parking-garage
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  tls:
-  - hosts:
-    - api.parkinggarage.com
-    secretName: parking-api-tls
-  rules:
-  - host: api.parkinggarage.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: parking-api-service
-            port:
-              number: 80
-```
-
-### Secrets Management
-```yaml
-# k8s/secrets.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: parking-secrets
-  namespace: parking-garage
-type: Opaque
-stringData:
-  database-url: "postgresql://user:pass@host:5432/db"
-  redis-url: "redis://redis:6379"
-  jwt-secret: "your-jwt-secret"
-  stripe-key: "sk_live_..."
-```
-
-### Helm Chart
-```yaml
-# helm/values.yaml
-replicaCount: 3
-
-image:
-  repository: parkinggarage/api
-  tag: v1.0.0
-  pullPolicy: IfNotPresent
-
-service:
-  type: LoadBalancer
-  port: 80
-
-ingress:
-  enabled: true
-  host: api.parkinggarage.com
-  tls:
-    enabled: true
-
-resources:
-  limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 250m
-    memory: 256Mi
-
-autoscaling:
-  enabled: true
-  minReplicas: 3
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70
-
-postgresql:
-  enabled: true
-  auth:
-    database: parking_garage
-    username: postgres
-
-redis:
-  enabled: true
-  auth:
-    enabled: false
-```
-
-### Deployment Commands
-```bash
-# Apply configurations
-kubectl apply -f k8s/
-
-# Deploy with Helm
-helm install parking-garage ./helm
-
-# Update deployment
-kubectl set image deployment/parking-api api=parkinggarage/api:v1.0.1 -n parking-garage
-
-# Scale deployment
-kubectl scale deployment parking-api --replicas=5 -n parking-garage
-
-# Check status
-kubectl get pods -n parking-garage
-kubectl get services -n parking-garage
-```
-
-## CI/CD Pipeline
-
-### GitHub Actions Workflow
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy to Production
-
-on:
-  push:
-    tags:
-      - 'v*'
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run tests
-        run: |
-          npm ci
-          npm run test
-          npm run test:integration
-
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      
-      - name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          push: true
-          tags: |
-            parkinggarage/api:latest
-            parkinggarage/api:${{ github.ref_name }}
-          cache-from: type=registry,ref=parkinggarage/api:buildcache
-          cache-to: type=registry,ref=parkinggarage/api:buildcache,mode=max
-
-  deploy-staging:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - name: Deploy to Staging
-        uses: azure/k8s-deploy@v4
-        with:
-          namespace: parking-garage-staging
-          manifests: |
-            k8s/deployment.yaml
-            k8s/service.yaml
-          images: |
-            parkinggarage/api:${{ github.ref_name }}
-
-  deploy-production:
-    needs: deploy-staging
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Deploy to Production
-        uses: azure/k8s-deploy@v4
-        with:
-          namespace: parking-garage
-          manifests: |
-            k8s/deployment.yaml
-            k8s/service.yaml
-          images: |
-            parkinggarage/api:${{ github.ref_name }}
-      
-      - name: Verify Deployment
-        run: |
-          kubectl rollout status deployment/parking-api -n parking-garage
-          kubectl get pods -n parking-garage
-```
-
-## Infrastructure as Code
-
-### Terraform Configuration
-```hcl
-# terraform/main.tf
-provider "aws" {
-  region = var.aws_region
-}
-
-# VPC
-module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
-  
-  name = "parking-garage-vpc"
-  cidr = "10.0.0.0/16"
-  
-  azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
-  private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
-  
-  enable_nat_gateway = true
-  enable_vpn_gateway = true
-}
-
-# EKS Cluster
-module "eks" {
-  source = "terraform-aws-modules/eks/aws"
-  
-  cluster_name    = "parking-garage-cluster"
-  cluster_version = "1.27"
-  
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
-  
-  node_groups = {
-    main = {
-      desired_capacity = 3
-      max_capacity     = 10
-      min_capacity     = 3
-      
-      instance_types = ["t3.medium"]
-    }
-  }
-}
-
-# RDS Database
-resource "aws_db_instance" "postgres" {
-  identifier = "parking-garage-db"
-  
-  engine         = "postgres"
-  engine_version = "14.9"
-  instance_class = "db.r6g.large"
-  
-  allocated_storage     = 100
-  max_allocated_storage = 1000
-  storage_encrypted     = true
-  
-  db_name  = "parking_garage"
-  username = var.db_username
-  password = var.db_password
-  
-  vpc_security_group_ids = [aws_security_group.rds.id]
-  db_subnet_group_name   = aws_db_subnet_group.main.name
-  
-  backup_retention_period = 30
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "sun:04:00-sun:05:00"
-  
-  multi_az               = true
-  deletion_protection    = true
-  skip_final_snapshot    = false
-}
-
-# ElastiCache Redis
-resource "aws_elasticache_cluster" "redis" {
-  cluster_id           = "parking-garage-cache"
-  engine              = "redis"
-  node_type           = "cache.r6g.large"
-  num_cache_nodes     = 1
-  parameter_group_name = "default.redis7"
-  engine_version      = "7.0"
-  port                = 6379
-}
-```
-
-## Deployment Procedures
-
-### Pre-Deployment Checklist
-- [ ] All tests passing
-- [ ] Code reviewed and approved
-- [ ] Database migrations ready
-- [ ] Environment variables configured
-- [ ] Secrets updated
-- [ ] Monitoring alerts configured
-- [ ] Rollback plan prepared
-
-### Deployment Steps
-
-#### 1. Database Migration
-```bash
-# Run migrations
-kubectl exec -it deploy/parking-api -n parking-garage -- npm run db:migrate
-
-# Verify migration
-kubectl exec -it deploy/parking-api -n parking-garage -- npm run db:status
-```
-
-#### 2. Deploy Application
-```bash
-# Deploy new version
-kubectl set image deployment/parking-api api=parkinggarage/api:v1.0.1 -n parking-garage
-
-# Monitor rollout
-kubectl rollout status deployment/parking-api -n parking-garage
-
-# Verify pods
-kubectl get pods -n parking-garage
-```
-
-#### 3. Health Checks
-```bash
-# Check application health
-curl https://api.parkinggarage.com/health
-
-# Check metrics
-curl https://api.parkinggarage.com/metrics
-
-# Run smoke tests
-npm run test:smoke
-```
-
-### Rollback Procedure
-```bash
-# Immediate rollback
-kubectl rollout undo deployment/parking-api -n parking-garage
-
-# Rollback to specific revision
-kubectl rollout undo deployment/parking-api --to-revision=2 -n parking-garage
-
-# Verify rollback
-kubectl rollout status deployment/parking-api -n parking-garage
-```
-
-## Monitoring & Alerts
-
-### Prometheus Configuration
-```yaml
-# prometheus/values.yaml
-serverFiles:
-  prometheus.yml:
-    scrape_configs:
-      - job_name: parking-api
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - parking-garage
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            action: keep
-            regex: parking-api
-```
-
-### Grafana Dashboards
-- Application metrics
-- Database performance
-- API response times
-- Error rates
-- Business metrics
-
-### Alert Rules
-```yaml
-# alerts/rules.yaml
-groups:
-  - name: parking-api
-    rules:
-      - alert: HighErrorRate
-        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
-        for: 5m
-        annotations:
-          summary: High error rate detected
-          
-      - alert: HighResponseTime
-        expr: http_request_duration_seconds{quantile="0.95"} > 1
-        for: 10m
-        annotations:
-          summary: High response time detected
-```
-
-## Security Considerations
-
-### SSL/TLS Configuration
-- Use Let's Encrypt for certificates
-- Enable HTTPS redirect
-- Configure HSTS headers
-- Implement certificate pinning
-
-### Network Security
-- Configure security groups
-- Implement network policies
-- Use private subnets
-- Enable VPC flow logs
-
-### Secrets Management
-- Use Kubernetes secrets
-- Rotate secrets regularly
-- Use external secret managers (AWS Secrets Manager)
-- Audit secret access
-
-## Performance Optimization
-
-### CDN Configuration
-```yaml
-# cloudfront.yaml
-Distribution:
-  Enabled: true
-  Origins:
-    - DomainName: api.parkinggarage.com
-      Id: API
-      CustomOriginConfig:
-        HTTPPort: 80
-        HTTPSPort: 443
-        OriginProtocolPolicy: https-only
-  DefaultCacheBehavior:
-    TargetOriginId: API
-    ViewerProtocolPolicy: redirect-to-https
-    CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
-```
-
-### Database Optimization
-- Configure connection pooling
-- Set up read replicas
-- Implement query caching
-- Regular vacuum and analyze
 
 ## Troubleshooting
 
-### Common Issues
+### Common Deployment Issues
 
-#### Pods Not Starting
+#### 1. Permission Errors
 ```bash
-# Check pod events
-kubectl describe pod <pod-name> -n parking-garage
-
-# Check logs
-kubectl logs <pod-name> -n parking-garage
-
-# Check resource limits
-kubectl top pods -n parking-garage
+# Fix file permissions
+sudo chown -R parkinggarage:parkinggarage /home/parkinggarage/ParkingGarage
+sudo chmod +x /home/parkinggarage/ParkingGarage/scripts/*.sh
 ```
 
-#### Database Connection Issues
+#### 2. Database Connection Issues
 ```bash
-# Test connection from pod
-kubectl exec -it <pod-name> -n parking-garage -- psql $DATABASE_URL
+# Check database file
+ls -la data/parkinggarage.db
 
-# Check secrets
-kubectl get secret parking-secrets -n parking-garage -o yaml
+# Test database connection
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+prisma.\$queryRaw\`SELECT 1\`.then(() => console.log('✅ Database connected')).catch(e => console.error('❌ Database error:', e));
+"
 ```
 
-#### High Memory Usage
+#### 3. Port Already in Use
 ```bash
-# Check memory usage
-kubectl top pods -n parking-garage
+# Check what's using port 3000
+sudo lsof -i :3000
 
-# Increase limits if needed
-kubectl edit deployment parking-api -n parking-garage
+# Kill process if needed
+sudo kill -9 <PID>
 ```
 
-## Disaster Recovery
-
-### Backup Procedures
+#### 4. PM2 Issues
 ```bash
-# Database backup
-pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
+# Reset PM2
+pm2 kill
+pm2 start ecosystem.config.js
 
-# Upload to S3
-aws s3 cp backup_$(date +%Y%m%d).sql s3://parking-garage-backups/
+# Check PM2 status
+pm2 status
+pm2 logs parkinggarage
 ```
 
-### Recovery Procedures
-```bash
-# Restore database
-psql $DATABASE_URL < backup_20250831.sql
+### Log Analysis
 
-# Restore application
-kubectl apply -f k8s/
+```bash
+# Application logs
+pm2 logs parkinggarage
+
+# Nginx logs
+sudo tail -f /var/log/nginx/parkinggarage.error.log
+
+# System logs
+journalctl -u nginx -f
+
+# Database logs
+tail -f logs/database.log
 ```
 
----
+## Security Checklist
 
-*For development setup, see [Development Guide](Development-Guide.md)*
-*For contribution guidelines, see [Contributing](Contributing.md)*
+- [ ] Firewall configured (UFW or iptables)
+- [ ] SSH key authentication only
+- [ ] Regular security updates scheduled
+- [ ] Application running as non-root user
+- [ ] Database files have proper permissions
+- [ ] SSL certificate configured and auto-renewing
+- [ ] Rate limiting configured
+- [ ] Security headers configured in Nginx
+- [ ] Backup files encrypted (if stored remotely)
+- [ ] Log rotation configured
+- [ ] Monitoring and alerting set up
+
+## Maintenance Procedures
+
+### Daily Tasks (Automated)
+- Health checks every 5 minutes
+- Log rotation
+- Backup creation
+
+### Weekly Tasks
+- Security updates
+- Certificate renewal check
+- Performance review
+- Log analysis
+
+### Monthly Tasks
+- Full system backup
+- Capacity planning review
+- Security audit
+- Performance optimization
+
+This deployment guide provides a comprehensive foundation for production deployment with automated scripts, monitoring, backup procedures, and troubleshooting guidance.
+
+## Related Documentation
+
+- **[Database Schema](Database-Schema.md)** - Database setup and configuration
+- **[Performance](Performance-Load-Testing.md)** - Performance optimization for production
+- **[Migration Guide](Migration-Guide.md)** - Data migration procedures
+- **[Quick Start](Quick-Start.md)** - Getting started with development setup

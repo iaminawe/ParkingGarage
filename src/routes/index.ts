@@ -28,6 +28,10 @@ router.get('/', (req: Request, res: Response): void => {
         vehicles: '/api/vehicles',
         sessions: '/api/sessions',
         stats: '/api/stats',
+        users: '/api/users',
+        reservations: '/api/reservations',
+        payments: '/api/payments',
+        transactions: '/api/transactions',
         documentation: '/api-docs'
       },
       timestamp: new Date().toISOString()
@@ -47,8 +51,18 @@ import checkoutRoutes from './checkout';
 import vehiclesRoutes from './vehicles';
 import statsRoutes from './stats';
 import sessionsRoutes from './sessions';
+import healthRoutes from './health';
 
-// Mount authentication routes first
+// New API route modules
+import usersRoutes from './users';
+import reservationsRoutes from './reservations';
+import paymentsRoutes from './payments';
+import transactionsRoutes from './transactions';
+
+// Mount health check routes first (no auth required)
+router.use('/health', healthRoutes);
+
+// Mount authentication routes
 router.use('/auth', authRoutes);
 
 // Mount other route modules
@@ -60,9 +74,10 @@ router.use('/vehicles', vehiclesRoutes);
 router.use('/sessions', sessionsRoutes);
 router.use('/stats', statsRoutes);
 
-// Placeholder for future route modules
-// router.use('/users', require('./users'));
-// router.use('/reservations', require('./reservations'));
-// router.use('/payments', require('./payments'));
+// Mount new API route modules
+router.use('/users', usersRoutes);
+router.use('/reservations', reservationsRoutes);
+router.use('/payments', paymentsRoutes);
+router.use('/transactions', transactionsRoutes);
 
 export default router;

@@ -7,11 +7,7 @@
  * @module BaseAdapter
  */
 
-<<<<<<< HEAD
 import { Prisma } from '@prisma/client';
-=======
-import { Prisma } from '../../generated/prisma';
->>>>>>> origin/main
 
 /**
  * Pagination options for queries
@@ -35,6 +31,8 @@ export interface SortOptions {
 export interface QueryOptions extends PaginationOptions, SortOptions {
   include?: Record<string, boolean | Record<string, unknown>>;
   select?: Record<string, boolean>;
+  distinct?: string[];
+  where?: Record<string, unknown>;
 }
 
 /**

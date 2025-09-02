@@ -9,6 +9,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import { ParsedQs } from 'qs';
 import { isValidLicensePlate } from '../../utils/validators';
 import { VehicleType, RateType } from '../../types/models';
 import { ExtendedVehicleData } from '../../models/Vehicle';
@@ -23,7 +24,7 @@ interface VehicleUpdateBody extends Partial<Omit<ExtendedVehicleData, 'licensePl
   // Update body excludes immutable fields
 }
 
-interface VehicleQueryParams {
+interface VehicleQueryParams extends ParsedQs {
   search?: string;
   vehicleType?: VehicleType;
   status?: string;
@@ -33,9 +34,9 @@ interface VehicleQueryParams {
   sortOrder?: 'asc' | 'desc';
 }
 
-interface TypedRequest<T = any> extends Request {
-  body: T;
-  query: T;
+interface TypedRequest<TBody = any, TQuery extends ParsedQs = ParsedQs> extends Request {
+  body: TBody;
+  query: TQuery;
 }
 
 /**
@@ -301,7 +302,7 @@ export const validateVehicleId = (req: Request, res: Response, next: NextFunctio
  * Validate vehicle query parameters for listing/searching
  */
 export const validateVehicleQuery = (
-  req: TypedRequest<VehicleQueryParams>, 
+  req: TypedRequest<any, VehicleQueryParams>, 
   res: Response, 
   next: NextFunction
 ): void => {
@@ -421,10 +422,11 @@ export const sanitizeVehicleRequest = (
   }
 
   // Sanitize string fields
-  const stringFields = ['make', 'model', 'color', 'ownerName', 'ownerId', 'ownerEmail', 'ownerPhone', 'notes'];
+  const stringFields: Array<keyof VehicleRequestBody> = ['make', 'model', 'color', 'ownerName', 'ownerId', 'ownerEmail', 'ownerPhone', 'notes'];
   stringFields.forEach(field => {
-    if (body[field as keyof typeof body] && typeof body[field as keyof typeof body] === 'string') {
-      body[field as keyof typeof body] = (body[field as keyof typeof body] as string).trim();
+    if (body[field] && typeof body[field] === 'string') {
+      // Type assertion is safe here since we checked the type above
+      (body as any)[field] = (body[field] as string).trim();
     }
   });
 

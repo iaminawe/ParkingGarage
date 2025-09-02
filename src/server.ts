@@ -1,31 +1,21 @@
-import { Server } from 'http';
 import app from './app';
-import { DatabaseService } from './services/DatabaseService';
+import { Server } from 'http';
+
+// Use require for seedData as it may not be fully TypeScript migrated yet
 const seedData = require('./utils/seedData');
 
 const PORT: number = parseInt(process.env.PORT || '3000', 10);
 const HOST: string = process.env.HOST || '0.0.0.0';
 
-// Initialize database and seed data before starting server
+/**
+ * Initialize seed data and start server
+ * @returns Promise<Server> The HTTP server instance
+ */
 async function startServer(): Promise<Server> {
   try {
-    // Initialize database service
-    console.log('🔌 Initializing database connection...');
-    const databaseService = DatabaseService.getInstance({
-      connectionTimeout: 10000,
-      queryTimeout: 30000,
-      enableLogging: process.env.NODE_ENV !== 'production',
-      logLevel: 'error'
-    });
-    
-    await databaseService.initialize();
-    console.log('✅ Database connection established');
-
     // Initialize seed data in development/test environments
     if (process.env.NODE_ENV !== 'production') {
-      console.log('🌱 Loading seed data...');
       await seedData.initialize();
-      console.log('✅ Seed data loaded');
     }
 
     // Start server
@@ -66,40 +56,27 @@ startServer().then((s: Server) => {
   });
 });
 
-// Graceful shutdown handler
-const gracefulShutdown = async (signal: string): Promise<void> => {
+/**
+ * Graceful shutdown handler
+ * @param signal The signal that triggered the shutdown
+ */
+const gracefulShutdown = (signal: string): void => {
   console.log(`\nReceived ${signal}. Shutting down gracefully...`);
 
-  try {
-    // Shutdown database service first
-    const databaseService = DatabaseService.getInstance();
-    if (databaseService.isConnected()) {
-      console.log('🔌 Closing database connections...');
-      await databaseService.shutdown();
-      console.log('✅ Database connections closed');
-    }
-
-    // Then close HTTP server
-    if (server) {
-      server.close(() => {
-        console.log('✅ HTTP server closed');
-        console.log('👋 Graceful shutdown complete');
-        process.exit(0);
-      });
-    } else {
-      console.log('👋 Graceful shutdown complete');
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed.');
       process.exit(0);
-    }
-
-    // Force shutdown after 15 seconds
-    setTimeout(() => {
-      console.error('❌ Could not close connections in time, forcefully shutting down');
-      process.exit(1);
-    }, 15000);
-  } catch (error) {
-    console.error('❌ Error during graceful shutdown:', error);
-    process.exit(1);
+    });
+  } else {
+    process.exit(0);
   }
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    console.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
 };
 
 // Handle process termination
@@ -112,7 +89,7 @@ process.on('uncaughtException', (error: Error) => {
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+process.on('unhandledRejection', (reason: unknown, promise: Promise<any>) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });

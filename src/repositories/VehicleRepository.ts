@@ -1,130 +1,16 @@
 /**
-<<<<<<< HEAD
- * Vehicle repository for data access operations using Prisma ORM
- * 
- * This module provides data access methods for vehicle records
- * using the repository pattern with Prisma integration. It handles 
- * vehicle CRUD operations, search functionality, and maintains data consistency.
-=======
  * Vehicle repository for data access operations using Prisma
  * 
  * This module provides data access methods for vehicle records
  * using the PrismaAdapter pattern. It handles vehicle CRUD operations,
  * search functionality, and maintains data consistency.
->>>>>>> origin/main
  * 
  * @module VehicleRepository
  */
 
-<<<<<<< HEAD
-import { PrismaClient, Vehicle, Prisma } from '@prisma/client';
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
-import { DatabaseService } from '../services/DatabaseService';
-import { VehicleData, VehicleStatus, VehicleType, RateType } from '../types/models';
-
-// Type definitions for Vehicle operations
-interface VehicleCreateData {
-  licensePlate: string;
-  vehicleType?: string;
-  rateType?: string;
-  spotId?: string;
-  ownerId?: string;
-  ownerName?: string;
-  ownerEmail?: string;
-  ownerPhone?: string;
-  make?: string;
-  model?: string;
-  year?: number;
-  color?: string;
-  notes?: string;
-}
-
-interface VehicleUpdateData {
-  vehicleType?: string;
-  rateType?: string;
-  spotId?: string;
-  ownerId?: string;
-  ownerName?: string;
-  ownerEmail?: string;
-  ownerPhone?: string;
-  make?: string;
-  model?: string;
-  year?: number;
-  color?: string;
-  isPaid?: boolean;
-  amountPaid?: number;
-  notes?: string;
-}
-
-interface VehicleSearchCriteria {
-  licensePlate?: string;
-  vehicleType?: string;
-  spotId?: string;
-  ownerId?: string;
-  ownerName?: string;
-  ownerEmail?: string;
-  make?: string;
-  model?: string;
-  color?: string;
-  isPaid?: boolean;
-  dateFrom?: Date;
-  dateTo?: Date;
-}
-
-/**
- * Repository for managing vehicle records with Prisma ORM
- */
-export class VehicleRepository extends PrismaAdapter<Vehicle, VehicleCreateData, VehicleUpdateData> {
-  protected model: PrismaClient['vehicle'];
-  protected readonly modelName = 'vehicle';
-  protected readonly delegate: PrismaClient['vehicle'];
-
-  constructor(databaseService?: DatabaseService) {
-    const dbService = databaseService || DatabaseService.getInstance();
-    const prisma = dbService.getPrismaClient();
-    super(prisma);
-    this.model = prisma.vehicle;
-    this.delegate = prisma.vehicle;
-  }
-
-  /**
-   * Create a new vehicle record
-   * @param vehicleData - Vehicle data to create
-   * @returns Created vehicle instance
-   * @throws Error if vehicle already exists or data is invalid
-   */
-  async create(vehicleData: VehicleCreateData): Promise<Vehicle> {
-    // Normalize license plate to uppercase
-    const normalizedData = {
-      ...vehicleData,
-      licensePlate: vehicleData.licensePlate.toUpperCase(),
-      vehicleType: vehicleData.vehicleType || 'STANDARD',
-      rateType: vehicleData.rateType || 'HOURLY'
-    };
-
-    try {
-      return await this.model.create({
-        data: normalizedData as Prisma.VehicleCreateInput,
-        include: {
-          spot: true,
-          owner: true,
-          sessions: {
-            orderBy: { startTime: 'desc' },
-            take: 5
-          }
-        }
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new Error(`Vehicle with license plate ${normalizedData.licensePlate} already exists`);
-        }
-      }
-      throw error;
-    }
-=======
-import { PrismaAdapter } from '../adapters/PrismaAdapter';
-import { Vehicle, Prisma, VehicleType, VehicleStatus } from '../generated/prisma';
+import { Vehicle, Prisma, VehicleType, VehicleStatus } from '@prisma/client';
+import type { VehicleUpdateData } from '../adapters/VehicleAdapter';
 import type { 
   QueryOptions,
   PaginatedResult,
@@ -208,30 +94,10 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
     
     super(prismaClient, logger || createLogger('VehicleRepository'));
     this.delegate = prismaClient.vehicle;
->>>>>>> origin/main
   }
 
   /**
    * Find vehicle by license plate
-<<<<<<< HEAD
-   * @param licensePlate - License plate to search for
-   * @returns Vehicle if found, null otherwise
-   */
-  async findByLicensePlate(licensePlate: string): Promise<Vehicle | null> {
-    return await this.model.findUnique({
-      where: { 
-        licensePlate: licensePlate.toUpperCase()
-      },
-      include: {
-        spot: true,
-        owner: true,
-        sessions: {
-          orderBy: { startTime: 'desc' },
-          take: 5
-        }
-      }
-    });
-=======
    * @param licensePlate - License plate to find
    * @param options - Query options
    * @param tx - Optional transaction client
@@ -285,138 +151,11 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
     options?: QueryOptions
   ): Promise<Vehicle[]> {
     return this.findMany({ vehicleType }, options);
->>>>>>> origin/main
   }
 
   /**
    * Find vehicles by owner
    * @param ownerId - Owner ID to search for
-<<<<<<< HEAD
-   * @returns Array of vehicles owned by the user
-   */
-  async findByOwner(ownerId: string): Promise<Vehicle[]> {
-    return await this.model.findMany({
-      where: { ownerId },
-      include: {
-        spot: true,
-        owner: true,
-        sessions: {
-          orderBy: { startTime: 'desc' },
-          take: 3
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
-  /**
-   * Find vehicles by spot
-   * @param spotId - Spot ID to search for
-   * @returns Array of vehicles in the specified spot
-   */
-  async findBySpot(spotId: string): Promise<Vehicle[]> {
-    return await this.model.findMany({
-      where: { spotId },
-      include: {
-        spot: true,
-        owner: true,
-        sessions: {
-          orderBy: { startTime: 'desc' },
-          take: 3
-        }
-      },
-      orderBy: { checkInTime: 'desc' }
-    });
-  }
-
-  /**
-   * Search vehicles with flexible criteria
-   * @param criteria - Search criteria
-   * @returns Array of matching vehicles
-   */
-  async search(criteria: VehicleSearchCriteria): Promise<Vehicle[]> {
-    const whereClause: Prisma.VehicleWhereInput = {};
-
-    if (criteria.licensePlate) {
-      whereClause.licensePlate = {
-        contains: criteria.licensePlate.toUpperCase()
-      };
-    }
-
-    if (criteria.vehicleType) {
-      whereClause.vehicleType = criteria.vehicleType;
-    }
-
-    if (criteria.spotId) {
-      whereClause.spotId = criteria.spotId;
-    }
-
-    if (criteria.ownerId) {
-      whereClause.ownerId = criteria.ownerId;
-    }
-
-    if (criteria.ownerName) {
-      whereClause.ownerName = {
-        contains: criteria.ownerName,
-        mode: 'insensitive'
-      };
-    }
-
-    if (criteria.ownerEmail) {
-      whereClause.ownerEmail = {
-        contains: criteria.ownerEmail,
-        mode: 'insensitive'
-      };
-    }
-
-    if (criteria.make) {
-      whereClause.make = {
-        contains: criteria.make,
-        mode: 'insensitive'
-      };
-    }
-
-    if (criteria.model) {
-      whereClause.model = {
-        contains: criteria.model,
-        mode: 'insensitive'
-      };
-    }
-
-    if (criteria.color) {
-      whereClause.color = {
-        contains: criteria.color,
-        mode: 'insensitive'
-      };
-    }
-
-    if (criteria.isPaid !== undefined) {
-      whereClause.isPaid = criteria.isPaid;
-    }
-
-    if (criteria.dateFrom || criteria.dateTo) {
-      whereClause.checkInTime = {};
-      if (criteria.dateFrom) {
-        whereClause.checkInTime.gte = criteria.dateFrom;
-      }
-      if (criteria.dateTo) {
-        whereClause.checkInTime.lte = criteria.dateTo;
-      }
-    }
-
-    return await this.model.findMany({
-      where: whereClause,
-      include: {
-        spot: true,
-        owner: true,
-        sessions: {
-          orderBy: { startTime: 'desc' },
-          take: 3
-        }
-      },
-      orderBy: { checkInTime: 'desc' }
-    });
-=======
    * @param options - Query options
    * @returns Array of vehicles belonging to the owner
    */
@@ -428,8 +167,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
       const result = await this.delegate.findMany({
         where: {
           ownerName: {
-            contains: ownerName,
-            mode: 'insensitive'
+            contains: ownerName
           },
           deletedAt: null
         },
@@ -464,15 +202,13 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
 
       if (make) {
         whereClause.make = {
-          contains: make,
-          mode: 'insensitive'
+          contains: make
         };
       }
 
       if (model) {
         whereClause.model = {
-          contains: model,
-          mode: 'insensitive'
+          contains: model
         };
       }
 
@@ -509,8 +245,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
       // License plate search
       if (criteria.licensePlate) {
         whereClause.licensePlate = {
-          contains: criteria.licensePlate.toUpperCase(),
-          mode: 'insensitive'
+          contains: criteria.licensePlate.toUpperCase()
         };
       }
 
@@ -526,36 +261,31 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
       // Text searches
       if (criteria.make) {
         whereClause.make = {
-          contains: criteria.make,
-          mode: 'insensitive'
+          contains: criteria.make
         };
       }
 
       if (criteria.model) {
         whereClause.model = {
-          contains: criteria.model,
-          mode: 'insensitive'
+          contains: criteria.model
         };
       }
 
       if (criteria.color) {
         whereClause.color = {
-          contains: criteria.color,
-          mode: 'insensitive'
+          contains: criteria.color
         };
       }
 
       if (criteria.ownerName) {
         whereClause.ownerName = {
-          contains: criteria.ownerName,
-          mode: 'insensitive'
+          contains: criteria.ownerName
         };
       }
 
       if (criteria.ownerEmail) {
         whereClause.ownerEmail = {
-          contains: criteria.ownerEmail,
-          mode: 'insensitive'
+          contains: criteria.ownerEmail
         };
       }
 
@@ -692,7 +422,7 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
         averageSessionDuration: revenueAndDuration[0]?.avgDuration || 0
       };
 
-      this.logger.debug('Vehicle statistics calculated', stats);
+      this.logger.debug('Vehicle statistics calculated', stats as any);
       
       return stats;
     }, 'get vehicle statistics');
@@ -835,141 +565,220 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
     
     // Otherwise, use standard ID lookup
     return super.findById(licensePlate, options);
->>>>>>> origin/main
   }
 
   /**
-   * Update vehicle information
+   * Update vehicle by license plate
    * @param licensePlate - License plate of vehicle to update
    * @param updateData - Data to update
    * @returns Updated vehicle
    */
-  async update(licensePlate: string, updateData: VehicleUpdateData): Promise<Vehicle> {
-    return await this.model.update({
-      where: { 
-        licensePlate: licensePlate.toUpperCase()
-      },
-      data: updateData as Prisma.VehicleUpdateInput,
-      include: {
-        spot: true,
-        owner: true,
-        sessions: {
-          orderBy: { startTime: 'desc' },
-          take: 5
+  async updateByLicensePlate(licensePlate: string, updateData: VehicleUpdateData): Promise<Vehicle> {
+    return this.executeWithRetry(async () => {
+      const result = await this.delegate.update({
+        where: { 
+          licensePlate: licensePlate.toUpperCase()
+        },
+        data: updateData as Prisma.VehicleUpdateInput,
+        include: {
+          currentSpot: true,
+          sessions: {
+            orderBy: { createdAt: 'desc' },
+            take: 5
+          }
         }
-      }
-    });
+      });
+      
+      this.logger.info('Updated vehicle by license plate', {
+        licensePlate,
+        id: result.id
+      });
+      
+      return result;
+    }, `update vehicle by license plate: ${licensePlate}`);
   }
 
   /**
-   * Delete vehicle record
+   * Delete vehicle record by license plate
    * @param licensePlate - License plate of vehicle to delete
    * @returns Deleted vehicle
    */
-  async delete(licensePlate: string): Promise<Vehicle> {
-    return await this.model.delete({
-      where: { 
-        licensePlate: licensePlate.toUpperCase()
-      },
-      include: {
-        spot: true,
-        owner: true,
-        sessions: true
-      }
-    });
+  async deleteByLicensePlate(licensePlate: string): Promise<Vehicle> {
+    return this.executeWithRetry(async () => {
+      const result = await this.delegate.delete({
+        where: { 
+          licensePlate: licensePlate.toUpperCase()
+        },
+        include: {
+          currentSpot: true,
+          sessions: true
+        }
+      });
+      
+      this.logger.info('Deleted vehicle by license plate', {
+        licensePlate,
+        id: result.id
+      });
+      
+      return result;
+    }, `delete vehicle by license plate: ${licensePlate}`);
   }
 
   /**
-   * Get all vehicles with pagination
+   * Find multiple vehicles with optional filtering
+   * Overrides base class method with proper signature
+   */
+  async findMany(
+    filter?: Record<string, unknown>,
+    options?: QueryOptions,
+    tx?: Prisma.TransactionClient
+  ): Promise<Vehicle[]> {
+    return this.executeWithRetry(async () => {
+      const delegate = tx ? (tx as any)[this.modelName] : this.delegate;
+      const where = {
+        ...filter,
+        deletedAt: null // Exclude soft-deleted records
+      };
+      const result = await delegate.findMany({
+        where,
+        ...this.buildQueryOptions(options)
+      });
+      
+      this.logger.debug(`Found ${this.modelName} records`, {
+        count: result.length,
+        filter,
+        model: this.modelName
+      });
+      
+      return result as Vehicle[];
+    }, `find many ${this.modelName}`);
+  }
+
+  /**
+   * Get all vehicles with pagination and includes
    * @param skip - Number of records to skip
    * @param take - Number of records to take
    * @returns Array of vehicles
    */
-  async findMany(skip: number = 0, take: number = 50): Promise<Vehicle[]> {
-    return await this.model.findMany({
-      skip,
-      take,
-      include: {
-        spot: true,
-        owner: true,
-        sessions: {
-          orderBy: { startTime: 'desc' },
-          take: 3
-        }
-      },
-      orderBy: { checkInTime: 'desc' }
-    });
+  async findManyWithIncludes(skip: number = 0, take: number = 50): Promise<Vehicle[]> {
+    return this.executeWithRetry(async () => {
+      const result = await this.delegate.findMany({
+        skip,
+        take,
+        where: {
+          deletedAt: null
+        },
+        include: {
+          currentSpot: true,
+          sessions: {
+            orderBy: { createdAt: 'desc' },
+            take: 3
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      this.logger.debug('Found vehicles with includes', {
+        skip,
+        take,
+        count: result.length
+      });
+      
+      return result;
+    }, 'find vehicles with includes');
   }
 
   /**
-   * Count total vehicles
+   * Count total vehicles with criteria
    * @param criteria - Optional search criteria
    * @returns Total count
    */
-  async count(criteria?: VehicleSearchCriteria): Promise<number> {
-    const whereClause = criteria ? this.buildWhereClause(criteria) : {};
-    return await this.model.count({ where: whereClause });
+  async countByCriteria(criteria?: VehicleSearchCriteria): Promise<number> {
+    return this.executeWithRetry(async () => {
+      const whereClause = criteria ? this.buildWhereClause(criteria) : { deletedAt: null };
+      const count = await this.delegate.count({ where: whereClause });
+      
+      this.logger.debug('Counted vehicles by criteria', {
+        criteria,
+        count
+      });
+      
+      return count;
+    }, 'count vehicles by criteria');
   }
 
   /**
-   * Check if vehicle exists
+   * Check if vehicle exists by license plate
    * @param licensePlate - License plate to check
    * @returns True if vehicle exists
    */
-  async exists(licensePlate: string): Promise<boolean> {
-    const count = await this.model.count({
-      where: { 
-        licensePlate: licensePlate.toUpperCase()
-      }
-    });
-    return count > 0;
+  async existsByLicensePlate(licensePlate: string): Promise<boolean> {
+    return this.executeWithRetry(async () => {
+      const count = await this.delegate.count({
+        where: { 
+          licensePlate: licensePlate.toUpperCase(),
+          deletedAt: null
+        }
+      });
+      
+      const exists = count > 0;
+      this.logger.debug('Checked vehicle existence by license plate', {
+        licensePlate,
+        exists
+      });
+      
+      return exists;
+    }, `check vehicle existence: ${licensePlate}`);
   }
 
   /**
-   * Get vehicle statistics
-   * @returns Vehicle statistics
+   * Get detailed vehicle statistics
+   * @returns Detailed vehicle statistics
    */
-  async getStatistics(): Promise<{
+  async getDetailedStatistics(): Promise<{
     totalVehicles: number;
     byType: Record<string, number>;
-    byRateType: Record<string, number>;
-    paidVehicles: number;
-    unpaidVehicles: number;
+    byStatus: Record<string, number>;
   }> {
-    const [totalVehicles, byType, byRateType, paidCount, unpaidCount] = await Promise.all([
-      this.model.count(),
-      this.model.groupBy({
-        by: ['vehicleType'],
-        _count: true
-      }),
-      this.model.groupBy({
-        by: ['rateType'],
-        _count: true
-      }),
-      this.model.count({ where: { isPaid: true } }),
-      this.model.count({ where: { isPaid: false } })
-    ]);
+    return this.executeWithRetry(async () => {
+      const [totalVehicles, byType, byStatus] = await Promise.all([
+        this.delegate.count({ where: { deletedAt: null } }),
+        this.delegate.groupBy({
+          by: ['vehicleType'],
+          _count: true,
+          where: { deletedAt: null }
+        }),
+        this.delegate.groupBy({
+          by: ['status'],
+          _count: true,
+          where: { deletedAt: null }
+        })
+      ]);
 
-    return {
-      totalVehicles,
-      byType: byType.reduce((acc, item) => {
-        acc[item.vehicleType] = item._count;
-        return acc;
-      }, {} as Record<string, number>),
-      byRateType: byRateType.reduce((acc, item) => {
-        acc[item.rateType] = item._count;
-        return acc;
-      }, {} as Record<string, number>),
-      paidVehicles: paidCount,
-      unpaidVehicles: unpaidCount
-    };
+      const result = {
+        totalVehicles,
+        byType: byType.reduce((acc, item) => {
+          acc[item.vehicleType] = item._count;
+          return acc;
+        }, {} as Record<string, number>),
+        byStatus: byStatus.reduce((acc, item) => {
+          acc[item.status] = item._count;
+          return acc;
+        }, {} as Record<string, number>)
+      };
+      
+      this.logger.debug('Retrieved detailed vehicle statistics', result);
+      return result;
+    }, 'get detailed vehicle statistics');
   }
 
   /**
    * Build where clause from search criteria
    */
   private buildWhereClause(criteria: VehicleSearchCriteria): Prisma.VehicleWhereInput {
-    const whereClause: Prisma.VehicleWhereInput = {};
+    const whereClause: Prisma.VehicleWhereInput = {
+      deletedAt: null // Always exclude soft-deleted records
+    };
 
     if (criteria.licensePlate) {
       whereClause.licensePlate = { contains: criteria.licensePlate.toUpperCase() };
@@ -977,37 +786,31 @@ export class VehicleRepository extends PrismaAdapter<Vehicle, CreateVehicleData,
     if (criteria.vehicleType) {
       whereClause.vehicleType = criteria.vehicleType;
     }
-    if (criteria.spotId) {
-      whereClause.spotId = criteria.spotId;
-    }
-    if (criteria.ownerId) {
-      whereClause.ownerId = criteria.ownerId;
+    if (criteria.status) {
+      whereClause.status = criteria.status;
     }
     if (criteria.ownerName) {
-      whereClause.ownerName = { contains: criteria.ownerName, mode: 'insensitive' };
+      whereClause.ownerName = { contains: criteria.ownerName };
     }
     if (criteria.ownerEmail) {
-      whereClause.ownerEmail = { contains: criteria.ownerEmail, mode: 'insensitive' };
+      whereClause.ownerEmail = { contains: criteria.ownerEmail };
     }
     if (criteria.make) {
-      whereClause.make = { contains: criteria.make, mode: 'insensitive' };
+      whereClause.make = { contains: criteria.make };
     }
     if (criteria.model) {
-      whereClause.model = { contains: criteria.model, mode: 'insensitive' };
+      whereClause.model = { contains: criteria.model };
     }
     if (criteria.color) {
-      whereClause.color = { contains: criteria.color, mode: 'insensitive' };
+      whereClause.color = { contains: criteria.color };
     }
-    if (criteria.isPaid !== undefined) {
-      whereClause.isPaid = criteria.isPaid;
-    }
-    if (criteria.dateFrom || criteria.dateTo) {
-      whereClause.checkInTime = {};
-      if (criteria.dateFrom) {
-        whereClause.checkInTime.gte = criteria.dateFrom;
+    if (criteria.yearFrom || criteria.yearTo) {
+      whereClause.year = {};
+      if (criteria.yearFrom) {
+        whereClause.year.gte = criteria.yearFrom;
       }
-      if (criteria.dateTo) {
-        whereClause.checkInTime.lte = criteria.dateTo;
+      if (criteria.yearTo) {
+        whereClause.year.lte = criteria.yearTo;
       }
     }
 

@@ -392,7 +392,7 @@ export class Vehicle {
     if (obj.checkOutTime) vehicle.checkOutTime = obj.checkOutTime;
     if (obj.totalAmount) vehicle.totalAmount = obj.totalAmount;
     if (obj.isPaid) vehicle.isPaid = obj.isPaid;
-    if (obj.createdAt) vehicle.createdAt = obj.createdAt;
+    if (obj.createdAt) Object.defineProperty(vehicle, 'createdAt', { value: obj.createdAt, writable: false });
     if (obj.updatedAt) vehicle.updatedAt = obj.updatedAt;
     return vehicle;
   }

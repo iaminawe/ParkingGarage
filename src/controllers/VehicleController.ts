@@ -11,7 +11,7 @@
 import { Request, Response } from 'express';
 import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SearchService } from '../services/searchService';
-import { Vehicle } from '@prisma/client';
+import { Vehicle, VehicleType, RateType } from '@prisma/client';
 import { 
   ApiResponse,
   PaginatedApiResponse 
@@ -19,7 +19,6 @@ import {
 import { 
   VehicleRecord, 
   VehicleType as LegacyVehicleType, 
-  RateType,
   VehicleStatus 
 } from '../types/models';
 
@@ -218,7 +217,7 @@ export class VehicleController {
         licensePlate: vehicleData.licensePlate!,
         spotId: 'temp', // Will be assigned during check-in
         vehicleType: this.mapFrontendVehicleTypeToEnum(vehicleData.type || 'car'),
-        rateType: 'HOURLY',
+        rateType: RateType.HOURLY,
         make: vehicleData.make,
         model: vehicleData.model,
         color: vehicleData.color,
@@ -545,15 +544,15 @@ export class VehicleController {
   /**
    * Helper method to map frontend vehicle type to backend VehicleType
    */
-  private mapFrontendVehicleTypeToEnum(frontendType: 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'): string {
-    const typeMap: Record<string, string> = {
-      'car': 'STANDARD',
-      'motorcycle': 'COMPACT',
-      'truck': 'OVERSIZED',
-      'van': 'OVERSIZED',
-      'bus': 'OVERSIZED'
+  private mapFrontendVehicleTypeToEnum(frontendType: 'car' | 'motorcycle' | 'truck' | 'van' | 'bus'): VehicleType {
+    const typeMap: Record<string, VehicleType> = {
+      'car': VehicleType.STANDARD,
+      'motorcycle': VehicleType.COMPACT,
+      'truck': VehicleType.OVERSIZED,
+      'van': VehicleType.OVERSIZED,
+      'bus': VehicleType.OVERSIZED
     };
-    return typeMap[frontendType] || 'STANDARD';
+    return typeMap[frontendType] || VehicleType.STANDARD;
   }
 }
 

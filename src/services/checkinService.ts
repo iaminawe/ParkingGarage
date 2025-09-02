@@ -10,7 +10,7 @@
 
 import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SpotRepository } from '../repositories/spotRepository';
-import { SessionsRepository } from '../repositories/sessionsRepository';
+import { SessionRepository } from '../repositories/SessionRepository';
 const SpotAssignmentService = require('./spotAssignmentService');
 
 interface CheckinOptions {
@@ -37,13 +37,13 @@ interface CheckinResult {
 export class CheckinService {
   private vehicleRepository: VehicleRepository;
   private spotRepository: SpotRepository;
-  private sessionsRepository: SessionsRepository;
+  private sessionsRepository: SessionRepository;
   private spotAssignmentService: any;
 
   constructor() {
     this.vehicleRepository = new VehicleRepository();
     this.spotRepository = new SpotRepository();
-    this.sessionsRepository = new SessionsRepository();
+    this.sessionsRepository = new SessionRepository();
     this.spotAssignmentService = new SpotAssignmentService();
   }
 

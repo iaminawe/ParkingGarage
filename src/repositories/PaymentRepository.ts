@@ -9,7 +9,7 @@
  */
 
 import { PrismaAdapter } from '../adapters/PrismaAdapter';
-import { Payment, Prisma, PaymentType, PaymentMethod, PaymentStatus } from '../generated/prisma';
+import { Payment, Prisma, PaymentType, PaymentMethod, PaymentStatus } from '@prisma/client';
 import type { 
   QueryOptions,
   PaginatedResult,
@@ -361,15 +361,9 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
     options?: QueryOptions
   ): Promise<Payment[]> {
     return this.executeWithRetry(async () => {
-      const whereClause: Prisma.PaymentWhereInput = {
-        deletedAt: null
-      };
+      const whereClause: Prisma.PaymentWhereInput = {};
 
       // Direct field matches
-      if (criteria.garageId) {
-        whereClause.garageId = criteria.garageId;
-      }
-
       if (criteria.vehicleId) {
         whereClause.vehicleId = criteria.vehicleId;
       }
@@ -378,16 +372,12 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
         whereClause.sessionId = criteria.sessionId;
       }
 
-      if (criteria.ticketId) {
-        whereClause.ticketId = criteria.ticketId;
-      }
-
       if (criteria.type) {
-        whereClause.type = criteria.type;
+        whereClause.paymentType = criteria.type;
       }
 
       if (criteria.method) {
-        whereClause.method = criteria.method;
+        whereClause.paymentMethod = criteria.method;
       }
 
       if (criteria.status) {
@@ -396,15 +386,13 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
 
       if (criteria.paymentNumber) {
         whereClause.paymentNumber = {
-          contains: criteria.paymentNumber,
-          mode: 'insensitive'
+          contains: criteria.paymentNumber
         };
       }
 
       if (criteria.transactionId) {
         whereClause.transactionId = {
-          contains: criteria.transactionId,
-          mode: 'insensitive'
+          contains: criteria.transactionId
         };
       }
 
@@ -434,8 +422,7 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       if (criteria.licensePlate) {
         whereClause.vehicle = {
           licensePlate: {
-            contains: criteria.licensePlate.toUpperCase(),
-            mode: 'insensitive'
+            contains: criteria.licensePlate.toUpperCase()
           },
           deletedAt: null
         };
@@ -489,8 +476,8 @@ export class PaymentRepository extends PrismaAdapter<Payment, CreatePaymentData,
       this.logger.info('Payment created', {
         paymentId: payment.id,
         paymentNumber: payment.paymentNumber,
-        type: payment.type,
-        method: payment.method,
+        type: payment.paymentType,
+        method: payment.paymentMethod,
         amount: payment.amount
       });
 

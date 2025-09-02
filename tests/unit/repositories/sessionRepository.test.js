@@ -5,7 +5,7 @@
  * Tests parking session management and related operations.
  */
 
-const SessionRepository = require('../../../src/repositories/sessionsRepository');
+const { SessionRepository } = require('../../../src/repositories/SessionRepository');
 const { SessionFactory, VehicleFactory, SpotFactory, GarageFactory } = require('../../factories');
 
 describe('SessionRepository (Prisma)', () => {

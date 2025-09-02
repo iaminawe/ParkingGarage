@@ -9,7 +9,11 @@ import {
   getProfile,
   updateProfile,
   changePassword,
-  validatePasswordStrength
+  validatePasswordStrength,
+  requestPasswordReset,
+  confirmPasswordReset,
+  logoutAllDevices,
+  getUserSessions
 } from '../controllers/authController';
 
 import {
@@ -20,49 +24,22 @@ import {
   changePasswordValidation
 } from '../middleware/validation/authValidation';
 
-import { authenticate } from '../middleware/auth';
-import { RATE_LIMITS, API_RESPONSES } from '../config/constants';
+import { authenticate, enforceSessionLimit } from '../middleware/auth';
+import { 
+  authRateLimit, 
+  signupRateLimit, 
+  passwordValidationLimit,
+  securityLogger,
+  validateContentType
+} from '../middleware/security';
+import { RATE_LIMITS, API_RESPONSES, HTTP_STATUS } from '../config/constants';
 
 const router = Router();
 
-// Rate limiting for authentication endpoints
-const authLimiter = rateLimit({
-  windowMs: RATE_LIMITS.AUTH_MAX_ATTEMPTS * 60 * 1000, // 15 minutes
-  max: RATE_LIMITS.AUTH_MAX_ATTEMPTS,
-  message: {
-    success: false,
-    message: API_RESPONSES.ERRORS.RATE_LIMIT_EXCEEDED
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true
-});
+// Use enhanced security middleware instead of basic rate limiters
+// Enhanced security middleware provides better protection with suspicious activity detection
 
-// Rate limiting for signup (more lenient)
-const signupLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: RATE_LIMITS.SIGNUP_MAX_ATTEMPTS,
-  message: {
-    success: false,
-    message: 'Too many signup attempts from this IP, please try again after 1 hour.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-// Rate limiting for password validation (more lenient for UX)
-const passwordValidationLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: RATE_LIMITS.PASSWORD_VALIDATION_MAX_ATTEMPTS,
-  message: {
-    success: false,
-    message: 'Too many password validation requests from this IP, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-// Rate limiting for profile updates
+// Rate limiting for profile updates (keep this as it's specific)
 const profileLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: RATE_LIMITS.PROFILE_UPDATE_MAX_ATTEMPTS,
@@ -74,30 +51,34 @@ const profileLimiter = rateLimit({
   legacyHeaders: false
 });
 
+// Apply security middleware to all routes
+router.use(securityLogger);
+router.use(validateContentType);
+
 /**
  * @route   POST /api/auth/signup
  * @desc    Register a new user
  * @access  Public
  */
-router.post('/signup', signupLimiter, signupValidation, signup);
+router.post('/signup', signupRateLimit, signupValidation, signup);
 
 /**
  * @route   POST /api/auth/login
  * @desc    Authenticate user and get token
  * @access  Public
  */
-router.post('/login', authLimiter, loginValidation, login);
+router.post('/login', authRateLimit, loginValidation, login);
 
 /**
  * @route   POST /api/auth/refresh
  * @desc    Refresh access token using refresh token
  * @access  Public
  */
-router.post('/refresh', authLimiter, refreshTokenValidation, refreshToken);
+router.post('/refresh', authRateLimit, refreshTokenValidation, refreshToken);
 
 /**
  * @route   POST /api/auth/logout
- * @desc    Logout user (invalidate token)
+ * @desc    Logout user (invalidate token and blacklist)
  * @access  Private
  */
 router.post('/logout', authenticate, logout);
@@ -121,14 +102,42 @@ router.put('/profile', authenticate, profileLimiter, profileUpdateValidation, up
  * @desc    Change user password
  * @access  Private
  */
-router.put('/change-password', authenticate, authLimiter, changePasswordValidation, changePassword);
+router.put('/change-password', authenticate, enforceSessionLimit(5), authRateLimit, changePasswordValidation, changePassword);
 
 /**
  * @route   POST /api/auth/validate-password
  * @desc    Validate password strength
  * @access  Public
  */
-router.post('/validate-password', passwordValidationLimiter, validatePasswordStrength);
+router.post('/validate-password', passwordValidationLimit, validatePasswordStrength);
+
+/**
+ * @route   POST /api/auth/password-reset
+ * @desc    Request password reset email
+ * @access  Public
+ */
+router.post('/password-reset', authRateLimit, requestPasswordReset);
+
+/**
+ * @route   POST /api/auth/password-reset/confirm
+ * @desc    Confirm password reset with token
+ * @access  Public
+ */
+router.post('/password-reset/confirm', authRateLimit, confirmPasswordReset);
+
+/**
+ * @route   POST /api/auth/logout-all
+ * @desc    Logout from all devices
+ * @access  Private
+ */
+router.post('/logout-all', authenticate, enforceSessionLimit(5), logoutAllDevices);
+
+/**
+ * @route   GET /api/auth/sessions
+ * @desc    Get user's active sessions
+ * @access  Private
+ */
+router.get('/sessions', authenticate, getUserSessions);
 
 /**
  * @route   GET /api/auth/verify
@@ -136,7 +145,7 @@ router.post('/validate-password', passwordValidationLimiter, validatePasswordStr
  * @access  Private
  */
 router.get('/verify', authenticate, (req, res) => {
-  res.status(200).json({
+  res.status(HTTP_STATUS.OK).json({
     success: true,
     message: 'Token is valid',
     data: {

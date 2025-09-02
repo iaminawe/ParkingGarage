@@ -288,7 +288,7 @@ export class SeedDataInitializer {
 
       const stats: GarageStats = await this.garageService.getStatistics();
       
-      console.log('\n📊 Current Garage Status:');
+      console.log('\\n📊 Current Garage Status:');
       console.log('├─ Name:', garage.name);
       console.log('├─ Total Spots:', stats.occupancy.total);
       console.log('├─ Available:', stats.occupancy.available);
@@ -298,7 +298,7 @@ export class SeedDataInitializer {
       console.log('└─ Floors:', garage.floors.length);
 
       // Show sample API calls
-      console.log('\n🔗 Sample API Endpoints:');
+      console.log('\\n🔗 Sample API Endpoints:');
       console.log('├─ GET /api/garage/status');
       console.log('├─ GET /api/spots?status=available');
       console.log('├─ GET /api/spots?floor=1&bay=1');

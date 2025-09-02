@@ -7,7 +7,7 @@
  * @module Models
  */
 
-export { Vehicle } from './vehicle';
+export { Vehicle } from './Vehicle';
 export { Spot } from './spot';
 export { Garage } from './garage';
 
@@ -43,7 +43,7 @@ export type {
 } from '../types/models';
 
 // Default exports for CommonJS compatibility
-import Vehicle from './vehicle';
+import Vehicle from './Vehicle';
 import Spot from './spot';
 import Garage from './garage';
 

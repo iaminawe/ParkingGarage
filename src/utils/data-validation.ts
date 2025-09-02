@@ -5,7 +5,7 @@
  * Ensures data consistency between MemoryStore and SQLite database.
  */
 
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 import { MemoryStore } from '../storage/memoryStore';
 
 export interface ValidationError {
@@ -179,14 +179,14 @@ export class DataValidator {
     const errors: ValidationError[] = [];
     
     const memorySpots = Array.from(this.memoryStore.spots.entries());
-    const sqliteSpots = await this.prisma.spot.findMany();
+    const sqliteSpots = await this.prisma.parkingSpot.findMany();
     
     const memoryCount = memorySpots.length;
     const sqliteCount = sqliteSpots.length;
     let matched = 0;
 
     const sqliteSpotMap = new Map(
-      sqliteSpots.map(s => [s.spotNumber, s])
+      sqliteSpots.map((s: any) => [s.spotNumber, s])
     );
 
     for (const [spotId, memorySpot] of memorySpots) {
@@ -224,7 +224,8 @@ export class DataValidator {
   }> {
     const errors: ValidationError[] = [];
     
-    const memorySessions = Array.from(this.memoryStore.sessions.entries());
+    // Memory store doesn't have sessions, using empty array as placeholder
+    const memorySessions: [string, any][] = [];
     const sqliteSessions = await this.prisma.parkingSession.findMany();
     
     const memoryCount = memorySessions.length;
@@ -459,7 +460,7 @@ export class DataValidator {
 
       // Check session relationships
       const sessions = await this.prisma.parkingSession.findMany({
-        include: { vehicle: true, spot: true, garage: true }
+        include: { vehicle: true, spot: true }
       });
 
       for (const session of sessions) {
@@ -483,15 +484,7 @@ export class DataValidator {
           });
         }
 
-        if (!session.garage) {
-          errors.push({
-            type: 'constraint',
-            table: 'sessions',
-            field: 'garageId',
-            recordId: session.id,
-            message: `Session ${session.id} references non-existent garage`
-          });
-        }
+        // Note: garage relationship removed as it's not available in the schema
       }
 
     } catch (error) {

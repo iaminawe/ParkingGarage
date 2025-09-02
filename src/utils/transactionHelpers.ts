@@ -7,7 +7,7 @@
  * @module TransactionHelpers
  */
 
-import { Prisma } from '../generated/prisma';
+import { Prisma } from '@prisma/client';
 import {
   TransactionError,
   TransactionTimeoutError,
@@ -158,7 +158,7 @@ export async function retryTransaction<T>(
   }
   
   // Transform retryable errors
-  if (isDeadlockError(lastError)) {
+  if (lastError && isDeadlockError(lastError)) {
     throw new TransactionDeadlockError(
       context?.id || 'unknown',
       `Transaction failed after ${opts.maxRetries} retries: ${lastError.message}`,
@@ -166,7 +166,7 @@ export async function retryTransaction<T>(
     );
   }
   
-  throw lastError;
+  throw lastError || new Error('Transaction failed with unknown error');
 }
 
 /**
