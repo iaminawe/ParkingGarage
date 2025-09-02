@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { SecurityAuditService } from '../../services/SecurityAuditService';
+import { SecurityAuditUtils } from '../../services/SecurityAuditService';
 import { circuitBreakerManager } from './circuitBreaker';
 
 // Request tracking for suspicious activity detection
@@ -167,7 +167,7 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
     
     // Check if IP is already flagged as suspicious
     if (suspiciousIPs.has(clientIP)) {
-      await SecurityAuditService.logSecurityEvent({
+      await SecurityAuditUtils.logSecurityEvent({
         event: 'REQUEST_FROM_SUSPICIOUS_IP',
         severity: 'MEDIUM',
         ipAddress: clientIP,
@@ -194,7 +194,7 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
       
       // Log slow responses (potential DoS)
       if (responseTime > 5000) { // 5 seconds
-        SecurityAuditService.logSecurityEvent({
+        SecurityAuditUtils.logSecurityEvent({
           event: 'SLOW_RESPONSE_DETECTED',
           severity: 'MEDIUM',
           ipAddress: clientIP,
@@ -211,7 +211,7 @@ export const securityMonitoring = async (req: Request, res: Response, next: Next
       if (res.statusCode >= 400) {
         const severity = res.statusCode >= 500 ? 'MEDIUM' : 'LOW';
         
-        SecurityAuditService.logSecurityEvent({
+        SecurityAuditUtils.logSecurityEvent({
           event: `HTTP_${res.statusCode}_RESPONSE`,
           severity,
           userId: (req as any).user?.id,

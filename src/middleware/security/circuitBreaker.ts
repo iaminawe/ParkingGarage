@@ -3,7 +3,7 @@
  * Prevents cascade failures by monitoring external service calls
  */
 
-import { SecurityAuditService } from '../../services/SecurityAuditService';
+import { SecurityAuditUtils } from '../../services/SecurityAuditService';
 
 export interface CircuitBreakerOptions {
   failureThreshold: number;
@@ -74,7 +74,7 @@ export class CircuitBreaker {
     
     // Log recovery if we were in half-open state
     if (this.state === CircuitBreakerState.HALF_OPEN) {
-      SecurityAuditService.logSecurityEvent({
+      SecurityAuditUtils.logSecurityEvent({
         event: 'CIRCUIT_BREAKER_CLOSED',
         severity: 'LOW',
         details: {
@@ -98,7 +98,7 @@ export class CircuitBreaker {
       this.nextAttemptTime = Date.now() + this.options.recoveryTimeout;
       
       // Log circuit breaker opening
-      SecurityAuditService.logSecurityEvent({
+      SecurityAuditUtils.logSecurityEvent({
         event: 'CIRCUIT_BREAKER_OPENED',
         severity: 'MEDIUM',
         details: {
@@ -132,7 +132,7 @@ export class CircuitBreaker {
     this.state = CircuitBreakerState.OPEN;
     this.nextAttemptTime = Date.now() + this.options.recoveryTimeout;
     
-    SecurityAuditService.logSecurityEvent({
+    SecurityAuditUtils.logSecurityEvent({
       event: 'CIRCUIT_BREAKER_FORCE_OPEN',
       severity: 'MEDIUM',
       details: {
@@ -151,7 +151,7 @@ export class CircuitBreaker {
     this.failureCount = 0;
     this.nextAttemptTime = 0;
     
-    SecurityAuditService.logSecurityEvent({
+    SecurityAuditUtils.logSecurityEvent({
       event: 'CIRCUIT_BREAKER_FORCE_CLOSE',
       severity: 'LOW',
       details: {
@@ -257,7 +257,7 @@ export class CircuitBreakerManager {
       breaker.forceClose();
     }
     
-    SecurityAuditService.logSecurityEvent({
+    SecurityAuditUtils.logSecurityEvent({
       event: 'ALL_CIRCUIT_BREAKERS_RESET',
       severity: 'MEDIUM',
       details: {

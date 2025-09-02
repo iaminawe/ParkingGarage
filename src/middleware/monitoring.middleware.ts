@@ -32,7 +32,7 @@ export interface MonitoredRequest extends Request {
  * Correlation ID middleware
  * Adds correlation ID to requests for tracking across services
  */
-export function correlationIdMiddleware(req: Request, res: Response, next: NextFunction): void {
+function correlationIdMiddleware(req: Request, res: Response, next: NextFunction): void {
   const correlationId = (req.headers['x-correlation-id'] as string) || generateCorrelationId();
   
   // Set correlation ID on request
@@ -52,7 +52,7 @@ export function correlationIdMiddleware(req: Request, res: Response, next: NextF
  * Request logging middleware
  * Logs all incoming requests with context
  */
-export function requestLoggingMiddleware(req: Request, res: Response, next: NextFunction): void {
+function requestLoggingMiddleware(req: Request, res: Response, next: NextFunction): void {
   const monitoredReq = req as MonitoredRequest;
   
   // Log incoming request
@@ -77,7 +77,7 @@ export function requestLoggingMiddleware(req: Request, res: Response, next: Next
  * Performance monitoring middleware
  * Measures request duration and tracks performance metrics
  */
-export function performanceMiddleware(req: Request, res: Response, next: NextFunction): void {
+function performanceMiddleware(req: Request, res: Response, next: NextFunction): void {
   const monitoredReq = req as MonitoredRequest;
   const startTime = performance.now();
   
@@ -160,7 +160,7 @@ export function performanceMiddleware(req: Request, res: Response, next: NextFun
  * Error tracking middleware
  * Captures and reports errors with context
  */
-export function errorTrackingMiddleware(error: Error, req: Request, res: Response, next: NextFunction): void {
+function errorTrackingMiddleware(error: Error, req: Request, res: Response, next: NextFunction): void {
   const monitoredReq = req as MonitoredRequest;
   
   // Log error with full context
@@ -196,7 +196,7 @@ export function errorTrackingMiddleware(error: Error, req: Request, res: Respons
  * Health check response middleware
  * Adds health check data to monitoring
  */
-export function healthCheckMiddleware(req: Request, res: Response, next: NextFunction): void {
+function healthCheckMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (req.path === '/health' || req.path === '/health/ready' || req.path === '/health/live') {
     const timer = performance.now();
     
@@ -216,7 +216,7 @@ export function healthCheckMiddleware(req: Request, res: Response, next: NextFun
  * Database operation monitoring
  * Tracks database query performance
  */
-export class DatabaseMonitor {
+class DatabaseMonitor {
   private static timers: Map<string, number> = new Map();
   
   static startQuery(queryId: string, query: string, correlationId?: string): void {
@@ -266,7 +266,7 @@ export class DatabaseMonitor {
  * Authentication monitoring
  * Tracks authentication events and security metrics
  */
-export function authenticationMonitor(event: string, success: boolean, userId?: string, correlationId?: string, metadata?: Record<string, any>): void {
+function authenticationMonitor(event: string, success: boolean, userId?: string, correlationId?: string, metadata?: Record<string, any>): void {
   incrementCounter(`auth.${event}.total`, {
     success: success.toString(),
     correlationId,
@@ -291,7 +291,7 @@ export function authenticationMonitor(event: string, success: boolean, userId?: 
  * Business logic monitoring
  * Tracks business operations and metrics
  */
-export class BusinessMetrics {
+class BusinessMetrics {
   static recordOperation(operation: string, success: boolean, duration?: number, metadata?: Record<string, any>): void {
     incrementCounter(`business.${operation}.total`, {
       success: success.toString(),

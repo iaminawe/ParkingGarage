@@ -5,7 +5,7 @@
 
 import request from 'supertest';
 import app from '../../src/app';
-import { SecurityAuditService } from '../../src/services/SecurityAuditService';
+import { SecurityAuditUtils } from '../../src/services/SecurityAuditService';
 import { circuitBreakerManager } from '../../src/middleware/security/circuitBreaker';
 import { detectSecurityThreats } from '../../src/middleware/security/inputSanitization';
 
