@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+
 import {
   signup,
   login,
@@ -10,6 +11,7 @@ import {
   changePassword,
   validatePasswordStrength
 } from '../controllers/authController';
+
 import {
   signupValidation,
   loginValidation,
@@ -17,28 +19,29 @@ import {
   profileUpdateValidation,
   changePasswordValidation
 } from '../middleware/validation/authValidation';
+
 import { authenticate } from '../middleware/auth';
+import { RATE_LIMITS, API_RESPONSES } from '../config/constants';
 
 const router = Router();
 
 // Rate limiting for authentication endpoints
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs for auth endpoints
+  windowMs: RATE_LIMITS.AUTH_MAX_ATTEMPTS * 60 * 1000, // 15 minutes
+  max: RATE_LIMITS.AUTH_MAX_ATTEMPTS,
   message: {
     success: false,
-    message: 'Too many authentication attempts from this IP, please try again after 15 minutes.'
+    message: API_RESPONSES.ERRORS.RATE_LIMIT_EXCEEDED
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Skip successful requests
   skipSuccessfulRequests: true
 });
 
 // Rate limiting for signup (more lenient)
 const signupLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // limit each IP to 3 signup attempts per hour
+  max: RATE_LIMITS.SIGNUP_MAX_ATTEMPTS,
   message: {
     success: false,
     message: 'Too many signup attempts from this IP, please try again after 1 hour.'
@@ -50,7 +53,7 @@ const signupLimiter = rateLimit({
 // Rate limiting for password validation (more lenient for UX)
 const passwordValidationLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 20, // limit each IP to 20 password validation requests per minute
+  max: RATE_LIMITS.PASSWORD_VALIDATION_MAX_ATTEMPTS,
   message: {
     success: false,
     message: 'Too many password validation requests from this IP, please try again later.'
@@ -62,7 +65,7 @@ const passwordValidationLimiter = rateLimit({
 // Rate limiting for profile updates
 const profileLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 profile updates per 15 minutes
+  max: RATE_LIMITS.PROFILE_UPDATE_MAX_ATTEMPTS,
   message: {
     success: false,
     message: 'Too many profile update attempts from this IP, please try again later.'
@@ -97,7 +100,7 @@ router.post('/refresh', authLimiter, refreshTokenValidation, refreshToken);
  * @desc    Logout user (invalidate token)
  * @access  Private
  */
-router.post('/logout', logout);
+router.post('/logout', authenticate, logout);
 
 /**
  * @route   GET /api/auth/profile

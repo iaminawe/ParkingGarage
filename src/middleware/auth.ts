@@ -1,6 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import authService from '../services/authService';
 import { User } from '@prisma/client';
+import { 
+  API_RESPONSES, 
+  HTTP_STATUS, 
+  SECURITY,
+  USER_ROLES,
+  type UserRole 
+} from '../config/constants';
 
 // Extend Express Request interface to include user
 declare global {
@@ -15,6 +22,10 @@ export interface AuthRequest extends Request {
   user: User;
 }
 
+export interface AuthenticatedRequest extends Request {
+  user: User;
+}
+
 /**
  * Authentication middleware to verify JWT tokens
  */
@@ -23,22 +34,22 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
-      res.status(401).json({
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: 'Access token required'
+        message: API_RESPONSES.ERRORS.TOKEN_REQUIRED
       });
       return;
     }
 
     // Extract token from "Bearer <token>" format
-    const token = authHeader.startsWith('Bearer ') 
-      ? authHeader.slice(7) 
+    const token = authHeader.startsWith(SECURITY.BEARER_PREFIX) 
+      ? authHeader.slice(SECURITY.BEARER_PREFIX.length) 
       : authHeader;
 
     if (!token) {
-      res.status(401).json({
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: 'Access token required'
+        message: API_RESPONSES.ERRORS.TOKEN_REQUIRED
       });
       return;
     }
@@ -47,18 +58,18 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     const user = await authService.getUserByToken(token);
     
     if (!user) {
-      res.status(401).json({
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
-        message: 'Invalid or expired token'
+        message: API_RESPONSES.ERRORS.INVALID_TOKEN
       });
       return;
     }
 
     // Check if user is active
     if (!user.isActive) {
-      res.status(403).json({
+      res.status(HTTP_STATUS.FORBIDDEN).json({
         success: false,
-        message: 'Account is deactivated'
+        message: API_RESPONSES.ERRORS.ACCOUNT_DEACTIVATED
       });
       return;
     }
@@ -69,9 +80,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
   } catch (error) {
     console.error('Authentication error:', error);
-    res.status(500).json({
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Authentication failed'
+      message: API_RESPONSES.ERRORS.INTERNAL_ERROR
     });
   }
 };
@@ -79,23 +90,23 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 /**
  * Authorization middleware to check user roles
  */
-export const authorize = (allowedRoles: string[]) => {
+export const authorize = (allowedRoles: UserRole[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       const user = req.user;
       
       if (!user) {
-        res.status(401).json({
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
           success: false,
-          message: 'Authentication required'
+          message: API_RESPONSES.ERRORS.TOKEN_REQUIRED
         });
         return;
       }
 
-      if (!allowedRoles.includes(user.role)) {
-        res.status(403).json({
+      if (!allowedRoles.includes(user.role as UserRole)) {
+        res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
-          message: 'Insufficient permissions'
+          message: API_RESPONSES.ERRORS.INSUFFICIENT_PERMISSIONS
         });
         return;
       }
@@ -103,9 +114,9 @@ export const authorize = (allowedRoles: string[]) => {
       next();
     } catch (error) {
       console.error('Authorization error:', error);
-      res.status(500).json({
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
-        message: 'Authorization failed'
+        message: API_RESPONSES.ERRORS.INTERNAL_ERROR
       });
     }
   };
@@ -138,16 +149,25 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-// Role constants for easier usage
-export const ROLES = {
-  USER: 'USER',
-  ADMIN: 'ADMIN',
-  MANAGER: 'MANAGER',
-  OPERATOR: 'OPERATOR'
-} as const;
+// Common role combinations with type safety
+export const adminOnly = authorize([USER_ROLES.ADMIN]);
+export const managerOrAdmin = authorize([USER_ROLES.MANAGER, USER_ROLES.ADMIN]);
+export const operatorOrHigher = authorize([USER_ROLES.OPERATOR, USER_ROLES.MANAGER, USER_ROLES.ADMIN]);
+export const authenticatedUsers = authorize([USER_ROLES.USER, USER_ROLES.OPERATOR, USER_ROLES.MANAGER, USER_ROLES.ADMIN]);
 
-// Common role combinations
-export const adminOnly = authorize([ROLES.ADMIN]);
-export const managerOrAdmin = authorize([ROLES.MANAGER, ROLES.ADMIN]);
-export const operatorOrHigher = authorize([ROLES.OPERATOR, ROLES.MANAGER, ROLES.ADMIN]);
-export const authenticatedUsers = authorize([ROLES.USER, ROLES.OPERATOR, ROLES.MANAGER, ROLES.ADMIN]);
+// Role checking utilities
+export const hasRole = (user: User | undefined, role: UserRole): boolean => {
+  return user?.role === role;
+};
+
+export const hasAnyRole = (user: User | undefined, roles: UserRole[]): boolean => {
+  return user ? roles.includes(user.role as UserRole) : false;
+};
+
+export const isAdmin = (user: User | undefined): boolean => {
+  return hasRole(user, USER_ROLES.ADMIN);
+};
+
+export const isManagerOrHigher = (user: User | undefined): boolean => {
+  return hasAnyRole(user, [USER_ROLES.MANAGER, USER_ROLES.ADMIN]);
+};

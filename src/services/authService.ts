@@ -1,9 +1,15 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import { User, UserSession } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
+import { env } from '../config/environment';
+import { 
+  SECURITY, 
+  TIME_CONSTANTS, 
+  API_RESPONSES,
+  VALIDATION,
+  type UserRole 
+} from '../config/constants';
 
 export interface SignupData {
   email: string;
@@ -29,7 +35,7 @@ export interface AuthResult {
 export interface TokenPayload {
   userId: string;
   email: string;
-  role: string;
+  role: UserRole;
   iat?: number;
   exp?: number;
 }
@@ -44,17 +50,14 @@ class AuthService {
   private readonly PASSWORD_SALT_ROUNDS: number;
 
   constructor() {
-    this.JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
-    this.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-super-secret-refresh-key';
-    this.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
-    this.JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
-    this.MAX_LOGIN_ATTEMPTS = parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5');
-    this.LOCKOUT_TIME = parseInt(process.env.LOCKOUT_TIME || '15'); // minutes
-    this.PASSWORD_SALT_ROUNDS = parseInt(process.env.PASSWORD_SALT_ROUNDS || '12');
-
-    if (this.JWT_SECRET === 'your-super-secret-jwt-key') {
-      console.warn('⚠️  WARNING: Using default JWT secret in development. Set JWT_SECRET environment variable for production.');
-    }
+    // Use validated environment configuration - no defaults allowed
+    this.JWT_SECRET = env.JWT_SECRET;
+    this.JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET;
+    this.JWT_EXPIRES_IN = env.JWT_EXPIRES_IN;
+    this.JWT_REFRESH_EXPIRES_IN = env.JWT_REFRESH_EXPIRES_IN;
+    this.MAX_LOGIN_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
+    this.LOCKOUT_TIME = env.LOCKOUT_TIME;
+    this.PASSWORD_SALT_ROUNDS = env.BCRYPT_SALT_ROUNDS;
   }
 
   /**
@@ -78,20 +81,26 @@ class AuthService {
     const payload: TokenPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role
+      role: user.role as UserRole
     };
 
-    const token = jwt.sign(payload, this.JWT_SECRET, { expiresIn: this.JWT_EXPIRES_IN });
-    const refreshToken = jwt.sign({ userId: user.id }, this.JWT_REFRESH_SECRET, { 
-      expiresIn: this.JWT_REFRESH_EXPIRES_IN
+    const token = jwt.sign(payload, this.JWT_SECRET, { 
+      expiresIn: this.JWT_EXPIRES_IN,
+      algorithm: SECURITY.JWT_ALGORITHM
     });
+    
+    const refreshToken = jwt.sign(
+      { userId: user.id, type: SECURITY.TOKEN_TYPE_REFRESH }, 
+      this.JWT_REFRESH_SECRET, 
+      { 
+        expiresIn: this.JWT_REFRESH_EXPIRES_IN,
+        algorithm: SECURITY.JWT_ALGORITHM
+      }
+    );
 
-    // Calculate expiration dates
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
-
-    const refreshExpiresAt = new Date();
-    refreshExpiresAt.setDate(refreshExpiresAt.getDate() + 7); // 7 days from now
+    // Calculate expiration dates based on actual token expiry
+    const expiresAt = new Date(Date.now() + TIME_CONSTANTS.SESSION_DURATION_MS);
+    const refreshExpiresAt = new Date(Date.now() + TIME_CONSTANTS.REFRESH_TOKEN_DURATION_MS);
 
     return { token, refreshToken, expiresAt, refreshExpiresAt };
   }
@@ -102,8 +111,12 @@ class AuthService {
   verifyToken(token: string, isRefreshToken = false): TokenPayload | null {
     try {
       const secret = isRefreshToken ? this.JWT_REFRESH_SECRET : this.JWT_SECRET;
-      return jwt.verify(token, secret) as TokenPayload;
+      return jwt.verify(token, secret, { algorithms: [SECURITY.JWT_ALGORITHM] }) as TokenPayload;
     } catch (error) {
+      // Log specific JWT errors for debugging in development
+      if (env.NODE_ENV === 'development' && error instanceof jwt.JsonWebTokenError) {
+        console.warn('JWT verification failed:', error.message);
+      }
       return null;
     }
   }
@@ -180,7 +193,7 @@ class AuthService {
       if (existingUser) {
         return {
           success: false,
-          message: 'User with this email already exists'
+          message: API_RESPONSES.ERRORS.USER_EXISTS
         };
       }
 
@@ -220,7 +233,7 @@ class AuthService {
         user: userWithoutPassword,
         token,
         refreshToken,
-        message: 'User registered successfully'
+        message: API_RESPONSES.SUCCESS.SIGNUP
       };
 
     } catch (error) {
@@ -245,7 +258,7 @@ class AuthService {
       if (!user) {
         return {
           success: false,
-          message: 'Invalid email or password'
+          message: API_RESPONSES.ERRORS.INVALID_CREDENTIALS
         };
       }
 
@@ -253,7 +266,7 @@ class AuthService {
       if (!user.isActive) {
         return {
           success: false,
-          message: 'Account is deactivated. Please contact support.'
+          message: API_RESPONSES.ERRORS.ACCOUNT_DEACTIVATED
         };
       }
 
@@ -261,7 +274,7 @@ class AuthService {
       if (await this.isAccountLocked(user)) {
         return {
           success: false,
-          message: 'Account is temporarily locked due to too many failed login attempts. Please try again later.'
+          message: API_RESPONSES.ERRORS.ACCOUNT_LOCKED
         };
       }
 
@@ -272,7 +285,7 @@ class AuthService {
         await this.handleFailedLogin(user.id);
         return {
           success: false,
-          message: 'Invalid email or password'
+          message: API_RESPONSES.ERRORS.INVALID_CREDENTIALS
         };
       }
 
@@ -303,7 +316,7 @@ class AuthService {
         user: userWithoutSensitiveData,
         token,
         refreshToken,
-        message: 'Login successful'
+        message: API_RESPONSES.SUCCESS.LOGIN
       };
 
     } catch (error) {
@@ -417,23 +430,27 @@ class AuthService {
   validatePassword(password: string): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    if (password.length < 8) {
-      errors.push('Password must be at least 8 characters long');
+    if (password.length < SECURITY.MIN_PASSWORD_LENGTH) {
+      errors.push(`Password must be at least ${SECURITY.MIN_PASSWORD_LENGTH} characters long`);
     }
 
-    if (!/[a-z]/.test(password)) {
+    if (password.length > SECURITY.MAX_PASSWORD_LENGTH) {
+      errors.push(`Password must be no more than ${SECURITY.MAX_PASSWORD_LENGTH} characters long`);
+    }
+
+    if (!VALIDATION.PASSWORD_PATTERNS.LOWERCASE.test(password)) {
       errors.push('Password must contain at least one lowercase letter');
     }
 
-    if (!/[A-Z]/.test(password)) {
+    if (!VALIDATION.PASSWORD_PATTERNS.UPPERCASE.test(password)) {
       errors.push('Password must contain at least one uppercase letter');
     }
 
-    if (!/\d/.test(password)) {
+    if (!VALIDATION.PASSWORD_PATTERNS.DIGIT.test(password)) {
       errors.push('Password must contain at least one number');
     }
 
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    if (!VALIDATION.PASSWORD_PATTERNS.SPECIAL_CHAR.test(password)) {
       errors.push('Password must contain at least one special character');
     }
 
@@ -465,6 +482,95 @@ class AuthService {
       return null;
     }
   }
+
+  /**
+   * Clean up expired sessions
+   * Should be called periodically to prevent database bloat
+   */
+  async cleanupExpiredSessions(): Promise<number> {
+    try {
+      const cutoffDate = new Date(Date.now() - TIME_CONSTANTS.EXPIRED_SESSION_GRACE_PERIOD_MS);
+      
+      const result = await prisma.userSession.deleteMany({
+        where: {
+          OR: [
+            { expiresAt: { lt: cutoffDate } },
+            { refreshExpiresAt: { lt: cutoffDate } },
+            { isRevoked: true }
+          ]
+        }
+      });
+
+      if (env.NODE_ENV === 'development' && result.count > 0) {
+        console.log(`🧹 Cleaned up ${result.count} expired/revoked sessions`);
+      }
+
+      return result.count;
+    } catch (error) {
+      console.error('Session cleanup error:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Revoke all sessions for a specific user
+   */
+  async revokeAllUserSessions(userId: string): Promise<number> {
+    try {
+      const result = await prisma.userSession.updateMany({
+        where: { 
+          userId,
+          isRevoked: false 
+        },
+        data: { isRevoked: true }
+      });
+
+      return result.count;
+    } catch (error) {
+      console.error('Error revoking user sessions:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get active session count for a user
+   */
+  async getActiveSessionCount(userId: string): Promise<number> {
+    try {
+      return await prisma.userSession.count({
+        where: {
+          userId,
+          isRevoked: false,
+          expiresAt: { gt: new Date() }
+        }
+      });
+    } catch (error) {
+      console.error('Error counting active sessions:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Start periodic session cleanup
+   * Call this once during application startup
+   */
+  static startPeriodicCleanup(authService: AuthService): NodeJS.Timeout {
+    const cleanup = async () => {
+      try {
+        await authService.cleanupExpiredSessions();
+      } catch (error) {
+        console.error('Periodic session cleanup failed:', error);
+      }
+    };
+
+    // Run cleanup immediately and then periodically
+    cleanup();
+    return setInterval(cleanup, TIME_CONSTANTS.SESSION_CLEANUP_INTERVAL_MS);
+  }
 }
 
+// Export the singleton instance as default
 export default new AuthService();
+
+// Also export the class for static methods
+export { AuthService };

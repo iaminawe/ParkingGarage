@@ -121,6 +121,11 @@ const config: Config = {
       testMatch: ['<rootDir>/tests/performance/**/*.test.{js,ts}'],
       setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js', '<rootDir>/tests/helpers/setup-database.js'],
       // testTimeout: 30000 // testTimeout should be at root level
+    },
+    {
+      displayName: 'security',
+      testMatch: ['<rootDir>/tests/security/**/*.test.{js,ts}'],
+      setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js', '<rootDir>/tests/helpers/setup-database.js']
     }
   ],
 
