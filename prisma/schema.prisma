@@ -1,0 +1,211 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Vehicle {
+  id                String      @id @default(cuid())
+  licensePlate      String      @unique
+  vehicleType       String      @default("STANDARD") // COMPACT, STANDARD, OVERSIZED
+  rateType          String      @default("HOURLY")   // HOURLY, DAILY, MONTHLY, SPECIAL
+  spotId            String?
+  ownerId           String?     // References User.id when vehicle is owned by registered user
+  ownerName         String?
+  ownerEmail        String?
+  ownerPhone        String?
+  make              String?
+  model             String?
+  year              Int?
+  color             String?
+  checkInTime       DateTime    @default(now())
+  checkOutTime      DateTime?
+  isPaid            Boolean     @default(false)
+  hourlyRate        Float       @default(5.0)
+  totalAmount       Float       @default(0.0)
+  amountPaid        Float       @default(0.0)
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  sessions          ParkingSession[]
+  spot              ParkingSpot?    @relation(fields: [spotId], references: [id])
+  owner             User?           @relation(fields: [ownerId], references: [id])
+
+  // Performance indexes
+  @@index([licensePlate])
+  @@index([spotId])
+  @@index([ownerId])
+  @@index([vehicleType])
+  @@index([checkInTime])
+  @@index([isPaid])
+  @@index([createdAt])
+  // Composite indexes for common query patterns
+  @@index([spotId, isPaid])
+  @@index([vehicleType, checkInTime])
+  @@index([ownerId, checkInTime])
+  @@index([checkInTime, checkOutTime])
+  @@map("vehicles")
+}
+
+model ParkingSpot {
+  id          String      @id @default(cuid())
+  spotNumber  String      @unique
+  level       Int
+  section     String?
+  spotType    String      @default("STANDARD") // COMPACT, STANDARD, OVERSIZED, HANDICAP, ELECTRIC
+  status      String      @default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE, OUT_OF_ORDER
+  isActive    Boolean     @default(true)
+  width       Float?
+  length      Float?
+  height      Float?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  vehicles    Vehicle[]
+  sessions    ParkingSession[]
+
+  // Performance indexes
+  @@index([spotNumber])
+  @@index([status])
+  @@index([spotType])
+  @@index([level])
+  @@index([isActive])
+  // Composite indexes for common queries
+  @@index([status, spotType])
+  @@index([level, section])
+  @@index([spotType, isActive])
+  @@map("parking_spots")
+}
+
+model ParkingSession {
+  id              String      @id @default(cuid())
+  vehicleId       String
+  spotId          String
+  startTime       DateTime    @default(now())
+  endTime         DateTime?
+  duration        Int?        // Duration in minutes
+  hourlyRate      Float       @default(5.0)
+  totalAmount     Float       @default(0.0)
+  amountPaid      Float       @default(0.0)
+  isPaid          Boolean     @default(false)
+  paymentMethod   String?     // CASH, CREDIT_CARD, DEBIT_CARD, MOBILE_PAY, APP_PAYMENT
+  paymentTime     DateTime?
+  status          String      @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED, OVERSTAYED
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  vehicle         Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  spot            ParkingSpot @relation(fields: [spotId], references: [id])
+
+  // Performance indexes
+  @@index([vehicleId])
+  @@index([spotId])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([status])
+  @@index([isPaid])
+  @@index([paymentTime])
+  // Composite indexes for analytics and reporting
+  @@index([startTime, endTime])
+  @@index([status, isPaid])
+  @@index([vehicleId, startTime])
+  @@index([spotId, startTime])
+  @@index([paymentTime, totalAmount])
+  @@map("parking_sessions")
+}
+
+model Garage {
+  id              String    @id @default(cuid())
+  name            String
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  totalSpots      Int       @default(0)
+  availableSpots  Int       @default(0)
+  hourlyRate      Float     @default(5.0)
+  isActive        Boolean   @default(true)
+  openTime        String?   // Time format: "08:00"
+  closeTime       String?   // Time format: "22:00"
+  timezone        String    @default("UTC")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Performance indexes
+  @@index([isActive])
+  @@index([city, state])
+  @@index([totalSpots, availableSpots])
+  @@map("garages")
+}
+
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  passwordHash      String
+  firstName         String?
+  lastName          String?
+  role              String      @default("USER") // USER, ADMIN, MANAGER, OPERATOR
+  isActive          Boolean     @default(true)
+  isEmailVerified   Boolean     @default(false)
+  emailVerificationToken String?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  lastLoginAt       DateTime?
+  loginAttempts     Int         @default(0)
+  lockoutUntil      DateTime?
+  twoFactorSecret   String?
+  isTwoFactorEnabled Boolean    @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  vehicles          Vehicle[]   // User can own multiple vehicles
+  sessions          UserSession[]
+
+  // Performance indexes
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([lastLoginAt])
+  @@index([loginAttempts, lockoutUntil])
+  @@map("users")
+}
+
+model UserSession {
+  id                String      @id @default(cuid())
+  userId            String
+  token             String      @unique
+  refreshToken      String?     @unique
+  expiresAt         DateTime
+  refreshExpiresAt  DateTime?
+  isRevoked         Boolean     @default(false)
+  deviceInfo        String?     // User agent/device information
+  ipAddress         String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([userId])
+  @@index([token])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@index([isRevoked])
+  @@map("user_sessions")
+}

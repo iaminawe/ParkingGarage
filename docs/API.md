@@ -4,10 +4,12 @@
 
 The Parking Garage Management API provides comprehensive functionality for managing parking operations including vehicle check-ins, checkouts, spot management, garage configuration, and analytics. The API is built using Express.js with TypeScript and follows RESTful principles.
 
+**🆕 Database Integration**: All endpoints are now backed by SQLite database with Prisma ORM for persistent data storage, transaction support, and production-ready performance.
+
 ## Base URL
 
 - **Development**: `http://localhost:3000/api`
-- **Production**: TBD
+- **Production**: `https://yourdomain.com/api`
 
 ## API Versioning
 
@@ -64,6 +66,34 @@ All API responses follow a consistent format:
 - **422 Unprocessable Entity**: Validation errors
 - **429 Too Many Requests**: Rate limit exceeded
 - **500 Internal Server Error**: Server error
+
+## Database Features
+
+### Persistent Storage
+All data is now stored in SQLite database with the following benefits:
+- **Data Persistence**: All data survives server restarts
+- **ACID Transactions**: Reliable data consistency
+- **Performance Optimized**: Strategic indexing for fast queries
+- **Backup Support**: Automated backup and restore procedures
+
+### Prisma ORM Integration
+- **Type Safety**: Full TypeScript integration with generated types
+- **Query Builder**: Intuitive database queries with type checking
+- **Migration Support**: Schema versioning and evolution
+- **Connection Pooling**: Efficient database connection management
+
+### Data Models
+The API now includes the following persistent data models:
+- **Vehicles**: Complete vehicle information with owner details
+- **ParkingSpots**: Spot management with physical dimensions
+- **ParkingSessions**: Session lifecycle tracking with payments
+- **Garage**: Configuration and metadata storage
+
+### Performance Features
+- **Optimized Indexes**: Fast lookups on license plates, spot numbers, and timestamps
+- **Connection Pooling**: Efficient database resource management
+- **Query Optimization**: Optimized queries for common operations
+- **Pagination Support**: Efficient handling of large datasets
 
 ---
 
