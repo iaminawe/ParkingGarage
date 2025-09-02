@@ -1,0 +1,1533 @@
+openapi: 3.0.3
+info:
+  title: Parking Garage Management API
+  version: 1.0.0
+  description: |
+    A comprehensive REST API for managing parking garage operations, including session management and vehicle registration.
+    
+    ## Key Features
+    - Session lifecycle management (create, update, end, cancel)
+    - Vehicle registration and management
+    - Real-time parking status tracking
+    - Comprehensive analytics and reporting
+    - Flexible search and filtering capabilities
+    
+    ## Authentication
+    Currently, all endpoints are publicly accessible. Future versions may include authentication mechanisms.
+    
+    ## Rate Limiting
+    API requests are limited to 100 requests per 15-minute window per IP address.
+    
+  contact:
+    name: Parking Garage API Support
+    url: https://api.parkinggarage.com/support
+    email: api-support@parkinggarage.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.parkinggarage.com/v1
+    description: Production server
+
+tags:
+  - name: sessions
+    description: Parking session management operations
+  - name: vehicles
+    description: Vehicle registration and management operations
+  - name: health
+    description: Health check and system status
+
+paths:
+  # SESSION ENDPOINTS
+  /sessions:
+    get:
+      tags:
+        - sessions
+      summary: List all parking sessions
+      description: |
+        Retrieve a paginated list of parking sessions with optional filtering and sorting capabilities.
+        Supports filtering by status, date range, and license plate search.
+      parameters:
+        - name: status
+          in: query
+          description: Filter sessions by status
+          required: false
+          schema:
+            type: string
+            enum: [active, completed, cancelled, all]
+            default: all
+          example: active
+        - name: dateRange
+          in: query
+          description: Filter sessions by predefined date range
+          required: false
+          schema:
+            type: string
+            enum: [today, week, month, all]
+            default: all
+          example: week
+        - name: search
+          in: query
+          description: Search sessions by license plate or vehicle information
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+          example: ABC123
+        - name: limit
+          in: query
+          description: Maximum number of sessions to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          example: 20
+        - name: offset
+          in: query
+          description: Number of sessions to skip for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+        - name: sort
+          in: query
+          description: Field to sort by
+          required: false
+          schema:
+            type: string
+            enum: [createdAt, endTime, duration, cost, licensePlate]
+            default: createdAt
+          example: createdAt
+        - name: order
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          example: desc
+      responses:
+        '200':
+          description: Sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionsListResponse'
+              examples:
+                success:
+                  summary: Successful session list retrieval
+                  value:
+                    success: true
+                    data:
+                      - id: "sess_abc123"
+                        licensePlate: "ABC123"
+                        vehicleType: "standard"
+                        spotId: "1-A-001"
+                        status: "active"
+                        createdAt: "2024-01-15T10:30:00Z"
+                        checkInTime: "2024-01-15T10:30:00Z"
+                        expectedEndTime: "2024-01-15T14:30:00Z"
+                        duration: 240
+                        cost: 20.00
+                    pagination:
+                      total: 150
+                      limit: 20
+                      offset: 0
+                      page: 1
+                      totalPages: 8
+                      hasNextPage: true
+                      hasPreviousPage: false
+                    message: "Sessions retrieved successfully"
+                    timestamp: "2024-01-15T11:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - sessions
+      summary: Create new parking session
+      description: |
+        Create a new parking session for a vehicle. Automatically assigns an available spot
+        or uses the specified spot if provided and available.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+            examples:
+              basic:
+                summary: Basic session creation
+                value:
+                  licensePlate: "ABC123"
+                  vehicleType: "standard"
+                  rateType: "hourly"
+              with_spot:
+                summary: Session with specific spot
+                value:
+                  licensePlate: "XYZ789"
+                  vehicleType: "compact"
+                  rateType: "daily"
+                  spotId: "2-B-015"
+                  expectedDuration: 480
+      responses:
+        '201':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+              examples:
+                success:
+                  summary: Successful session creation
+                  value:
+                    success: true
+                    data:
+                      id: "sess_xyz789"
+                      licensePlate: "ABC123"
+                      vehicleType: "standard"
+                      vehicleMake: null
+                      vehicleModel: null
+                      vehicleColor: null
+                      spotId: "1-A-015"
+                      floor: 1
+                      bay: "A"
+                      spotNumber: "015"
+                      status: "active"
+                      createdAt: "2024-01-15T11:00:00Z"
+                      checkInTime: "2024-01-15T11:00:00Z"
+                      expectedEndTime: "2024-01-15T15:00:00Z"
+                      rateType: "hourly"
+                    message: "Parking session created successfully"
+                    timestamp: "2024-01-15T11:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Conflict - Vehicle already has active session or spot unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                vehicle_conflict:
+                  summary: Vehicle already parked
+                  value:
+                    success: false
+                    code: "VEHICLE_ALREADY_PARKED"
+                    message: "Vehicle ABC123 already has an active parking session"
+                    timestamp: "2024-01-15T11:00:00Z"
+                spot_conflict:
+                  summary: Spot unavailable
+                  value:
+                    success: false
+                    code: "SPOT_UNAVAILABLE"
+                    message: "Requested parking spot 1-A-015 is not available"
+                    timestamp: "2024-01-15T11:00:00Z"
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sessions/{id}:
+    get:
+      tags:
+        - sessions
+      summary: Get specific session details
+      description: Retrieve detailed information about a specific parking session by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+          example: "sess_abc123"
+      responses:
+        '200':
+          description: Session details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - sessions
+      summary: Update session details
+      description: |
+        Update session information such as expected end time, vehicle details, or payment status.
+        Cannot update immutable fields like license plate or check-in time.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+          example: "sess_abc123"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSessionRequest'
+            examples:
+              extend_time:
+                summary: Extend expected end time
+                value:
+                  expectedEndTime: "2024-01-15T18:00:00Z"
+              add_vehicle_details:
+                summary: Add vehicle details
+                value:
+                  vehicleMake: "Toyota"
+                  vehicleModel: "Camry"
+                  vehicleColor: "Blue"
+              payment_update:
+                summary: Mark as paid
+                value:
+                  isPaid: true
+                  paymentMethod: "card"
+                  amountPaid: 25.00
+      responses:
+        '200':
+          description: Session updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - sessions
+      summary: Delete session
+      description: |
+        Delete a parking session. Only allowed for cancelled or completed sessions.
+        Active sessions must be ended or cancelled before deletion.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+          example: "sess_abc123"
+      responses:
+        '204':
+          description: Session deleted successfully
+        '400':
+          description: Cannot delete active session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                active_session:
+                  summary: Cannot delete active session
+                  value:
+                    success: false
+                    code: "CANNOT_DELETE_ACTIVE_SESSION"
+                    message: "Cannot delete active parking session. End or cancel the session first."
+                    timestamp: "2024-01-15T11:00:00Z"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sessions/{id}/end:
+    post:
+      tags:
+        - sessions
+      summary: End parking session
+      description: |
+        End an active parking session, calculate final cost, and free up the parking spot.
+        Optionally process payment if payment details are provided.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+          example: "sess_abc123"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EndSessionRequest'
+            examples:
+              basic_end:
+                summary: Basic session end
+                value:
+                  reason: "Normal checkout"
+              with_payment:
+                summary: End with payment
+                value:
+                  reason: "Normal checkout"
+                  paymentMethod: "card"
+                  amountPaid: 25.00
+      responses:
+        '200':
+          description: Session ended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EndSessionResponse'
+        '400':
+          description: Session cannot be ended (already ended or invalid state)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sessions/{id}/cancel:
+    post:
+      tags:
+        - sessions
+      summary: Cancel parking session
+      description: |
+        Cancel an active parking session without charging fees (or with minimal cancellation fee).
+        Frees up the parking spot immediately.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+          example: "sess_abc123"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 255
+                  description: Reason for cancellation
+                  example: "Customer request"
+      responses:
+        '200':
+          description: Session cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: Session cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # VEHICLE ENDPOINTS
+  /vehicles:
+    get:
+      tags:
+        - vehicles
+      summary: List all vehicles
+      description: |
+        Retrieve a paginated list of all registered vehicles with optional search and filtering.
+        Supports searching by license plate and filtering by vehicle type.
+      parameters:
+        - name: search
+          in: query
+          description: Search vehicles by license plate (supports partial matching)
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 20
+          example: "ABC"
+        - name: vehicleType
+          in: query
+          description: Filter by vehicle type
+          required: false
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+        - name: status
+          in: query
+          description: Filter by current status
+          required: false
+          schema:
+            type: string
+            enum: [parked, available, all]
+            default: all
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of vehicles per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          description: Sort field
+          required: false
+          schema:
+            type: string
+            enum: [licensePlate, vehicleType, createdAt, lastSeen]
+            default: licensePlate
+        - name: order
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Vehicles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehiclesListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - vehicles
+      summary: Register new vehicle
+      description: |
+        Register a new vehicle in the system. Vehicle registration is optional but allows
+        for storing additional vehicle details and parking history.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVehicleRequest'
+            examples:
+              basic:
+                summary: Basic vehicle registration
+                value:
+                  licensePlate: "ABC123"
+                  vehicleType: "standard"
+              detailed:
+                summary: Detailed vehicle registration
+                value:
+                  licensePlate: "XYZ789"
+                  vehicleType: "compact"
+                  make: "Toyota"
+                  model: "Prius"
+                  color: "Blue"
+                  year: 2022
+                  ownerName: "John Doe"
+                  ownerPhone: "+1-555-0123"
+                  ownerEmail: "john.doe@example.com"
+      responses:
+        '201':
+          description: Vehicle registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Vehicle already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                duplicate:
+                  summary: Vehicle already exists
+                  value:
+                    success: false
+                    code: "VEHICLE_ALREADY_EXISTS"
+                    message: "Vehicle with license plate ABC123 is already registered"
+                    timestamp: "2024-01-15T11:00:00Z"
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /vehicles/{id}:
+    get:
+      tags:
+        - vehicles
+      summary: Get specific vehicle
+      description: Retrieve detailed information about a specific vehicle by license plate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Vehicle license plate (URL encoded)
+          schema:
+            type: string
+          example: "ABC123"
+      responses:
+        '200':
+          description: Vehicle details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - vehicles
+      summary: Update vehicle details
+      description: |
+        Update vehicle information. License plate cannot be changed.
+        All fields are optional in the request body.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Vehicle license plate (URL encoded)
+          schema:
+            type: string
+          example: "ABC123"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVehicleRequest'
+            examples:
+              basic_update:
+                summary: Update basic details
+                value:
+                  vehicleType: "oversized"
+                  color: "Red"
+              owner_update:
+                summary: Update owner information
+                value:
+                  ownerName: "Jane Smith"
+                  ownerPhone: "+1-555-0456"
+                  ownerEmail: "jane.smith@example.com"
+      responses:
+        '200':
+          description: Vehicle updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - vehicles
+      summary: Remove vehicle
+      description: |
+        Remove a vehicle from the system. Vehicle cannot be deleted if it has an active
+        parking session. Historical session data will be preserved.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Vehicle license plate (URL encoded)
+          schema:
+            type: string
+          example: "ABC123"
+      responses:
+        '204':
+          description: Vehicle removed successfully
+        '400':
+          description: Vehicle cannot be deleted (has active session)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                active_session:
+                  summary: Cannot delete vehicle with active session
+                  value:
+                    success: false
+                    code: "VEHICLE_HAS_ACTIVE_SESSION"
+                    message: "Cannot delete vehicle ABC123 with active parking session"
+                    timestamp: "2024-01-15T11:00:00Z"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # HEALTH CHECK
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check
+      description: Get system health status and basic metrics
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  schemas:
+    # Core Enums
+    VehicleType:
+      type: string
+      enum: [compact, standard, oversized]
+      description: Type of vehicle for parking space assignment
+      example: standard
+
+    RateType:
+      type: string
+      enum: [hourly, daily, monthly]
+      description: Billing rate type for parking session
+      example: hourly
+
+    SessionStatus:
+      type: string
+      enum: [active, completed, cancelled]
+      description: Current status of parking session
+      example: active
+
+    # Session Models
+    ParkingSession:
+      type: object
+      required:
+        - id
+        - licensePlate
+        - spotId
+        - status
+        - createdAt
+        - checkInTime
+      properties:
+        id:
+          type: string
+          description: Unique session identifier
+          example: "sess_abc123"
+        licensePlate:
+          type: string
+          minLength: 1
+          maxLength: 15
+          pattern: '^[A-Z0-9\-\s]+$'
+          description: Vehicle license plate (uppercase)
+          example: "ABC123"
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        vehicleMake:
+          type: string
+          maxLength: 50
+          description: Vehicle manufacturer
+          example: "Toyota"
+        vehicleModel:
+          type: string
+          maxLength: 50
+          description: Vehicle model
+          example: "Camry"
+        vehicleColor:
+          type: string
+          maxLength: 30
+          description: Vehicle color
+          example: "Blue"
+        spotId:
+          type: string
+          description: Assigned parking spot ID
+          example: "1-A-015"
+        floor:
+          type: integer
+          minimum: 1
+          maximum: 50
+          description: Parking floor number
+          example: 1
+        bay:
+          type: string
+          maxLength: 5
+          description: Parking bay identifier
+          example: "A"
+        spotNumber:
+          type: string
+          maxLength: 10
+          description: Spot number within bay
+          example: "015"
+        garageId:
+          type: string
+          description: Garage identifier (for multi-garage systems)
+          example: "garage_main"
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        createdAt:
+          type: string
+          format: date-time
+          description: Session creation timestamp
+          example: "2024-01-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"
+        checkInTime:
+          type: string
+          format: date-time
+          description: Vehicle check-in time
+          example: "2024-01-15T10:30:00Z"
+        checkOutTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Vehicle check-out time
+          example: "2024-01-15T14:30:00Z"
+        expectedEndTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expected session end time
+          example: "2024-01-15T14:30:00Z"
+        duration:
+          type: integer
+          minimum: 0
+          description: Parking duration in minutes
+          example: 240
+        cost:
+          type: number
+          format: float
+          minimum: 0
+          description: Total parking cost
+          example: 20.00
+        amount:
+          type: number
+          format: float
+          minimum: 0
+          description: Amount charged (alias for cost)
+          example: 20.00
+        rateType:
+          $ref: '#/components/schemas/RateType'
+        endReason:
+          type: string
+          maxLength: 100
+          description: Reason for ending session
+          example: "Normal checkout"
+        isPaid:
+          type: boolean
+          description: Payment status
+          example: false
+        paymentMethod:
+          type: string
+          enum: [cash, card, mobile, other]
+          description: Payment method used
+          example: "card"
+        amountPaid:
+          type: number
+          format: float
+          minimum: 0
+          description: Amount actually paid
+          example: 25.00
+        notes:
+          type: string
+          maxLength: 500
+          description: Additional notes
+          example: "Customer requested extended parking"
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+          description: Session tags for categorization
+          example: ["vip", "electric-vehicle"]
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional structured data
+
+    # Vehicle Models
+    Vehicle:
+      type: object
+      required:
+        - licensePlate
+        - vehicleType
+        - createdAt
+      properties:
+        licensePlate:
+          type: string
+          minLength: 1
+          maxLength: 15
+          pattern: '^[A-Z0-9\-\s]+$'
+          description: Vehicle license plate (uppercase, primary key)
+          example: "ABC123"
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        make:
+          type: string
+          maxLength: 50
+          description: Vehicle manufacturer
+          example: "Toyota"
+        model:
+          type: string
+          maxLength: 50
+          description: Vehicle model
+          example: "Camry"
+        color:
+          type: string
+          maxLength: 30
+          description: Vehicle color
+          example: "Blue"
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+          description: Vehicle year
+          example: 2022
+        ownerName:
+          type: string
+          maxLength: 100
+          description: Vehicle owner name
+          example: "John Doe"
+        ownerPhone:
+          type: string
+          maxLength: 20
+          pattern: '^\+?[\d\s\-\(\)]+$'
+          description: Owner phone number
+          example: "+1-555-0123"
+        ownerEmail:
+          type: string
+          format: email
+          maxLength: 255
+          description: Owner email address
+          example: "john.doe@example.com"
+        isActive:
+          type: boolean
+          description: Whether vehicle is active in system
+          example: true
+        currentSessionId:
+          type: string
+          nullable: true
+          description: ID of current active parking session
+          example: "sess_abc123"
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last time vehicle was seen in garage
+          example: "2024-01-15T10:30:00Z"
+        totalSessions:
+          type: integer
+          minimum: 0
+          description: Total number of parking sessions
+          example: 15
+        totalParkingTime:
+          type: integer
+          minimum: 0
+          description: Total parking time in minutes
+          example: 3600
+        totalAmountSpent:
+          type: number
+          format: float
+          minimum: 0
+          description: Total amount spent on parking
+          example: 150.50
+        createdAt:
+          type: string
+          format: date-time
+          description: Vehicle registration timestamp
+          example: "2024-01-01T00:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"
+        notes:
+          type: string
+          maxLength: 500
+          description: Additional notes about vehicle
+          example: "VIP customer vehicle"
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+          description: Vehicle tags for categorization
+          example: ["vip", "frequent-parker"]
+
+    # Request Schemas
+    CreateSessionRequest:
+      type: object
+      required:
+        - licensePlate
+      properties:
+        licensePlate:
+          type: string
+          minLength: 1
+          maxLength: 15
+          pattern: '^[A-Z0-9\-\s]+$'
+          description: Vehicle license plate
+          example: "ABC123"
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        vehicleMake:
+          type: string
+          maxLength: 50
+          example: "Toyota"
+        vehicleModel:
+          type: string
+          maxLength: 50
+          example: "Camry"
+        vehicleColor:
+          type: string
+          maxLength: 30
+          example: "Blue"
+        spotId:
+          type: string
+          description: Specific spot ID to request (optional)
+          example: "1-A-015"
+        rateType:
+          $ref: '#/components/schemas/RateType'
+        expectedDuration:
+          type: integer
+          minimum: 1
+          maximum: 43200
+          description: Expected parking duration in minutes
+          example: 240
+        notes:
+          type: string
+          maxLength: 500
+          example: "Customer needs EV charging"
+
+    UpdateSessionRequest:
+      type: object
+      properties:
+        expectedEndTime:
+          type: string
+          format: date-time
+          description: Update expected end time
+          example: "2024-01-15T18:00:00Z"
+        vehicleMake:
+          type: string
+          maxLength: 50
+          example: "Toyota"
+        vehicleModel:
+          type: string
+          maxLength: 50
+          example: "Camry"
+        vehicleColor:
+          type: string
+          maxLength: 30
+          example: "Blue"
+        notes:
+          type: string
+          maxLength: 500
+          example: "Extended parking approved"
+        isPaid:
+          type: boolean
+          description: Update payment status
+          example: true
+        paymentMethod:
+          type: string
+          enum: [cash, card, mobile, other]
+          example: "card"
+        amountPaid:
+          type: number
+          format: float
+          minimum: 0
+          example: 25.00
+
+    EndSessionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 100
+          description: Reason for ending session
+          example: "Normal checkout"
+        paymentMethod:
+          type: string
+          enum: [cash, card, mobile, other]
+          example: "card"
+        amountPaid:
+          type: number
+          format: float
+          minimum: 0
+          description: Payment amount
+          example: 25.00
+        notes:
+          type: string
+          maxLength: 500
+          example: "Customer satisfied with service"
+
+    CreateVehicleRequest:
+      type: object
+      required:
+        - licensePlate
+      properties:
+        licensePlate:
+          type: string
+          minLength: 1
+          maxLength: 15
+          pattern: '^[A-Z0-9\-\s]+$'
+          description: Vehicle license plate
+          example: "ABC123"
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        make:
+          type: string
+          maxLength: 50
+          example: "Toyota"
+        model:
+          type: string
+          maxLength: 50
+          example: "Camry"
+        color:
+          type: string
+          maxLength: 30
+          example: "Blue"
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+          example: 2022
+        ownerName:
+          type: string
+          maxLength: 100
+          example: "John Doe"
+        ownerPhone:
+          type: string
+          maxLength: 20
+          pattern: '^\+?[\d\s\-\(\)]+$'
+          example: "+1-555-0123"
+        ownerEmail:
+          type: string
+          format: email
+          maxLength: 255
+          example: "john.doe@example.com"
+        notes:
+          type: string
+          maxLength: 500
+          example: "VIP customer vehicle"
+
+    UpdateVehicleRequest:
+      type: object
+      properties:
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        make:
+          type: string
+          maxLength: 50
+          example: "Honda"
+        model:
+          type: string
+          maxLength: 50
+          example: "Civic"
+        color:
+          type: string
+          maxLength: 30
+          example: "Red"
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+          example: 2023
+        ownerName:
+          type: string
+          maxLength: 100
+          example: "Jane Smith"
+        ownerPhone:
+          type: string
+          maxLength: 20
+          pattern: '^\+?[\d\s\-\(\)]+$'
+          example: "+1-555-0456"
+        ownerEmail:
+          type: string
+          format: email
+          maxLength: 255
+          example: "jane.smith@example.com"
+        isActive:
+          type: boolean
+          example: false
+        notes:
+          type: string
+          maxLength: 500
+          example: "Updated owner information"
+
+    # Response Schemas
+    ApiResponse:
+      type: object
+      required:
+        - success
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the request was successful
+          example: true
+        message:
+          type: string
+          description: Human-readable response message
+          example: "Operation completed successfully"
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+          example: "2024-01-15T11:00:00Z"
+        requestId:
+          type: string
+          description: Unique request identifier for tracking
+          example: "req_abc123def456"
+
+    SessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ParkingSession'
+
+    SessionsListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/ParkingSession'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+
+    EndSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                session:
+                  $ref: '#/components/schemas/ParkingSession'
+                receipt:
+                  type: object
+                  properties:
+                    sessionId:
+                      type: string
+                      example: "sess_abc123"
+                    licensePlate:
+                      type: string
+                      example: "ABC123"
+                    spotId:
+                      type: string
+                      example: "1-A-015"
+                    checkInTime:
+                      type: string
+                      format: date-time
+                      example: "2024-01-15T10:30:00Z"
+                    checkOutTime:
+                      type: string
+                      format: date-time
+                      example: "2024-01-15T14:30:00Z"
+                    duration:
+                      type: string
+                      description: Human-readable duration
+                      example: "4 hours"
+                    totalCost:
+                      type: number
+                      format: float
+                      example: 20.00
+                    amountPaid:
+                      type: number
+                      format: float
+                      example: 25.00
+                    change:
+                      type: number
+                      format: float
+                      example: 5.00
+                    receiptNumber:
+                      type: string
+                      example: "RCP-20240115-001"
+
+    VehicleResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Vehicle'
+
+    VehiclesListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Vehicle'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+          example: 150
+        limit:
+          type: integer
+          description: Items per page
+          example: 20
+        offset:
+          type: integer
+          description: Number of items skipped
+          example: 0
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 8
+        hasNextPage:
+          type: boolean
+          description: Whether there is a next page
+          example: true
+        hasPreviousPage:
+          type: boolean
+          description: Whether there is a previous page
+          example: false
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - code
+        - message
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+          description: Always false for error responses
+        code:
+          type: string
+          description: Error code for programmatic handling
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid license plate format"
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of specific error messages
+          example: ["License plate is required", "Vehicle type must be one of: compact, standard, oversized"]
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2024-01-15T11:00:00Z"
+        path:
+          type: string
+          description: API path that caused the error
+          example: "/api/sessions"
+        requestId:
+          type: string
+          description: Unique request identifier for tracking
+          example: "req_abc123def456"
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: ["VALIDATION_ERROR"]
+            validationErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+              description: Field-specific validation errors
+              example:
+                licensePlate: ["License plate is required", "Invalid license plate format"]
+                vehicleType: ["Must be one of: compact, standard, oversized"]
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T11:00:00Z"
+        uptime:
+          type: number
+          description: Server uptime in seconds
+          example: 86400
+        version:
+          type: string
+          example: "1.0.0"
+        environment:
+          type: string
+          example: "production"
+        services:
+          type: object
+          properties:
+            database:
+              type: string
+              enum: [connected, disconnected]
+              example: connected
+            cache:
+              type: string
+              enum: [connected, disconnected]
+              example: connected
+            storage:
+              type: string
+              enum: [available, unavailable]
+              example: available
+
+  responses:
+    BadRequest:
+      description: Bad Request - Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid_params:
+              summary: Invalid parameters
+              value:
+                success: false
+                code: "BAD_REQUEST"
+                message: "Invalid request parameters"
+                errors: ["limit must be between 1 and 100"]
+                timestamp: "2024-01-15T11:00:00Z"
+
+    ValidationError:
+      description: Validation Error - Request data failed validation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          examples:
+            validation_failed:
+              summary: Validation failed
+              value:
+                success: false
+                code: "VALIDATION_ERROR"
+                message: "Request validation failed"
+                validationErrors:
+                  licensePlate: ["License plate is required"]
+                  vehicleType: ["Must be one of: compact, standard, oversized"]
+                timestamp: "2024-01-15T11:00:00Z"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            session_not_found:
+              summary: Session not found
+              value:
+                success: false
+                code: "SESSION_NOT_FOUND"
+                message: "Session with ID sess_abc123 not found"
+                timestamp: "2024-01-15T11:00:00Z"
+            vehicle_not_found:
+              summary: Vehicle not found
+              value:
+                success: false
+                code: "VEHICLE_NOT_FOUND"
+                message: "Vehicle with license plate ABC123 not found"
+                timestamp: "2024-01-15T11:00:00Z"
+
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            server_error:
+              summary: Internal server error
+              value:
+                success: false
+                code: "INTERNAL_SERVER_ERROR"
+                message: "An unexpected error occurred. Please try again later."
+                timestamp: "2024-01-15T11:00:00Z"
+                requestId: "req_abc123def456"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (future implementation)
+
+# Security requirement (currently not enforced)
+security: []
+
+# Rate limiting information
+x-rateLimit:
+  limit: 100
+  windowMs: 900000  # 15 minutes
+  message: "Too many requests from this IP, please try again later."
