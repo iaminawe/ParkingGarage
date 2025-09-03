@@ -101,7 +101,7 @@ class EmailService {
         default:
           transportConfig = {
             host: env.SMTP_HOST,
-            port: parseInt(env.SMTP_PORT || '587'),
+            port: parseInt(String(env.SMTP_PORT || '587')),
             secure: env.SMTP_SECURE === 'true', // true for 465, false for other ports
             auth: {
               user: env.EMAIL_USER,
@@ -215,6 +215,7 @@ class EmailService {
       const success = await this.sendEmail(
         {
           to: email,
+          subject: 'Verify Your Email Address',
           templateName: 'EMAIL_VERIFICATION',
           templateVariables: {
             verificationUrl: `${env.FRONTEND_URL}/verify-email?token=${token}`,
@@ -274,6 +275,7 @@ class EmailService {
       const success = await this.sendEmail(
         {
           to: email,
+          subject: 'Password Reset Request',
           templateName: 'PASSWORD_RESET',
           templateVariables: {
             resetUrl: `${env.FRONTEND_URL}/reset-password?token=${token}`,
@@ -338,6 +340,7 @@ class EmailService {
       return await this.sendEmail(
         {
           to: email,
+          subject: `Security Alert: ${alertType.replace('_', ' ')}`,
           templateName:
             alertTemplates[alertType as keyof typeof alertTemplates] || 'SECURITY_ALERT_GENERIC',
           templateVariables: {

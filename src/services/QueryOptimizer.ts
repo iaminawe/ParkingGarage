@@ -527,9 +527,12 @@ export class QueryOptimizer {
             cacheHits: 0,
           };
         }
-        acc[metric.tableName].queries.push(metric);
-        if (metric.cacheHit) {
-          acc[metric.tableName].cacheHits++;
+        const tableData = acc[metric.tableName];
+        if (tableData) {
+          tableData.queries.push(metric);
+          if (metric.cacheHit) {
+            tableData.cacheHits++;
+          }
         }
         return acc;
       },
@@ -614,7 +617,12 @@ export class QueryOptimizer {
       this.slowQueries = this.slowQueries.slice(-100);
     }
 
-    logger.warn('Slow query detected', slowQuery);
+    logger.warn('Slow query detected', {
+      query: slowQuery.query,
+      executionTime: slowQuery.executionTime,
+      timestamp: slowQuery.timestamp,
+      stackTrace: slowQuery.stackTrace,
+    });
   }
 
   private async invalidateVehicleCaches(

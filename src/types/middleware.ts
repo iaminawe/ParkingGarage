@@ -9,6 +9,15 @@ import { Request, Response, NextFunction } from 'express';
 import { ValidationResult } from './models';
 import { User } from '@prisma/client';
 
+// Request metadata structure
+export interface RequestMetadata {
+  requestId: string;
+  timestamp: string;
+  userAgent?: string;
+  ipAddress?: string;
+  correlationId?: string;
+}
+
 // Extended Express Request Types
 export interface CustomRequest extends Request {
   startTime?: number;
@@ -31,7 +40,7 @@ export interface CustomRequest extends Request {
     offset: number;
   };
   filters?: Record<string, any>;
-  metadata?: Record<string, any>;
+  metadata?: RequestMetadata;
 }
 
 // Middleware Function Types

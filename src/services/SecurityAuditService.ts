@@ -148,33 +148,33 @@ class SecurityAuditService {
       // Get top risk actions
       const topRisks = await prisma.securityAuditLog.groupBy({
         by: ['action', 'riskLevel'],
-        _count: { _all: true },
+        _count: true,
         where: { createdAt: { gte: startDate } },
-        orderBy: { _count: { _all: 'desc' } },
+        orderBy: { _count: { action: 'desc' } },
         take: 10,
       });
 
       // Get user risk scores
       const userRisks = await prisma.securityAuditLog.groupBy({
         by: ['userId'],
-        _count: { _all: true },
+        _count: true,
         where: {
           createdAt: { gte: startDate },
           userId: { not: null },
         },
-        orderBy: { _count: { _all: 'desc' } },
+        orderBy: { _count: { userId: 'desc' } },
         take: 10,
       });
 
       // Get IP risk scores
       const ipRisks = await prisma.securityAuditLog.groupBy({
         by: ['ipAddress'],
-        _count: { _all: true },
+        _count: true,
         where: {
           createdAt: { gte: startDate },
           ipAddress: { not: null },
         },
-        orderBy: { _count: { _all: 'desc' } },
+        orderBy: { _count: { ipAddress: 'desc' } },
         take: 10,
       });
 
@@ -187,21 +187,21 @@ class SecurityAuditService {
         anomalies,
         topRisks: topRisks.map(risk => ({
           action: risk.action,
-          count: risk._count._all,
+          count: risk._count || 0,
           riskLevel: risk.riskLevel || 'LOW',
         })),
         userRisks: await Promise.all(
           userRisks.map(async risk => ({
             userId: risk.userId!,
             riskScore: await this.getUserRiskScore(risk.userId!),
-            eventCount: risk._count._all,
+            eventCount: risk._count || 0,
           }))
         ),
         ipRisks: await Promise.all(
           ipRisks.map(async risk => ({
             ipAddress: risk.ipAddress!,
             riskScore: await this.getIpRiskScore(risk.ipAddress!),
-            eventCount: risk._count._all,
+            eventCount: risk._count || 0,
           }))
         ),
         timelineSummary,

@@ -104,6 +104,11 @@ const environmentSchema = z.object({
     .string()
     .transform(val => val === 'true')
     .default(false),
+
+  // Twilio Configuration (optional)
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_PHONE_NUMBER: z.string().optional(),
 });
 
 // Environment validation result type

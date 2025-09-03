@@ -413,10 +413,8 @@ export class PerformanceMetricsCollector extends EventEmitter {
       return benchmark;
     } catch (error) {
       const endTime = performance.now();
-      logger.error(`Benchmark failed: ${name}`, {
-        duration: `${Math.round((endTime - startTime) * 100) / 100}ms`,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      const duration = Math.round((endTime - startTime) * 100) / 100;
+      logger.error(`Benchmark failed: ${name} (${duration}ms): ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }

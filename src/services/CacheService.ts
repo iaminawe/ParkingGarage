@@ -56,11 +56,11 @@ export class CacheService {
 
   constructor(config: CacheConfig) {
     this.config = {
-      keyPrefix: 'parking:',
-      defaultTTL: 3600, // 1 hour
-      maxRetries: 3,
-      retryDelayMs: 1000,
       ...config,
+      keyPrefix: config.keyPrefix || 'parking:',
+      defaultTTL: config.defaultTTL || 3600, // 1 hour
+      maxRetries: config.maxRetries || 3,
+      retryDelayMs: config.retryDelayMs || 1000,
     };
 
     // Create Redis client with optimized configuration
@@ -100,7 +100,7 @@ export class CacheService {
       });
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Failed to connect to cache service', error);
+      logger.error('Failed to connect to cache service', error as Error);
       throw error;
     }
   }
@@ -118,7 +118,7 @@ export class CacheService {
       this.isConnected = false;
       logger.info('Cache service disconnected');
     } catch (error) {
-      logger.error('Error disconnecting from cache service', error);
+      logger.error('Error disconnecting from cache service', error as Error);
     }
   }
 
@@ -151,7 +151,7 @@ export class CacheService {
       return parsed.data;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache get error', { key, error });
+      logger.error('Cache get error', new Error(`Cache get error for key ${key}: ${(error as Error).message}`));
       return null;
     }
   }
@@ -183,7 +183,7 @@ export class CacheService {
       return true;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache set error', { key, error });
+      logger.error('Cache set error', new Error(`Cache set error for key ${key}: ${(error as Error).message}`));
       return false;
     }
   }
@@ -200,7 +200,7 @@ export class CacheService {
       return result > 0;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache delete error', { key, error });
+      logger.error('Cache delete error', new Error(`Cache delete error for key ${key}: ${(error as Error).message}`));
       return false;
     }
   }
@@ -224,11 +224,13 @@ export class CacheService {
         if (value !== null) {
           try {
             const parsed = JSON.parse(value) as CacheItem<T>;
-            results.set(keys[index], parsed.data);
+            if (keys[index] !== undefined) {
+              results.set(keys[index], parsed.data);
+            }
             this.metrics.hits++;
           } catch (parseError) {
             this.metrics.errors++;
-            logger.error('Cache parse error', { key: keys[index], parseError });
+            logger.error('Cache parse error', new Error(`Cache parse error for key ${keys[index]}: ${(parseError as Error).message}`));
           }
         } else {
           this.metrics.misses++;
@@ -241,7 +243,7 @@ export class CacheService {
       return results;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache getMany error', { keys, error });
+      logger.error('Cache getMany error', new Error(`Cache getMany error for keys [${keys.join(', ')}]: ${(error as Error).message}`));
       return new Map();
     }
   }
@@ -285,7 +287,7 @@ export class CacheService {
       return successCount;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache setMany error', { itemCount: items.size, error });
+      logger.error('Cache setMany error', new Error(`Cache setMany error for ${items.size} items: ${(error as Error).message}`));
       return successCount;
     }
   }
@@ -322,7 +324,7 @@ export class CacheService {
           logger.debug('Cache key warmed successfully', { key: task.key });
         }
       } catch (error) {
-        logger.error('Cache warming error', { key: task.key, error });
+        logger.error('Cache warming error', new Error(`Cache warming error for key ${task.key}: ${(error as Error).message}`));
       }
     }
 
@@ -357,7 +359,7 @@ export class CacheService {
       return deletedCount;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache pattern invalidation error', { pattern, error });
+      logger.error('Cache pattern invalidation error', new Error(`Cache pattern invalidation error for pattern ${pattern}: ${(error as Error).message}`));
       return 0;
     }
   }

@@ -216,7 +216,7 @@ class PaymentService {
       await this.auditService.logSecurityEvent({
         userId,
         action: gatewayResult.success ? 'PAYMENT_SUCCESSFUL' : 'PAYMENT_FAILED',
-        category: 'TRANSACTION',
+        category: 'SYSTEM',
         severity: gatewayResult.success ? 'LOW' : 'MEDIUM',
         description: `Payment ${gatewayResult.success ? 'processed' : 'failed'} - Amount: $${request.amount}`,
         metadata: {
@@ -244,7 +244,7 @@ class PaymentService {
       await this.auditService.logSecurityEvent({
         userId,
         action: 'PAYMENT_ERROR',
-        category: 'TRANSACTION',
+        category: 'SYSTEM',
         severity: 'HIGH',
         description: `Payment processing error: ${(error as Error).message}`,
         metadata: { request, error: (error as Error).message },
@@ -318,7 +318,7 @@ class PaymentService {
       await this.auditService.logSecurityEvent({
         userId,
         action: 'PAYMENT_REFUNDED',
-        category: 'TRANSACTION',
+        category: 'SYSTEM',
         severity: 'MEDIUM',
         description: `Refund processed - Amount: $${refundAmount}, Reason: ${refundRequest.reason}`,
         metadata: {

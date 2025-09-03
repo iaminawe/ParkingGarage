@@ -106,7 +106,7 @@ export class CheckoutService {
         await this.vehicleRepository.delete(vehicle.id);
       } else {
         await this.vehicleRepository.update(vehicle.id, {
-          checkOutTime: checkoutTime.toISOString(),
+          // No checkOutTime field exists in vehicle data
         });
       }
 
@@ -173,7 +173,7 @@ export class CheckoutService {
   async getCheckoutStats(): Promise<any> {
     try {
       const completedSessions = await this.sessionsRepository.findAll();
-      const completed = completedSessions.filter(s => s.status === 'completed');
+      const completed = completedSessions.data.filter(s => s.status === 'COMPLETED');
 
       const totalRevenue = completed.reduce((sum, session: any) => sum + (session.cost || 0), 0);
       const averageDuration =
@@ -236,7 +236,7 @@ export class CheckoutService {
   private async findActiveParkingSession(licensePlate: any): Promise<any> {
     try {
       const sessions = await this.sessionsRepository.findByLicensePlate(licensePlate);
-      const activeSession = sessions.find((s: any) => s.status === 'active');
+      const activeSession = sessions.find((s: any) => s.status === 'ACTIVE');
 
       if (!activeSession) {
         throw new Error(`No active parking session found for vehicle '${licensePlate}'`);
@@ -267,7 +267,11 @@ export class CheckoutService {
         truck: 10.0,
       };
 
-      const baseRate = hourlyRates[vehicleType.toLowerCase()] || hourlyRates.standard;
+      const baseRate = hourlyRates[vehicleType.toLowerCase()] ?? hourlyRates.standard ?? 5.0;
+
+      if (!baseRate) {
+        throw new Error(`Unable to determine rate for vehicle type: ${vehicleType}`);
+      }
 
       // Apply grace period (first 15 minutes free)
       const billableMinutes =
@@ -313,8 +317,8 @@ export class CheckoutService {
   ): Promise<any> {
     try {
       const updatedSession = await this.sessionsRepository.update(sessionId, {
-        status: 'completed',
-        endTime: endTime.toISOString(),
+        status: 'COMPLETED',
+        endTime: endTime,
         duration: durationMinutes,
         cost,
         endReason,
@@ -329,7 +333,7 @@ export class CheckoutService {
 
   private async releaseSpot(spotId: any): Promise<void> {
     try {
-      await this.spotRepository.updateSpotStatus(spotId, 'available', {
+      await this.spotRepository.updateSpotStatus(spotId, 'AVAILABLE', {
         licensePlate: null,
         occupiedAt: null,
         releasedAt: new Date().toISOString(),
@@ -352,7 +356,7 @@ export class CheckoutService {
         rollbackPromises.push(
           this.sessionsRepository
             .update(sessionId, {
-              status: 'active',
+              status: 'ACTIVE',
               endTime: undefined,
               duration: undefined,
               cost: undefined,
@@ -367,7 +371,7 @@ export class CheckoutService {
         rollbackPromises.push(
           Promise.resolve(
             this.vehicleRepository.update(vehicleId, {
-              checkOutTime: null,
+              // No checkOutTime field to revert
             })
           )
             .then(() => {})
@@ -378,7 +382,7 @@ export class CheckoutService {
       if (spotId) {
         // Revert spot back to occupied
         rollbackPromises.push(
-          Promise.resolve(this.spotRepository.updateSpotStatus(spotId, 'occupied', {}))
+          Promise.resolve(this.spotRepository.updateSpotStatus(spotId, 'OCCUPIED', {}))
             .then(() => {})
             .catch(err => console.error('Failed to rollback spot status:', err))
         );

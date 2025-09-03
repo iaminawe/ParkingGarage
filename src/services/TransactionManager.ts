@@ -340,7 +340,7 @@ export class TransactionManager implements ITransactionManager {
 
     Object.keys(this.transactionMetrics).forEach(transactionId => {
       const metrics = this.transactionMetrics[transactionId];
-      if (metrics.startTime < cutoffTime) {
+      if (metrics && metrics.startTime < cutoffTime) {
         delete this.transactionMetrics[transactionId];
       }
     });
@@ -363,12 +363,15 @@ export class TransactionManager implements ITransactionManager {
 
       for (let i = 0; i < operations.length; i++) {
         const operation = operations[i];
+        if (!operation) {
+          throw new Error(`Operation at index ${i} is undefined`);
+        }
 
         // Create savepoint before each operation for selective rollback
         const savepoint = await this.createSavepoint(`operation_${i}`, context);
 
         try {
-          const result = await operation(tx, context);
+          const result = await operation!(tx, context);
           results.push(result);
 
           // Release savepoint on success

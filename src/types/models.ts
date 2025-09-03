@@ -8,8 +8,9 @@
 // Common types used across multiple models
 export type VehicleType = 'compact' | 'standard' | 'oversized';
 export type RateType = 'hourly' | 'daily' | 'monthly';
-export type SpotStatus = 'available' | 'occupied';
-export type VehicleStatus = 'parked' | 'checked_out_unpaid' | 'completed';
+export type SpotStatus = 'available' | 'occupied' | 'maintenance' | 'reserved' | 'out_of_order' | 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'RESERVED' | 'OUT_OF_ORDER';
+export type VehicleStatus = 'active' | 'inactive' | 'parked' | 'checked_out_unpaid' | 'completed';
+export type SessionStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED' | 'USED';
 export type SpotFeature = 'ev_charging' | 'handicap';
 
 // Vehicle-related interfaces
@@ -122,11 +123,12 @@ export interface PaginationOptions {
 export interface PaginatedResult<T> {
   data: T[];
   totalItems: number;
+  totalCount: number;
   totalPages: number;
   currentPage: number;
   itemsPerPage: number;
   hasNextPage: boolean;
-  hasPreviousPage: boolean;
+  hasPrevPage: boolean;
 }
 
 // Validation result interface
@@ -171,6 +173,7 @@ export interface ParkingSession {
   status: string;
   createdAt?: string;
   updatedAt?: string;
+  startTime?: string;
   endTime?: string;
   expectedEndTime?: string;
   checkInTime?: string;

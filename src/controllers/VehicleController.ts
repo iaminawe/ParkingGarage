@@ -12,27 +12,8 @@ import { Request, Response } from 'express';
 import { VehicleRepository } from '../repositories/VehicleRepository';
 import { SearchService } from '../services/searchService';
 import { Vehicle, VehicleType, RateType } from '@prisma/client';
-import { ApiResponse, PaginatedApiResponse } from '../types/api';
+import { ApiResponse, PaginatedApiResponse, FrontendVehicle } from '../types/api';
 import { VehicleRecord, VehicleType as LegacyVehicleType, VehicleStatus } from '../types/models';
-
-// Frontend vehicle interface (for API compatibility)
-interface FrontendVehicle {
-  id: string;
-  licensePlate: string;
-  make?: string;
-  model?: string;
-  color?: string;
-  year?: number;
-  type: 'car' | 'motorcycle' | 'truck' | 'van' | 'bus';
-  ownerId?: string;
-  ownerName?: string;
-  ownerEmail?: string;
-  ownerPhone?: string;
-  notes?: string;
-  status: 'active' | 'inactive';
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface VehicleSearchQuery {
   search?: string;
@@ -587,6 +568,7 @@ export class VehicleController {
     return {
       id: vehicle.licensePlate,
       licensePlate: vehicle.licensePlate,
+      vehicleType: vehicle.vehicleType as any, // Cast to VehicleType
       make: vehicle.make || undefined,
       model: vehicle.model || undefined,
       color: vehicle.color || undefined,

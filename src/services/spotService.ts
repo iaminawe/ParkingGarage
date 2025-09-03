@@ -426,13 +426,11 @@ class SpotService {
     const baySet = new Set<string>();
 
     filteredSpots.forEach(spot => {
-      statusCounts[spot.status]++;
-      typeCounts[spot.type]++;
+      statusCounts[spot.status] = (statusCounts[spot.status] || 0) + 1;
+      typeCounts[spot.type] = (typeCounts[spot.type] || 0) + 1;
 
-      spot.features.forEach((feature: SpotFeature) => {
-        if (featureCounts[feature] !== undefined) {
-          featureCounts[feature]++;
-        }
+      spot.features?.forEach((feature: SpotFeature) => {
+        featureCounts[feature] = (featureCounts[feature] || 0) + 1;
       });
 
       floorSet.add(spot.floor);
@@ -449,7 +447,7 @@ class SpotService {
       featureCounts,
       floors: Array.from(floorSet).sort((a, b) => a - b),
       uniqueBays: baySet.size,
-      occupancyRate: total > 0 ? Math.round((statusCounts.occupied / total) * 10000) / 100 : 0,
+      occupancyRate: total > 0 ? Math.round(((statusCounts.occupied || 0) / total) * 10000) / 100 : 0,
     };
   }
 

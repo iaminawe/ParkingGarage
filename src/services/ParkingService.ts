@@ -25,11 +25,15 @@ import {
   SpotType,
   SessionStatus,
   Vehicle,
-  Spot,
-  Session,
+  ParkingSpot,
+  ParkingSession,
   Ticket,
   Payment,
 } from '@prisma/client';
+
+// Use Prisma generated types directly
+type Spot = ParkingSpot;
+type Session = ParkingSession;
 import { createLogger } from '../utils/logger';
 import type { IAdapterLogger } from '../adapters/interfaces/BaseAdapter';
 
@@ -161,7 +165,7 @@ export class ParkingService {
             vehicle = await this.vehicleRepository.create(
               {
                 licensePlate: sessionData.vehicle.licensePlate.toUpperCase(),
-                vehicleType: sessionData.vehicle.vehicleType || 'STANDARD',
+                vehicleType: sessionData.vehicle.vehicleType as any || 'STANDARD',
                 color: sessionData.vehicle.color,
                 make: sessionData.vehicle.make,
                 model: sessionData.vehicle.model,
@@ -201,17 +205,13 @@ export class ParkingService {
 
         let session: Session;
         try {
-          session = await this.sessionRepository.create(
-            {
-              spotId: sessionData.spotId,
-              vehicleId: vehicle.id,
-              status: SessionStatus.ACTIVE,
-              entryTime: sessionData.entryTime || new Date(),
-              expectedExitTime: sessionData.expectedExitTime,
-              metadata: sessionData.metadata ? JSON.stringify(sessionData.metadata) : undefined,
-            },
-            tx
-          );
+          session = await this.sessionRepository.create({
+            spotId: sessionData.spotId,
+            vehicleId: vehicle.id,
+            status: SessionStatus.ACTIVE,
+            startTime: sessionData.entryTime || new Date(),
+            notes: sessionData.metadata ? JSON.stringify(sessionData.metadata) : undefined,
+          });
 
           await this.transactionManager.releaseSavepoint(sessionSavepoint.id, context);
         } catch (error) {
@@ -230,7 +230,6 @@ export class ParkingService {
             sessionData.spotId,
             {
               status: SpotStatus.OCCUPIED,
-              currentVehicleId: vehicle.id,
             },
             undefined,
             tx
@@ -319,7 +318,7 @@ export class ParkingService {
 
         // Step 3: Calculate parking duration and fee
         const actualExitTime = exitTime || new Date();
-        const duration = actualExitTime.getTime() - session.entryTime.getTime();
+        const duration = actualExitTime.getTime() - session.startTime.getTime();
         const hours = Math.ceil(duration / (1000 * 60 * 60));
         const fee = this.calculateParkingFee(hours);
 
@@ -335,9 +334,9 @@ export class ParkingService {
             session.id,
             {
               status: SessionStatus.COMPLETED,
-              exitTime: actualExitTime,
+              endTime: actualExitTime,
               duration: Math.floor(duration / 1000), // duration in seconds
-              totalFee: fee,
+              totalAmount: fee,
             },
             undefined,
             tx
@@ -361,7 +360,6 @@ export class ParkingService {
             session.spotId,
             {
               status: SpotStatus.AVAILABLE,
-              currentVehicleId: null as any,
             },
             undefined,
             tx
@@ -477,9 +475,9 @@ export class ParkingService {
             session.id,
             {
               spotId: transferData.toSpotId,
-              metadata: transferData.metadata
+              notes: transferData.metadata
                 ? JSON.stringify(transferData.metadata)
-                : session.metadata,
+                : session.notes || undefined,
             },
             undefined,
             tx
@@ -503,7 +501,6 @@ export class ParkingService {
             transferData.fromSpotId,
             {
               status: SpotStatus.AVAILABLE,
-              currentVehicleId: null as any,
             },
             undefined,
             tx
@@ -527,7 +524,6 @@ export class ParkingService {
             transferData.toSpotId,
             {
               status: SpotStatus.OCCUPIED,
-              currentVehicleId: fromSpot.currentVehicleId,
             },
             undefined,
             tx
@@ -544,7 +540,7 @@ export class ParkingService {
           sessionId: session.id,
           fromSpotId: transferData.fromSpotId,
           toSpotId: transferData.toSpotId,
-          vehicleId: fromSpot.currentVehicleId,
+          vehicleId: session.vehicleId,
         });
 
         return {

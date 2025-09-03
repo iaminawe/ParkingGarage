@@ -327,8 +327,11 @@ class ReportingService {
 
       // Calculate percentages
       Object.keys(byPaymentMethod).forEach(method => {
-        byPaymentMethod[method].percentage =
-          totalRevenue > 0 ? (byPaymentMethod[method].amount / totalRevenue) * 100 : 0;
+        const methodData = byPaymentMethod[method];
+        if (methodData) {
+          methodData.percentage =
+            totalRevenue > 0 ? (methodData.amount / totalRevenue) * 100 : 0;
+        }
       });
 
       // Revenue by spot type
@@ -370,8 +373,11 @@ class ReportingService {
       payments.forEach(payment => {
         if (payment.processedAt) {
           const hour = payment.processedAt.getHours();
-          byTimeOfDay[hour].revenue += payment.amount;
-          byTimeOfDay[hour].sessions += 1;
+          const hourData = byTimeOfDay[hour];
+          if (hourData) {
+            hourData.revenue += payment.amount;
+            hourData.sessions += 1;
+          }
         }
       });
 

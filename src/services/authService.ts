@@ -84,7 +84,14 @@ class AuthService {
     this.MAX_LOGIN_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
     this.LOCKOUT_TIME = env.LOCKOUT_TIME;
     this.PASSWORD_SALT_ROUNDS = env.BCRYPT_SALT_ROUNDS;
-    this.cacheService = new CacheService();
+    this.cacheService = new CacheService({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+      password: process.env.REDIS_PASSWORD,
+      defaultTTL: 3600,
+      maxRetries: 3,
+      retryDelayMs: 1000,
+    });
     this.emailService = new EmailService();
   }
 
@@ -117,16 +124,16 @@ class AuthService {
       role: user.role as UserRole,
     };
 
-    const token = jwt.sign(payload, this.JWT_SECRET, {
-      expiresIn: this.JWT_EXPIRES_IN as string,
-    });
+    const token = jwt.sign(payload, this.JWT_SECRET as jwt.Secret, {
+      expiresIn: this.JWT_EXPIRES_IN,
+    } as jwt.SignOptions);
 
     const refreshToken = jwt.sign(
       { userId: user.id, type: SECURITY.TOKEN_TYPE_REFRESH },
-      this.JWT_REFRESH_SECRET,
+      this.JWT_REFRESH_SECRET as jwt.Secret,
       {
-        expiresIn: this.JWT_REFRESH_EXPIRES_IN as string,
-      }
+        expiresIn: this.JWT_REFRESH_EXPIRES_IN,
+      } as jwt.SignOptions
     );
 
     // Calculate expiration dates based on actual token expiry
@@ -142,7 +149,7 @@ class AuthService {
   verifyToken(token: string, isRefreshToken = false): TokenPayload | null {
     try {
       const secret = isRefreshToken ? this.JWT_REFRESH_SECRET : this.JWT_SECRET;
-      return jwt.verify(token, secret, { algorithms: [SECURITY.JWT_ALGORITHM] }) as TokenPayload;
+      return jwt.verify(token, secret, { algorithms: ['HS256'] }) as TokenPayload;
     } catch (error) {
       // Log specific JWT errors for debugging in development
       if (env.NODE_ENV === 'development' && error instanceof jwt.JsonWebTokenError) {
@@ -209,7 +216,6 @@ class AuthService {
       where: { id: userId },
       data: {
         lastLoginAt: new Date(),
-        lastLoginIP: deviceInfo?.ipAddress,
         loginAttempts: 0,
         lockoutUntil: null,
       },
@@ -753,7 +759,7 @@ class AuthService {
       });
 
       // Send password reset email
-      await this.emailService.sendPasswordResetEmail(
+      await this.emailService.sendPasswordReset(
         user.email,
         resetToken,
         user.firstName || 'User'

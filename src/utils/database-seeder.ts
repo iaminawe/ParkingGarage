@@ -566,21 +566,46 @@ export class DatabaseSeeder {
    * Choose random item from array with optional weights
    */
   private randomChoice<T>(items: T[], weights?: number[]): T {
+    if (items.length === 0) {
+      throw new Error('Cannot select from empty array');
+    }
+
     if (!weights) {
-      return items[Math.floor(Math.random() * items.length)];
+      const index = Math.floor(Math.random() * items.length);
+      const item = items[index];
+      if (item === undefined) {
+        throw new Error(`Undefined item at index ${index}`);
+      }
+      return item;
+    }
+
+    if (items.length !== weights.length) {
+      throw new Error('Items and weights arrays must have the same length');
     }
 
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     let random = Math.random() * totalWeight;
 
     for (let i = 0; i < items.length; i++) {
-      random -= weights[i];
-      if (random <= 0) {
-        return items[i];
+      const weight = weights[i];
+      if (weight !== undefined) {
+        random -= weight;
+        if (random <= 0) {
+          const item = items[i];
+          if (item === undefined) {
+            throw new Error(`Undefined item at index ${i}`);
+          }
+          return item;
+        }
       }
     }
 
-    return items[items.length - 1];
+    // Fallback to last item (should not reach here in normal cases)
+    const lastItem = items[items.length - 1];
+    if (lastItem === undefined) {
+      throw new Error('Undefined item at last index');
+    }
+    return lastItem;
   }
 }
 

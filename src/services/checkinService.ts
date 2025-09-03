@@ -208,7 +208,7 @@ export class CheckinService {
         );
       }
     } catch (error) {
-      if (error.message.includes('already checked in')) {
+      if (error instanceof Error && error.message.includes('already checked in')) {
         throw error;
       }
       // Vehicle not found is okay
@@ -220,7 +220,7 @@ export class CheckinService {
       const assignedSpot = await this.spotService.findBestSpot(vehicleType);
 
       if (!assignedSpot) {
-        const stats = await this.spotRepository.getAvailabilityStats();
+        const stats = await this.spotRepository.getAvailabilityStats('any-floor-id');
         throw new Error(
           `No available spots for vehicle type '${vehicleType}'. Available spots: ${stats.available}, Occupied: ${stats.occupied}`
         );
@@ -299,7 +299,7 @@ export class CheckinService {
 
   private async occupySpot(spotId: any, licensePlate: any): Promise<void> {
     try {
-      await this.spotRepository.updateSpotStatus(spotId, 'occupied', {
+      await this.spotRepository.updateSpotStatus(spotId, 'OCCUPIED', {
         licensePlate,
         occupiedAt: new Date().toISOString(),
       });
@@ -335,7 +335,7 @@ export class CheckinService {
 
       if (spotId) {
         rollbackPromises.push(
-          Promise.resolve(this.spotRepository.updateSpotStatus(spotId, 'available', {}))
+          Promise.resolve(this.spotRepository.updateSpotStatus(spotId, 'AVAILABLE', {}))
             .then(() => {})
             .catch(err => console.error('Failed to rollback spot status:', err))
         );

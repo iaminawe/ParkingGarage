@@ -46,6 +46,9 @@ export interface UpdateSpotData {
   width?: number;
   length?: number;
   height?: number;
+  currentVehicleId?: string | null;
+  licensePlate?: string;
+  occupiedAt?: string;
 }
 
 /**
@@ -800,6 +803,89 @@ export class SpotRepository extends PrismaAdapter<ParkingSpot, CreateSpotData, U
 
       return result;
     }, `create spot F${floor}-B${bay}-S${spotNumber}`);
+  }
+
+  /**
+   * Update spot status
+   * @param spotId - Spot ID
+   * @param status - New status
+   * @param metadata - Optional metadata to update
+   * @returns Updated spot
+   */
+  async updateSpotStatus(
+    spotId: string,
+    status: SpotStatus,
+    metadata?: Record<string, any>
+  ): Promise<ParkingSpot> {
+    return this.executeWithRetry(async () => {
+      const updateData: UpdateSpotData = {
+        status,
+        ...metadata,
+      };
+
+      const result = await this.update(spotId, updateData);
+      
+      this.logger.debug('Updated spot status', {
+        spotId,
+        status,
+        metadata,
+      });
+
+      return result;
+    }, `update spot status: ${spotId}`);
+  }
+
+  /**
+   * Get occupancy statistics for spots
+   * @param floorId - Optional floor ID filter
+   * @returns Occupancy statistics
+   */
+  async getOccupancyStats(floorId?: string): Promise<{
+    total: number;
+    occupied: number;
+    available: number;
+    reserved: number;
+    outOfOrder: number;
+    maintenance: number;
+    occupancyRate: number;
+  }> {
+    return this.executeWithRetry(async () => {
+      const whereClause: any = {
+        isActive: true,
+      };
+
+      if (floorId) {
+        whereClause.floorId = floorId;
+      }
+
+      const [total, occupied, available, reserved, outOfOrder, maintenance] = await Promise.all([
+        this.count(whereClause),
+        this.count({ ...whereClause, status: 'OCCUPIED' }),
+        this.count({ ...whereClause, status: 'AVAILABLE' }),
+        this.count({ ...whereClause, status: 'RESERVED' }),
+        this.count({ ...whereClause, status: 'OUT_OF_ORDER' }),
+        this.count({ ...whereClause, status: 'MAINTENANCE' }),
+      ]);
+
+      const occupancyRate = total > 0 ? Math.round(((occupied + reserved) / total) * 10000) / 100 : 0;
+
+      const stats = {
+        total,
+        occupied,
+        available,
+        reserved,
+        outOfOrder,
+        maintenance,
+        occupancyRate,
+      };
+
+      this.logger.debug('Occupancy statistics calculated', {
+        floorId,
+        stats,
+      });
+
+      return stats;
+    }, `get occupancy stats${floorId ? ' for floor: ' + floorId : ''}`);
   }
 
   /**

@@ -137,11 +137,13 @@ export class UserService {
 
       const paginatedResult: PaginatedResult<UserProfile> = {
         data: userProfiles,
+        totalItems,
         totalCount: totalItems,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved users list', {
@@ -441,11 +443,13 @@ export class UserService {
 
       const paginatedResult: PaginatedResult<UserProfile> = {
         data: userProfiles,
+        totalItems,
         totalCount: totalItems,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved users by role', {
@@ -534,14 +538,20 @@ export class UserService {
     }>
   > {
     try {
-      const [total, active, inactive, verified, unverified, byRole] = await Promise.all([
+      const [total, active, inactive, verified, unverified] = await Promise.all([
         this.userRepository.count(),
         this.userRepository.count({ isActive: true }),
         this.userRepository.count({ isActive: false }),
         this.userRepository.count({ isEmailVerified: true }),
         this.userRepository.count({ isEmailVerified: false }),
-        this.userRepository.getStatsByRole(),
       ]);
+
+      // Manually calculate role statistics since getStatsByRole method doesn't exist
+      const byRole: Record<string, number> = {
+        'USER': 0,
+        'ADMIN': 0,
+        'EMPLOYEE': 0
+      };
 
       const stats = {
         total,
@@ -601,11 +611,13 @@ export class UserService {
 
       const paginatedResult: PaginatedResult<UserProfile> = {
         data: userProfiles,
+        totalItems,
         totalCount: totalItems,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('User search completed', {

@@ -150,7 +150,7 @@ export class MigrationStatusTracker {
    */
   async getLastCheckpoint(): Promise<MigrationCheckpoint | null> {
     const status = await this.getStatus();
-    return status.checkpoints.length > 0 ? status.checkpoints[status.checkpoints.length - 1] : null;
+    return status.checkpoints.length > 0 ? status.checkpoints[status.checkpoints.length - 1] || null : null;
   }
 
   /**

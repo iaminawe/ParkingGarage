@@ -11,6 +11,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { VehicleController } from '../controllers/VehicleController';
+import { ApiResponse, FrontendVehicle } from '../types/api';
 import {
   validateVehicleCreation,
   validateVehicleUpdate,
@@ -22,32 +23,6 @@ import {
   validateVehicleContentType,
 } from '../middleware/validation';
 
-/**
- * Extended Request interface for vehicle operations
- */
-export interface VehicleRequest extends Request {
-  params: {
-    id?: string;
-    [key: string]: string | undefined;
-  };
-  query: {
-    page?: string;
-    limit?: string;
-    search?: string;
-    vehicleType?: string;
-    status?: string;
-    sortBy?: string;
-    sortOrder?: string;
-    mode?: string;
-    threshold?: string;
-    maxResults?: string;
-    [key: string]: string | undefined;
-  };
-  body: {
-    vehicleIds?: string[];
-    [key: string]: any;
-  };
-}
 
 /**
  * Error handling interface
@@ -79,9 +54,9 @@ router.use(validateVehicleContentType);
 router.get(
   '/',
   validateVehicleQuery,
-  async (req: VehicleRequest, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await vehicleController.getAllVehicles(req, res, next);
+      await vehicleController.getAllVehicles(req, res);
     } catch (error) {
       next(error);
     }
@@ -113,9 +88,9 @@ router.post(
   validateVehicleRequestBody,
   sanitizeVehicleRequest,
   validateVehicleCreation,
-  async (req: VehicleRequest, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await vehicleController.createVehicle(req, res, next);
+      await vehicleController.createVehicle(req, res);
     } catch (error) {
       next(error);
     }
@@ -135,9 +110,9 @@ router.post(
   '/bulk-delete',
   validateVehicleRequestBody,
   validateBulkRequest,
-  async (req: VehicleRequest, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await vehicleController.bulkDeleteVehicles(req, res, next);
+      await vehicleController.bulkDeleteVehicles(req, res);
     } catch (error) {
       next(error);
     }
@@ -150,9 +125,9 @@ router.post(
  * @access  Public
  * @example GET /api/vehicles/metrics
  */
-router.get('/metrics', async (req: VehicleRequest, res: Response, next: NextFunction) => {
+router.get('/metrics', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await vehicleController.getVehicleMetrics(req, res, next);
+    await vehicleController.getVehicleMetrics(req, res);
   } catch (error) {
     next(error);
   }
@@ -168,9 +143,9 @@ router.get('/metrics', async (req: VehicleRequest, res: Response, next: NextFunc
  * @query   {string} [maxResults=20] - Maximum results to return (1-100)
  * @example GET /api/vehicles/search?search=ABC&mode=partial&threshold=0.6&maxResults=10
  */
-router.get('/search', async (req: VehicleRequest, res: Response, next: NextFunction) => {
+router.get('/search', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await vehicleController.searchVehicles(req, res, next);
+    await vehicleController.searchVehicles(req, res);
   } catch (error) {
     next(error);
   }
@@ -186,9 +161,9 @@ router.get('/search', async (req: VehicleRequest, res: Response, next: NextFunct
 router.get(
   '/:id',
   validateVehicleId,
-  async (req: VehicleRequest, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await vehicleController.getVehicleById(req, res, next);
+      await vehicleController.getVehicleById(req as Request<{ id: string }>, res);
     } catch (error) {
       next(error);
     }
@@ -221,9 +196,9 @@ router.put(
   validateVehicleRequestBody,
   sanitizeVehicleRequest,
   validateVehicleUpdate,
-  async (req: VehicleRequest, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await vehicleController.updateVehicle(req, res, next);
+      await vehicleController.updateVehicle(req as Request<{ id: string }, ApiResponse<FrontendVehicle>, Partial<FrontendVehicle>>, res);
     } catch (error) {
       next(error);
     }
@@ -241,9 +216,9 @@ router.put(
 router.delete(
   '/:id',
   validateVehicleId,
-  async (req: VehicleRequest, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await vehicleController.deleteVehicle(req, res, next);
+      await vehicleController.deleteVehicle(req as Request<{ id: string }>, res);
     } catch (error) {
       next(error);
     }
@@ -251,7 +226,7 @@ router.delete(
 );
 
 // Error handling middleware specific to vehicle routes
-router.use((error: VehicleError, req: VehicleRequest, res: Response, next: NextFunction) => {
+router.use((error: VehicleError, req: Request, res: Response, next: NextFunction) => {
   console.error('Vehicle route error:', error);
 
   // Handle specific vehicle-related errors
@@ -281,7 +256,7 @@ router.use((error: VehicleError, req: VehicleRequest, res: Response, next: NextF
 
   // Generic error response
   const statusCode = error.statusCode || 500;
-  res.status(statusCode).json({
+  return res.status(statusCode).json({
     success: false,
     message: 'Internal server error',
     errors: [process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'],

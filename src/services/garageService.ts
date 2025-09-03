@@ -265,12 +265,19 @@ class GarageService {
     };
 
     if (includeStats) {
-      (config as any).statistics = this.spotRepository.getOccupancyStats();
+      (config as any).statistics = await this.spotRepository.getOccupancyStats();
     }
 
     if (includeSpots) {
-      const spots = this.spotRepository.findAll();
-      (config as any).spots = spots.map(spot => spot.toObject());
+      const spots = await this.spotRepository.findAll();
+      (config as any).spots = spots.data.map((spot: any) => ({
+        id: spot.id,
+        spotNumber: spot.spotNumber,
+        status: spot.status,
+        type: spot.spotType,
+        level: spot.level,
+        section: spot.section,
+      }));
     }
 
     return config;
@@ -347,10 +354,10 @@ class GarageService {
       throw new Error('Garage not initialized. Please initialize the garage first.');
     }
 
-    const occupancyStats = this.spotRepository.getOccupancyStats();
-    const spotsByType = this.getSpotDistributionByType();
-    const spotsByFeature = this.getSpotDistributionByFeature();
-    const spotsByFloor = this.getSpotDistributionByFloor();
+    const occupancyStats = await this.spotRepository.getOccupancyStats();
+    const spotsByType = await this.getSpotDistributionByType();
+    const spotsByFeature = await this.getSpotDistributionByFeature();
+    const spotsByFloor = await this.getSpotDistributionByFloor();
 
     return {
       garage: {
@@ -377,13 +384,14 @@ class GarageService {
    * Get spot distribution by type
    * @returns Distribution of spots by type
    */
-  getSpotDistributionByType(): Record<string, number> {
-    const spots = this.spotRepository.findAll();
+  async getSpotDistributionByType(): Promise<Record<string, number>> {
+    const spotsResult = await this.spotRepository.findAll();
     const distribution: Record<string, number> = { compact: 0, standard: 0, oversized: 0 };
 
-    spots.forEach(spot => {
-      if (distribution.hasOwnProperty(spot.type)) {
-        distribution[spot.type]++;
+    spotsResult.data.forEach((spot: any) => {
+      const spotType = spot.spotType || spot.type;
+      if (distribution.hasOwnProperty(spotType)) {
+        distribution[spotType] = (distribution[spotType] || 0) + 1;
       }
     });
 
@@ -394,17 +402,18 @@ class GarageService {
    * Get spot distribution by special features
    * @returns Distribution of spots by features
    */
-  getSpotDistributionByFeature(): Record<string, number> {
-    const spots = this.spotRepository.findAll();
+  async getSpotDistributionByFeature(): Promise<Record<string, number>> {
+    const spotsResult = await this.spotRepository.findAll();
     const distribution: Record<string, number> = { ev_charging: 0, handicap: 0, regular: 0 };
 
-    spots.forEach(spot => {
-      if (spot.features.includes('ev_charging')) {
-        distribution.ev_charging++;
-      } else if (spot.features.includes('handicap')) {
-        distribution.handicap++;
+    spotsResult.data.forEach((spot: any) => {
+      const features = spot.features || [];
+      if (features.includes('ev_charging')) {
+        distribution.ev_charging = (distribution.ev_charging || 0) + 1;
+      } else if (features.includes('handicap')) {
+        distribution.handicap = (distribution.handicap || 0) + 1;
       } else {
-        distribution.regular++;
+        distribution.regular = (distribution.regular || 0) + 1;
       }
     });
 
@@ -415,17 +424,17 @@ class GarageService {
    * Get spot distribution by floor
    * @returns Distribution of spots by floor
    */
-  getSpotDistributionByFloor(): Record<string, any> {
-    const spots = this.spotRepository.findAll();
+  async getSpotDistributionByFloor(): Promise<Record<string, any>> {
+    const spotsResult = await this.spotRepository.findAll();
     const distribution: Record<string, any> = {};
 
-    spots.forEach(spot => {
-      const floor = `Floor ${spot.floor}`;
+    spotsResult.data.forEach((spot: any) => {
+      const floor = `Floor ${spot.level || spot.floor}`;
       if (!distribution[floor]) {
         distribution[floor] = { total: 0, available: 0, occupied: 0 };
       }
       distribution[floor].total++;
-      if (spot.status === 'available') {
+      if (spot.status === 'available' || spot.status === 'AVAILABLE') {
         distribution[floor].available++;
       } else {
         distribution[floor].occupied++;

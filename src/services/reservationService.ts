@@ -11,6 +11,7 @@ import ReservationRepository, {
   CreateReservationData,
   UpdateReservationData,
   ReservationSearchCriteria,
+  ReservationData,
   SpotAvailability,
 } from '../repositories/ReservationRepository';
 import { ParkingSession, SessionStatus } from '@prisma/client';
@@ -37,7 +38,7 @@ export interface UpdateReservationRequest {
   startTime?: Date;
   endTime?: Date;
   expectedEndTime?: Date;
-  status?: SessionStatus;
+  status?: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED';
   notes?: string;
 }
 
@@ -48,7 +49,7 @@ export interface ReservationFilters {
   vehicleId?: string;
   spotId?: string;
   licensePlate?: string;
-  status?: SessionStatus;
+  status?: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED';
   startAfter?: Date;
   startBefore?: Date;
   endAfter?: Date;
@@ -97,7 +98,7 @@ export class ReservationService {
     limit = 20,
     sortBy = 'startTime',
     sortOrder: 'asc' | 'desc' = 'desc'
-  ): Promise<ServiceResponse<PaginatedResult<ParkingSession>>> {
+  ): Promise<ServiceResponse<PaginatedResult<ReservationData>>> {
     try {
       const offset = (page - 1) * limit;
       const options = {
@@ -106,7 +107,7 @@ export class ReservationService {
         orderBy: { [sortBy]: sortOrder },
       };
 
-      let reservations: ParkingSession[];
+      let reservations: ReservationData[];
       let totalItems: number;
 
       if (filters && Object.keys(filters).length > 0) {
@@ -122,9 +123,11 @@ export class ReservationService {
 
       const totalPages = Math.ceil(totalItems / limit);
 
-      const paginatedResult: PaginatedResult<ParkingSession> = {
+      const paginatedResult: PaginatedResult<ReservationData> = {
         data: reservations,
         totalCount: totalItems,
+        totalItems: totalItems,
+        itemsPerPage: limit,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
@@ -159,23 +162,9 @@ export class ReservationService {
    * @param id - Reservation ID
    * @returns Reservation details
    */
-  async getReservationById(id: string): Promise<ServiceResponse<ParkingSession | null>> {
+  async getReservationById(id: string): Promise<ServiceResponse<ReservationData | null>> {
     try {
-      const reservation = await this.reservationRepository.findById(id, {
-        include: {
-          vehicle: true,
-          spot: {
-            include: {
-              floor: {
-                include: {
-                  garage: true,
-                },
-              },
-            },
-          },
-          payments: true,
-        },
-      });
+      const reservation = await this.reservationRepository.findById(id);
 
       if (!reservation) {
         return {
@@ -208,7 +197,7 @@ export class ReservationService {
    */
   async createReservation(
     reservationData: CreateReservationRequest
-  ): Promise<ServiceResponse<ParkingSession>> {
+  ): Promise<ServiceResponse<ReservationData>> {
     try {
       // Check spot availability if end time is provided
       if (reservationData.endTime) {
@@ -228,10 +217,14 @@ export class ReservationService {
       }
 
       const createData: CreateReservationData = {
-        ...reservationData,
+        spotId: reservationData.spotId,
+        vehicleId: reservationData.vehicleId,
+        startTime: reservationData.startTime,
+        endTime: reservationData.endTime,
+        expectedEndTime: reservationData.expectedEndTime,
+        notes: reservationData.notes,
         status: 'ACTIVE',
-        hourlyRate: 5.0, // Default rate
-        totalAmount: 0.0,
+        hourlyRate: 5.0,
       };
 
       const reservation = await this.reservationRepository.createReservation(createData);
@@ -266,7 +259,7 @@ export class ReservationService {
   async updateReservation(
     id: string,
     updateData: UpdateReservationRequest
-  ): Promise<ServiceResponse<ParkingSession>> {
+  ): Promise<ServiceResponse<ReservationData>> {
     try {
       // Check if reservation exists
       const existingReservation = await this.reservationRepository.findById(id);
@@ -280,49 +273,33 @@ export class ReservationService {
       // If updating time or spot, check availability
       if (updateData.spotId || updateData.startTime || updateData.endTime) {
         const spotId = updateData.spotId || existingReservation.spotId;
-        const startTime = updateData.startTime || existingReservation.startTime;
-        const endTime = updateData.endTime || existingReservation.endTime;
+        const startTime = updateData.startTime || existingReservation.reservedAt;
+        const endTime = updateData.endTime || existingReservation.expiresAt;
 
-        if (endTime) {
-          const availability = await this.reservationRepository.checkSpotAvailability(
-            spotId,
-            startTime,
-            endTime,
-            id // Exclude current reservation from conflict check
-          );
+        const availability = await this.reservationRepository.checkSpotAvailability(
+          spotId,
+          startTime,
+          endTime
+        );
 
-          if (!availability.isAvailable) {
-            return {
-              success: false,
-              message: 'Updated time/spot is not available',
-              errors: ['Spot conflict detected'],
-            };
-          }
+        if (!availability.isAvailable) {
+          return {
+            success: false,
+            message: 'Updated time/spot is not available',
+            errors: ['Spot conflict detected'],
+          };
         }
       }
 
       const updateReservationData: UpdateReservationData = {
-        ...updateData,
+        status: updateData.status,
+        expiresAt: updateData.endTime,
+        notes: updateData.notes,
       };
 
       const updatedReservation = await this.reservationRepository.update(
         id,
-        updateReservationData,
-        {
-          include: {
-            vehicle: true,
-            spot: {
-              include: {
-                floor: {
-                  include: {
-                    garage: true,
-                  },
-                },
-              },
-            },
-            payments: true,
-          },
-        }
+        updateReservationData
       );
 
       this.logger.info('Reservation updated successfully', {
@@ -351,20 +328,13 @@ export class ReservationService {
    * @param reason - Cancellation reason
    * @returns Success response
    */
-  async cancelReservation(id: string, reason?: string): Promise<ServiceResponse<ParkingSession>> {
+  async cancelReservation(id: string, reason?: string): Promise<ServiceResponse<ReservationData>> {
     try {
       const reservation = await this.reservationRepository.findById(id);
       if (!reservation) {
         return {
           success: false,
           message: 'Reservation not found',
-        };
-      }
-
-      if (reservation.status === 'COMPLETED') {
-        return {
-          success: false,
-          message: 'Cannot cancel a completed reservation',
         };
       }
 
@@ -403,7 +373,7 @@ export class ReservationService {
    * @param endTime - End time (defaults to now)
    * @returns Completed reservation with cost calculation
    */
-  async completeReservation(id: string, endTime?: Date): Promise<ServiceResponse<ParkingSession>> {
+  async completeReservation(id: string, endTime?: Date): Promise<ServiceResponse<ReservationData>> {
     try {
       const reservation = await this.reservationRepository.findById(id);
       if (!reservation) {
@@ -420,17 +390,12 @@ export class ReservationService {
         };
       }
 
-      const completionTime = endTime || new Date();
-      const completedReservation = await this.reservationRepository.completeReservation(
-        id,
-        completionTime
-      );
+      const completedReservation = await this.reservationRepository.completeReservation(id);
 
       this.logger.info('Reservation completed successfully', {
         reservationId: id,
         duration: completedReservation.duration,
         totalAmount: completedReservation.totalAmount,
-        endTime: completionTime,
       });
 
       return {
@@ -464,10 +429,9 @@ export class ReservationService {
       const { startTime, endTime, spotType, floor } = availabilityRequest;
 
       const availableSpots = await this.reservationRepository.findAvailableSpots(
+        { spotType, floorId: floor?.toString() },
         startTime,
-        endTime,
-        spotType,
-        floor
+        endTime
       );
 
       // Get total spots count for comparison
@@ -486,7 +450,7 @@ export class ReservationService {
       return {
         success: true,
         data: {
-          availableSpots,
+          availableSpots: availableSpots.map(spot => spot.id),
           totalSpots,
           availableCount: availableSpots.length,
         },
@@ -513,26 +477,13 @@ export class ReservationService {
     vehicleId: string,
     page = 1,
     limit = 20
-  ): Promise<ServiceResponse<PaginatedResult<ParkingSession>>> {
+  ): Promise<ServiceResponse<PaginatedResult<ReservationData>>> {
     try {
       const offset = (page - 1) * limit;
       const options = {
         skip: offset,
         take: limit,
         orderBy: { startTime: 'desc' as const },
-        include: {
-          vehicle: true,
-          spot: {
-            include: {
-              floor: {
-                include: {
-                  garage: true,
-                },
-              },
-            },
-          },
-          payments: true,
-        },
       };
 
       const reservations = await this.reservationRepository.findByVehicleId(vehicleId, options);
@@ -540,9 +491,11 @@ export class ReservationService {
 
       const totalPages = Math.ceil(totalItems / limit);
 
-      const paginatedResult: PaginatedResult<ParkingSession> = {
+      const paginatedResult: PaginatedResult<ReservationData> = {
         data: reservations,
         totalCount: totalItems,
+        totalItems: totalItems,
+        itemsPerPage: limit,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
@@ -581,7 +534,7 @@ export class ReservationService {
     licensePlate: string,
     page = 1,
     limit = 20
-  ): Promise<ServiceResponse<PaginatedResult<ParkingSession>>> {
+  ): Promise<ServiceResponse<PaginatedResult<ReservationData>>> {
     try {
       const offset = (page - 1) * limit;
       const options = {
@@ -600,9 +553,11 @@ export class ReservationService {
 
       const totalPages = Math.ceil(totalItems / limit);
 
-      const paginatedResult: PaginatedResult<ParkingSession> = {
+      const paginatedResult: PaginatedResult<ReservationData> = {
         data: reservations.slice(0, limit), // Apply pagination
         totalCount: totalItems,
+        totalItems: totalItems,
+        itemsPerPage: limit,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
@@ -633,28 +588,28 @@ export class ReservationService {
 
   /**
    * Get reservation statistics
-   * @param startDate - Start date for statistics
-   * @param endDate - End date for statistics
+   * @param garageId - Optional garage ID filter
    * @returns Reservation statistics
    */
   async getReservationStats(
-    startDate?: Date,
-    endDate?: Date
+    garageId?: string
   ): Promise<
     ServiceResponse<{
       total: number;
-      byStatus: Record<SessionStatus, number>;
-      totalRevenue: number;
+      active: number;
+      expired: number;
+      used: number;
+      cancelled: number;
+      byGarage: Record<string, number>;
       averageDuration: number;
-      occupancyRate: number;
+      utilizationRate: number;
     }>
   > {
     try {
-      const stats = await this.reservationRepository.getStats(startDate, endDate);
+      const stats = await this.reservationRepository.getStats(garageId);
 
       this.logger.info('Retrieved reservation statistics', {
-        startDate,
-        endDate,
+        garageId,
         stats,
       });
 
@@ -688,7 +643,7 @@ export class ReservationService {
     limit = 20,
     sortBy = 'startTime',
     sortOrder: 'asc' | 'desc' = 'desc'
-  ): Promise<ServiceResponse<PaginatedResult<ParkingSession>>> {
+  ): Promise<ServiceResponse<PaginatedResult<ReservationData>>> {
     try {
       const offset = (page - 1) * limit;
       const options = {
@@ -703,13 +658,15 @@ export class ReservationService {
 
       const totalPages = Math.ceil(totalItems / limit);
 
-      const paginatedResult: PaginatedResult<ParkingSession> = {
+      const paginatedResult: PaginatedResult<ReservationData> = {
         data: reservations,
+        totalItems: totalItems,
         totalCount: totalItems,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Reservation search completed', {

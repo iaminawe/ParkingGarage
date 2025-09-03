@@ -54,6 +54,9 @@ export interface UpdateSessionData {
   paymentTime?: Date;
   status?: SessionStatus;
   notes?: string;
+  cost?: number; // Added for billing calculations
+  endReason?: string; // Added for session end tracking
+  metadata?: Record<string, any>; // Added for additional session data
 }
 
 /**
@@ -308,6 +311,63 @@ export class SessionRepository extends PrismaAdapter<
 
       return result;
     }, `find active session for spot: ${spotId}`);
+  }
+
+  /**
+   * Find all sessions with related data (vehicle and spot)
+   * @param options - Query options
+   * @param tx - Optional transaction client
+   * @returns Paginated result of sessions with vehicle and spot data
+   */
+  async findAllWithRelations(
+    options?: QueryOptions,
+    tx?: Prisma.TransactionClient
+  ): Promise<PaginatedResult<ParkingSession & { vehicle?: any; spot?: any }>> {
+    return this.executeWithRetry(async () => {
+      const client = tx || this.prisma;
+      const where: any = {};
+
+      // Only add deletedAt filter if the model supports soft deletes
+      if (this.supportsSoftDelete()) {
+        where.deletedAt = null;
+      }
+
+      // Get total count
+      const totalCount = await client.parkingSession.count({ where });
+
+      // Build pagination
+      const take = options?.take || 10;
+      const skip = options?.skip || 0;
+      const currentPage = Math.floor(skip / take) + 1;
+      const totalPages = Math.ceil(totalCount / take);
+
+      // Get paginated data with relations
+      const data = await client.parkingSession.findMany({
+        where,
+        include: {
+          vehicle: true,
+          spot: true,
+        },
+        ...this.buildQueryOptions(options),
+      });
+
+      this.logger.debug('Found all sessions with relations', {
+        totalCount,
+        currentPage,
+        totalPages,
+        take,
+        skip,
+      });
+
+      return {
+        data,
+        totalCount,
+        hasNextPage: currentPage < totalPages,
+        hasPrevPage: currentPage > 1,
+        currentPage,
+        totalPages,
+      };
+    }, 'find all sessions with relations');
   }
 
   /**

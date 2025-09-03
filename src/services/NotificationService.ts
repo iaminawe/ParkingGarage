@@ -328,7 +328,7 @@ class NotificationService {
       return {
         channel: 'SMS',
         success: !!messageId,
-        messageId,
+        messageId: messageId || undefined,
       };
     } catch (error) {
       return {
@@ -590,7 +590,7 @@ class NotificationService {
 
     if (preferences.quietHoursEnd) {
       const [hours, minutes] = preferences.quietHoursEnd.split(':').map(Number);
-      tomorrow.setHours(hours, minutes, 0, 0);
+      tomorrow.setHours(hours || 0, minutes || 0, 0, 0);
     }
 
     return tomorrow;

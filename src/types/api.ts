@@ -22,8 +22,28 @@ import {
 } from './models';
 
 // Re-export commonly used types
-export { ParkingSession, VehicleRecord, SpotRecord, GarageRecord };
-export { VehicleRecord as Vehicle, SpotRecord as ParkingSpot };
+export type { ParkingSession, VehicleRecord, SpotRecord, GarageRecord };
+export type { VehicleRecord as Vehicle, SpotRecord as ParkingSpot };
+
+// Frontend-specific vehicle type
+export interface FrontendVehicle {
+  id?: string;
+  licensePlate: string;
+  vehicleType: VehicleType;
+  type?: 'car' | 'motorcycle' | 'truck' | 'van' | 'bus';
+  make?: string;
+  model?: string;
+  color?: string;
+  year?: number;
+  ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  notes?: string;
+  status?: 'active' | 'inactive';
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 // Paginated response structure
 export interface PaginatedResponse<T = any> {
@@ -240,14 +260,8 @@ export interface RateLimitHeaders {
   'X-RateLimit-RetryAfter'?: number;
 }
 
-// Middleware context extensions
-export interface RequestMetadata {
-  requestId: string;
-  timestamp: string;
-  userAgent?: string;
-  ipAddress?: string;
-  correlationId?: string;
-}
+// Middleware context extensions - now imported from middleware.ts
+// RequestMetadata is defined in middleware.ts to avoid export conflicts
 
 // OpenAPI/Swagger schema types
 export interface SwaggerDefinition {

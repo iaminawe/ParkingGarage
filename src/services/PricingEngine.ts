@@ -322,6 +322,8 @@ class PricingEngine {
         value: 5,
         validFrom: new Date('2024-01-01'),
         validUntil: new Date('2025-12-31'),
+        usageLimit: 100,
+        usedCount: 25,
         membershipTiersOnly: ['PREMIUM', 'VIP'],
         isActive: true,
       },

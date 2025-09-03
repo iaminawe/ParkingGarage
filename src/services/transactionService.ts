@@ -127,11 +127,13 @@ export class TransactionService {
 
       const paginatedResult: PaginatedResult<Transaction> = {
         data: transactions,
+        totalItems,
         totalCount: totalItems,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved transactions list', {
@@ -489,11 +491,13 @@ export class TransactionService {
 
       const paginatedResult: PaginatedResult<Transaction> = {
         data: transactions,
+        totalItems,
         totalCount: totalItems,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved transactions by garage', {
@@ -548,11 +552,13 @@ export class TransactionService {
 
       const paginatedResult: PaginatedResult<Transaction> = {
         data: transactions,
+        totalItems,
         totalCount: totalItems,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved transactions by status', {
@@ -686,11 +692,13 @@ export class TransactionService {
 
       const paginatedResult: PaginatedResult<Transaction> = {
         data: transactions,
+        totalItems,
         totalCount: totalItems,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Transaction search completed', {

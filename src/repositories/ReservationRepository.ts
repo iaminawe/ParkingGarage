@@ -56,6 +56,16 @@ export interface ReservationData {
   reservedAt: Date;
   expiresAt: Date;
   status: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED';
+  startTime?: Date;
+  endTime?: Date;
+  expectedEndTime?: Date;
+  duration?: number;
+  totalAmount?: number;
+  hourlyRate?: number;
+  isPaid?: boolean;
+  paymentTime?: Date | null;
+  createdAt?: Date;
+  updatedAt?: Date;
   spot?: ParkingSpot;
   vehicle?: Vehicle;
   session?: ParkingSession;
@@ -69,6 +79,20 @@ export interface CreateReservationData {
   vehicleId: string;
   userId?: string;
   reservationDurationMinutes?: number;
+  notes?: string;
+  status?: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED';
+  hourlyRate?: number;
+  startTime?: Date;
+  endTime?: Date;
+  expectedEndTime?: Date;
+}
+
+/**
+ * Reservation update data interface
+ */
+export interface UpdateReservationData {
+  status?: 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED';
+  expiresAt?: Date;
   notes?: string;
 }
 
@@ -99,6 +123,15 @@ export interface ReservationStats {
   byGarage: Record<string, number>;
   averageDuration: number;
   utilizationRate: number; // percentage of reservations that were used
+}
+
+/**
+ * Spot availability interface
+ */
+export interface SpotAvailability {
+  isAvailable: boolean;
+  conflictingReservations: ReservationData[];
+  reason?: string;
 }
 
 /**
@@ -736,6 +769,15 @@ export class ReservationRepository {
       reservedAt: session.startTime,
       expiresAt: session.endTime || new Date(),
       status,
+      startTime: session.startTime,
+      endTime: session.endTime || undefined,
+      duration: session.duration || undefined,
+      totalAmount: session.totalAmount,
+      hourlyRate: session.hourlyRate,
+      isPaid: session.isPaid,
+      paymentTime: session.paymentTime,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
       spot: session.spot,
       vehicle: session.vehicle,
       session,
@@ -766,6 +808,433 @@ export class ReservationRepository {
     }
 
     return queryOptions;
+  }
+
+  /**
+   * Search reservations with criteria
+   * @param criteria - Search criteria
+   * @param options - Query options
+   * @returns Array of matching reservations
+   */
+  async search(criteria: ReservationSearchCriteria, options?: QueryOptions): Promise<ReservationData[]> {
+    return this.executeWithRetry(async () => {
+      const whereClause: any = {
+        notes: {
+          contains: 'RESERVATION:',
+        },
+      };
+
+      if (criteria.spotId) {
+        whereClause.spotId = criteria.spotId;
+      }
+      if (criteria.vehicleId) {
+        whereClause.vehicleId = criteria.vehicleId;
+      }
+      if (criteria.userId) {
+        whereClause.userId = criteria.userId;
+      }
+      if (criteria.status === 'ACTIVE') {
+        whereClause.status = 'ACTIVE';
+        whereClause.endTime = { gt: new Date() };
+      } else if (criteria.status === 'EXPIRED') {
+        whereClause.endTime = { lt: new Date() };
+      }
+      if (criteria.startDate || criteria.endDate) {
+        whereClause.startTime = {};
+        if (criteria.startDate) {
+          whereClause.startTime.gte = criteria.startDate;
+        }
+        if (criteria.endDate) {
+          whereClause.startTime.lte = criteria.endDate;
+        }
+      }
+
+      const sessions = await this.prisma.parkingSession.findMany({
+        where: whereClause,
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true,
+                },
+              },
+            },
+          },
+        },
+        ...this.buildQueryOptions(options),
+      });
+
+      return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
+    }, 'search reservations');
+  }
+
+  /**
+   * Find all reservations with pagination
+   * @param options - Query options
+   * @returns Paginated result of reservations
+   */
+  async findAll(options?: QueryOptions): Promise<PaginatedResult<ReservationData>> {
+    return this.executeWithRetry(async () => {
+      const whereClause = {
+        notes: {
+          contains: 'RESERVATION:',
+        },
+      };
+
+      const [totalCount, sessions] = await Promise.all([
+        this.prisma.parkingSession.count({ where: whereClause }),
+        this.prisma.parkingSession.findMany({
+          where: whereClause,
+          include: {
+            vehicle: true,
+            spot: {
+              include: {
+                floor: {
+                  include: {
+                    garage: true,
+                  },
+                },
+              },
+            },
+          },
+          ...this.buildQueryOptions(options),
+        }),
+      ]);
+
+      const take = options?.take || 10;
+      const skip = options?.skip || 0;
+      const currentPage = Math.floor(skip / take) + 1;
+      const totalPages = Math.ceil(totalCount / take);
+
+      return {
+        data: sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session)),
+        totalCount,
+        hasNextPage: currentPage < totalPages,
+        hasPrevPage: currentPage > 1,
+        currentPage,
+        totalPages,
+        pageSize: take,
+      };
+    }, 'find all reservations');
+  }
+
+  /**
+   * Check spot availability for reservation
+   * @param spotId - Spot ID
+   * @param startTime - Proposed start time
+   * @param endTime - Proposed end time
+   * @returns Availability information
+   */
+  async checkSpotAvailability(
+    spotId: string,
+    startTime: Date,
+    endTime: Date
+  ): Promise<{
+    isAvailable: boolean;
+    conflictingReservations: ReservationData[];
+    reason?: string;
+  }> {
+    return this.executeWithRetry(async () => {
+      // Check if spot exists and is active
+      const spot = await this.prisma.parkingSpot.findFirst({
+        where: {
+          id: spotId,
+          isActive: true,
+        },
+      });
+
+      if (!spot) {
+        return {
+          isAvailable: false,
+          conflictingReservations: [],
+          reason: 'Spot not found or inactive',
+        };
+      }
+
+      if (spot.status === 'OUT_OF_ORDER' || spot.status === 'MAINTENANCE') {
+        return {
+          isAvailable: false,
+          conflictingReservations: [],
+          reason: `Spot is ${spot.status.toLowerCase().replace('_', ' ')}`,
+        };
+      }
+
+      // Check for conflicting reservations
+      const conflictingSessions = await this.prisma.parkingSession.findMany({
+        where: {
+          spotId,
+          notes: {
+            contains: 'RESERVATION:',
+          },
+          status: 'ACTIVE',
+          OR: [
+            {
+              AND: [
+                { startTime: { lte: startTime } },
+                { endTime: { gte: startTime } },
+              ],
+            },
+            {
+              AND: [
+                { startTime: { lte: endTime } },
+                { endTime: { gte: endTime } },
+              ],
+            },
+            {
+              AND: [
+                { startTime: { gte: startTime } },
+                { endTime: { lte: endTime } },
+              ],
+            },
+          ],
+        },
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const conflictingReservations = conflictingSessions.map(
+        (session: SessionWithIncludes) => this.sessionToReservation(session)
+      );
+
+      return {
+        isAvailable: conflictingReservations.length === 0,
+        conflictingReservations,
+        reason: conflictingReservations.length > 0 ? 'Time slot conflicts with existing reservations' : undefined,
+      };
+    }, `check spot availability: ${spotId}`);
+  }
+
+  /**
+   * Update a reservation
+   * @param reservationId - Reservation ID
+   * @param updateData - Update data
+   * @returns Updated reservation
+   */
+  async update(reservationId: string, updateData: UpdateReservationData): Promise<ReservationData> {
+    return this.executeWithRetry(async () => {
+      const sessionUpdateData: any = {};
+
+      if (updateData.status) {
+        if (updateData.status === 'CANCELLED') {
+          sessionUpdateData.status = 'CANCELLED';
+        } else if (updateData.status === 'EXPIRED') {
+          sessionUpdateData.status = 'EXPIRED';
+        }
+      }
+
+      if (updateData.expiresAt) {
+        sessionUpdateData.endTime = updateData.expiresAt;
+      }
+
+      if (updateData.notes) {
+        sessionUpdateData.notes = `RESERVATION: ${updateData.notes}`;
+      }
+
+      const updatedSession = await this.prisma.parkingSession.update({
+        where: { id: reservationId },
+        data: sessionUpdateData,
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return this.sessionToReservation(updatedSession);
+    }, `update reservation: ${reservationId}`);
+  }
+
+  /**
+   * Complete a reservation (mark as used)
+   * @param reservationId - Reservation ID
+   * @returns Completed reservation
+   */
+  async completeReservation(reservationId: string): Promise<ReservationData> {
+    return this.executeWithRetry(async () => {
+      const updatedSession = await this.prisma.parkingSession.update({
+        where: { id: reservationId },
+        data: {
+          notes: { 
+            set: this.prisma.parkingSession.fields.notes + " USED_RESERVATION:"
+          },
+        },
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return this.sessionToReservation(updatedSession);
+    }, `complete reservation: ${reservationId}`);
+  }
+
+  /**
+   * Find available spots for reservation
+   * @param criteria - Search criteria for available spots
+   * @param startTime - Desired start time
+   * @param endTime - Desired end time
+   * @returns Array of available spots
+   */
+  async findAvailableSpots(
+    criteria: { garageId?: string; floorId?: string; spotType?: string },
+    startTime: Date,
+    endTime: Date
+  ): Promise<ParkingSpot[]> {
+    return this.executeWithRetry(async () => {
+      const whereClause: any = {
+        isActive: true,
+        status: 'AVAILABLE',
+      };
+
+      if (criteria.floorId) {
+        whereClause.floorId = criteria.floorId;
+      }
+      if (criteria.spotType) {
+        whereClause.spotType = criteria.spotType;
+      }
+      if (criteria.garageId) {
+        whereClause.floor = {
+          garageId: criteria.garageId,
+        };
+      }
+
+      // Get spots that don't have conflicting reservations
+      const availableSpots = await this.prisma.parkingSpot.findMany({
+        where: {
+          ...whereClause,
+          NOT: {
+            sessions: {
+              some: {
+                notes: {
+                  contains: 'RESERVATION:',
+                },
+                status: 'ACTIVE',
+                OR: [
+                  {
+                    AND: [
+                      { startTime: { lte: startTime } },
+                      { endTime: { gte: startTime } },
+                    ],
+                  },
+                  {
+                    AND: [
+                      { startTime: { lte: endTime } },
+                      { endTime: { gte: endTime } },
+                    ],
+                  },
+                  {
+                    AND: [
+                      { startTime: { gte: startTime } },
+                      { endTime: { lte: endTime } },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+        include: {
+          floor: {
+            include: {
+              garage: true,
+            },
+          },
+        },
+      });
+
+      return availableSpots;
+    }, 'find available spots');
+  }
+
+  /**
+   * Count reservations matching criteria
+   * @param criteria - Search criteria
+   * @returns Count of matching reservations
+   */
+  async count(criteria: Partial<ReservationSearchCriteria>): Promise<number> {
+    return this.executeWithRetry(async () => {
+      const whereClause: any = {
+        notes: {
+          contains: 'RESERVATION:',
+        },
+      };
+
+      if (criteria.spotId) {
+        whereClause.spotId = criteria.spotId;
+      }
+      if (criteria.vehicleId) {
+        whereClause.vehicleId = criteria.vehicleId;
+      }
+      if (criteria.status === 'ACTIVE') {
+        whereClause.status = 'ACTIVE';
+        whereClause.endTime = { gt: new Date() };
+      }
+
+      return await this.prisma.parkingSession.count({ where: whereClause });
+    }, 'count reservations');
+  }
+
+  /**
+   * Find reservations by license plate
+   * @param licensePlate - License plate
+   * @param options - Query options
+   * @returns Array of reservations for the license plate
+   */
+  async findByLicensePlate(licensePlate: string, options?: QueryOptions): Promise<ReservationData[]> {
+    return this.executeWithRetry(async () => {
+      const sessions = await this.prisma.parkingSession.findMany({
+        where: {
+          notes: {
+            contains: 'RESERVATION:',
+          },
+          vehicle: {
+            licensePlate: licensePlate.toUpperCase(),
+          },
+        },
+        include: {
+          vehicle: true,
+          spot: {
+            include: {
+              floor: {
+                include: {
+                  garage: true,
+                },
+              },
+            },
+          },
+        },
+        ...this.buildQueryOptions(options),
+      });
+
+      return sessions.map((session: SessionWithIncludes) => this.sessionToReservation(session));
+    }, `find reservations by license plate: ${licensePlate}`);
   }
 
   /**
