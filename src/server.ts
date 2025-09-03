@@ -3,6 +3,7 @@ import { serverConfig, logServerConfig, getServerUrl, features } from './config'
 import { DatabaseService } from './services/DatabaseService';
 import { SocketService } from './services/SocketService';
 import { socketIORegistry } from './services/SocketIORegistry';
+import { logger } from './utils/logger';
 import type {
   ProcessSignal,
   NodeError,
@@ -27,7 +28,7 @@ async function startServer(): Promise<HTTPServer> {
   try {
     // Initialize database service first with simplified configuration
     await dbService.initialize();
-    console.log('✅ Database service initialized');
+    logger.info('Database service initialized', { component: 'server', phase: 'initialization' });
     
     // Now we can safely import app after database is ready
     const app = (await import('./app')).default;
@@ -39,28 +40,35 @@ async function startServer(): Promise<HTTPServer> {
 
     // Start server
     const server: HTTPServer = app.listen(serverConfig.port, serverConfig.host, () => {
-      console.log(`\n🚀 Parking Garage API Server running on ${getServerUrl()}`);
-      console.log(`📊 Health check available at ${getServerUrl()}/health`);
-      console.log(`📝 API info available at ${getServerUrl()}/api`);
+      logger.info('Parking Garage API Server started', {
+        component: 'server',
+        serverUrl: getServerUrl(),
+        healthEndpoint: `${getServerUrl()}/health`,
+        apiEndpoint: `${getServerUrl()}/api`
+      });
       
       // Log configuration details
       logServerConfig();
 
       if (features.enableDevEndpoints) {
-        console.log('\n💡 Tip: Seed data has been loaded. Try these endpoints:');
-        console.log(`   curl ${getServerUrl()}/api/garage/status`);
-        console.log(`   curl ${getServerUrl()}/api/spots?status=available`);
-        console.log(`   curl ${getServerUrl()}/api/spots?floor=1`);
+        logger.debug('Development endpoints available', {
+          component: 'server',
+          endpoints: [
+            `${getServerUrl()}/api/garage/status`,
+            `${getServerUrl()}/api/spots?status=available`,
+            `${getServerUrl()}/api/spots?floor=1`
+          ]
+        });
       }
     });
 
     // Initialize Socket.IO service
     await socketService.initialize(server);
-    console.log('🌐 Socket.IO service initialized');
+    logger.info('Socket.IO service initialized', { component: 'server', service: 'socketio' });
 
     return server;
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.error('Failed to start server', error as Error, { component: 'server', phase: 'startup' });
     process.exit(1);
   }
 }
@@ -98,12 +106,20 @@ class ResourceManager {
    */
   static async gracefulShutdown(signal: ProcessSignal): Promise<void> {
     if (ResourceManager.shutdownInProgress) {
-      console.log('⚠️ Shutdown already in progress, ignoring duplicate signal');
+      logger.warn('Shutdown already in progress, ignoring duplicate signal', {
+        component: 'server',
+        signal,
+        phase: 'shutdown'
+      });
       return;
     }
 
     ResourceManager.shutdownInProgress = true;
-    console.log(`\n🛑 Received ${signal}. Initiating graceful shutdown...`);
+    logger.info('Initiating graceful shutdown', {
+      component: 'server',
+      signal,
+      phase: 'shutdown-start'
+    });
     
     const shutdownStart = Date.now();
     let shutdownTimer: NodeJS.Timeout | undefined;
@@ -112,32 +128,40 @@ class ResourceManager {
     try {
       // Set up force shutdown timer
       forceShutdownTimer = setTimeout(() => {
-        console.error('⏰ Could not complete graceful shutdown in time, forcing exit');
+        logger.error('Could not complete graceful shutdown in time, forcing exit', undefined, {
+          component: 'server',
+          phase: 'force-shutdown',
+          timeout: ResourceManager.FORCE_SHUTDOWN_TIMEOUT
+        });
         process.exit(1);
       }, ResourceManager.FORCE_SHUTDOWN_TIMEOUT);
 
       // Set up graceful shutdown timeout
       shutdownTimer = setTimeout(() => {
-        console.warn('⚠️ Graceful shutdown taking too long, accelerating process');
+        logger.warn('Graceful shutdown taking too long, accelerating process', {
+          component: 'server',
+          phase: 'graceful-shutdown-timeout',
+          timeout: ResourceManager.GRACEFUL_SHUTDOWN_TIMEOUT
+        });
       }, ResourceManager.GRACEFUL_SHUTDOWN_TIMEOUT);
 
       // Phase 1: Stop accepting new connections
-      console.log('🔐 Phase 1: Stopping new connections...');
+      logger.info('Phase 1: Stopping new connections', { component: 'server', phase: 'shutdown-phase-1' });
       if (server) {
         // Stop accepting new HTTP connections
         server.close();
       }
 
       // Phase 2: Close Socket.IO connections gracefully
-      console.log('🔌 Phase 2: Closing Socket.IO connections...');
+      logger.info('Phase 2: Closing Socket.IO connections', { component: 'server', phase: 'shutdown-phase-2' });
       await socketService.shutdown();
 
       // Phase 3: Database cleanup
-      console.log('💾 Phase 3: Closing database connections...');
+      logger.info('Phase 3: Closing database connections', { component: 'server', phase: 'shutdown-phase-3' });
       await ResourceManager.closeDatabaseConnections();
 
       // Phase 4: Wait for HTTP server to finish existing requests
-      console.log('🌐 Phase 4: Waiting for HTTP server to close...');
+      logger.info('Phase 4: Waiting for HTTP server to close', { component: 'server', phase: 'shutdown-phase-4' });
       if (server) {
         await ResourceManager.closeHTTPServer(server);
       }
@@ -147,11 +171,18 @@ class ResourceManager {
       if (forceShutdownTimer) clearTimeout(forceShutdownTimer);
 
       const shutdownDuration = Date.now() - shutdownStart;
-      console.log(`✅ Graceful shutdown completed successfully in ${shutdownDuration}ms`);
+      logger.info('Graceful shutdown completed successfully', {
+        component: 'server',
+        phase: 'shutdown-complete',
+        duration: shutdownDuration
+      });
       
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error during graceful shutdown:', error);
+      logger.error('Error during graceful shutdown', error as Error, {
+        component: 'server',
+        phase: 'shutdown-error'
+      });
       
       // Clear timers
       if (shutdownTimer) clearTimeout(shutdownTimer);
@@ -176,9 +207,15 @@ class ResourceManager {
     try {
       const dbService = DatabaseService.getInstance();
       await dbService.shutdown();
-      console.log('✅ Database connections closed successfully');
+      logger.info('Database connections closed successfully', {
+        component: 'server',
+        service: 'database'
+      });
     } catch (error) {
-      console.error('❌ Error closing database connections:', error);
+      logger.error('Error closing database connections', error as Error, {
+        component: 'server',
+        service: 'database'
+      });
       throw error;
     }
   }
@@ -204,10 +241,10 @@ class ResourceManager {
       httpServer.close((error) => {
         clearTimeout(timeout);
         if (error) {
-          console.error('❌ Error closing HTTP server:', error);
+          logger.error('Error closing HTTP server', error, { component: 'server', service: 'http' });
           reject(error);
         } else {
-          console.log('✅ HTTP server closed successfully');
+          logger.info('HTTP server closed successfully', { component: 'server', service: 'http' });
           resolve();
         }
       });
@@ -227,12 +264,19 @@ class ResourceManager {
    * @param reason - Description of why force shutdown was triggered
    */
   static forceShutdown(reason: string): void {
-    console.error(`⚡ Force shutdown triggered: ${reason}`);
+    logger.error('Force shutdown triggered', undefined, {
+      component: 'server',
+      phase: 'force-shutdown',
+      reason
+    });
     
     try {
       // Force close Socket.IO service (fire and forget for force shutdown)
-      socketService.shutdown().catch(() => {
-        console.error('❌ Error in Socket service force shutdown');
+      socketService.shutdown().catch((error) => {
+        logger.error('Error in Socket service force shutdown', error, {
+          component: 'server',
+          service: 'socket'
+        });
       });
       
       // Force close HTTP server
@@ -241,7 +285,10 @@ class ResourceManager {
         server.close();
       }
     } catch (error) {
-      console.error('❌ Error in force shutdown:', error);
+      logger.error('Error in force shutdown', error as Error, {
+        component: 'server',
+        phase: 'force-shutdown'
+      });
     }
     
     process.exit(1);
@@ -255,16 +302,19 @@ startServer().then((s: HTTPServer) => {
   // Handle server errors
   server.on('error', (error: NodeError) => {
     if (error.code === 'EADDRINUSE') {
-      console.error(`❌ Port ${serverConfig.port} is already in use`);
+      logger.error('Port is already in use', error, {
+        component: 'server',
+        port: serverConfig.port
+      });
     } else {
-      console.error('❌ Server error:', error);
+      logger.error('Server error', error, { component: 'server' });
     }
     ResourceManager.forceShutdown('Server error');
   });
 
   // Handle server close events
   server.on('close', () => {
-    console.log('📡 HTTP server closed');
+    logger.info('HTTP server closed', { component: 'server', event: 'close' });
   });
 });
 
@@ -279,23 +329,33 @@ process.on('SIGUSR2', handleShutdown('SIGUSR2')); // Nodemon restart
 
 // Handle uncaught exceptions with resource cleanup
 process.on('uncaughtException', (error: Error) => {
-  console.error('❌ Uncaught Exception:', error);
+  logger.error('Uncaught Exception', error, { component: 'server', event: 'uncaughtException' });
   ResourceManager.forceShutdown(`Uncaught Exception: ${error.message}`);
 });
 
 process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('Unhandled Rejection', reason instanceof Error ? reason : new Error(String(reason)), {
+    component: 'server',
+    event: 'unhandledRejection',
+    promise: promise.toString()
+  });
   ResourceManager.forceShutdown(`Unhandled Rejection: ${String(reason)}`);
 });
 
 // Handle specific error conditions
 process.on('SIGPIPE', () => {
-  console.warn('⚠️ SIGPIPE received - broken pipe detected');
+  logger.warn('SIGPIPE received - broken pipe detected', {
+    component: 'server',
+    signal: 'SIGPIPE'
+  });
   // Don't exit on SIGPIPE, just log it
 });
 
 process.on('SIGHUP', () => {
-  console.log('📡 SIGHUP received - configuration reload signal');
+  logger.info('SIGHUP received - configuration reload signal', {
+    component: 'server',
+    signal: 'SIGHUP'
+  });
   // Could be used for config reload in the future
 });
 

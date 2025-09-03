@@ -1,13 +1,14 @@
 /**
- * Simple logger utility for adapter operations
+ * Enhanced logger utility with structured logging
  *
- * This module provides a basic logging interface for database operations
- * with different log levels and structured logging support.
+ * This module provides a comprehensive logging interface for the parking garage system
+ * with structured logging, performance tracking, and production-ready features.
  *
  * @module Logger
  */
 
 import { IAdapterLogger } from '../adapters/interfaces/BaseAdapter';
+import { systemLogger, StructuredLogger, CorrelationContext } from '../config/logger.config';
 
 /**
  * Log level enumeration
@@ -31,75 +32,43 @@ export interface LogEntry {
 }
 
 /**
- * Simple console logger implementation
+ * Enhanced logger implementation with structured logging
  */
-export class ConsoleLogger implements IAdapterLogger {
-  private readonly minLevel: LogLevel;
+export class EnhancedLogger implements IAdapterLogger {
+  private readonly structuredLogger: StructuredLogger;
   private readonly name: string;
 
-  constructor(name = 'PrismaAdapter', minLevel: LogLevel = LogLevel.INFO) {
+  constructor(name = 'Application', context?: CorrelationContext) {
     this.name = name;
-    this.minLevel = minLevel;
+    this.structuredLogger = new StructuredLogger(context);
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {
-    if (this.minLevel <= LogLevel.DEBUG) {
-      this.log(LogLevel.DEBUG, message, meta);
-    }
+    this.structuredLogger.debug(`[${this.name}] ${message}`, meta);
   }
 
   info(message: string, meta?: Record<string, unknown>): void {
-    if (this.minLevel <= LogLevel.INFO) {
-      this.log(LogLevel.INFO, message, meta);
-    }
+    this.structuredLogger.info(`[${this.name}] ${message}`, meta);
   }
 
   warn(message: string, meta?: Record<string, unknown>): void {
-    if (this.minLevel <= LogLevel.WARN) {
-      this.log(LogLevel.WARN, message, meta);
-    }
+    this.structuredLogger.warn(`[${this.name}] ${message}`, meta);
   }
 
   error(message: string, error?: Error, meta?: Record<string, unknown>): void {
-    if (this.minLevel <= LogLevel.ERROR) {
-      this.log(LogLevel.ERROR, message, meta, error);
-    }
+    this.structuredLogger.error(`[${this.name}] ${message}`, error, meta);
   }
 
-  private log(
-    level: LogLevel,
-    message: string,
-    meta?: Record<string, unknown>,
-    error?: Error
-  ): void {
-    const timestamp = new Date().toISOString();
-    const levelName = LogLevel[level];
+  http(message: string, meta?: Record<string, unknown>): void {
+    this.structuredLogger.http(`[${this.name}] ${message}`, meta);
+  }
 
-    let logMessage = `[${timestamp}] ${levelName} [${this.name}] ${message}`;
+  performance(operation: string, duration: number, meta?: Record<string, unknown>): void {
+    this.structuredLogger.performance(`[${this.name}] ${operation}`, duration, meta);
+  }
 
-    if (meta && Object.keys(meta).length > 0) {
-      logMessage += ` | Meta: ${JSON.stringify(meta)}`;
-    }
-
-    if (error) {
-      logMessage += ` | Error: ${error.message}`;
-      if (error.stack) {
-        logMessage += `\nStack: ${error.stack}`;
-      }
-    }
-
-    switch (level) {
-      case LogLevel.DEBUG:
-      case LogLevel.INFO:
-        console.log(logMessage);
-        break;
-      case LogLevel.WARN:
-        console.warn(logMessage);
-        break;
-      case LogLevel.ERROR:
-        console.error(logMessage);
-        break;
-    }
+  child(additionalContext: CorrelationContext): EnhancedLogger {
+    return new EnhancedLogger(this.name, additionalContext);
   }
 }
 
@@ -116,39 +85,65 @@ export class NoopLogger implements IAdapterLogger {
 /**
  * Create logger instance based on environment
  */
-export function createLogger(name?: string): IAdapterLogger {
-  // In production, you might want to use a more sophisticated logger
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  const logLevel = process.env.LOG_LEVEL;
-
+export function createLogger(name?: string, context?: CorrelationContext): IAdapterLogger {
   if (process.env.NODE_ENV === 'test') {
     return new NoopLogger();
   }
 
-  let minLevel = LogLevel.INFO;
-  if (logLevel) {
-    switch (logLevel.toUpperCase()) {
-      case 'DEBUG':
-        minLevel = LogLevel.DEBUG;
-        break;
-      case 'INFO':
-        minLevel = LogLevel.INFO;
-        break;
-      case 'WARN':
-        minLevel = LogLevel.WARN;
-        break;
-      case 'ERROR':
-        minLevel = LogLevel.ERROR;
-        break;
-    }
-  } else if (isDevelopment) {
-    minLevel = LogLevel.DEBUG;
-  }
-
-  return new ConsoleLogger(name, minLevel);
+  return new EnhancedLogger(name || 'Application', context);
 }
 
 /**
- * Default logger instance
+ * Production-ready logger instances for different use cases
  */
-export const logger = createLogger();
+export const logger = systemLogger; // Main system logger
+export const apiLogger = new EnhancedLogger('API');
+export const dbLogger = new EnhancedLogger('Database');
+export const authLogger = new EnhancedLogger('Auth');
+export const paymentLogger = new EnhancedLogger('Payment');
+export const emailLogger = new EnhancedLogger('Email');
+export const socketLogger = new EnhancedLogger('Socket');
+export const cacheLogger = new EnhancedLogger('Cache');
+
+/**
+ * Convenience functions for quick logging (replaces console statements)
+ */
+export const log = {
+  debug: (message: string, meta?: Record<string, unknown>) => logger.debug(message, meta),
+  info: (message: string, meta?: Record<string, unknown>) => logger.info(message, meta),
+  warn: (message: string, meta?: Record<string, unknown>) => logger.warn(message, meta),
+  error: (message: string, error?: Error | string, meta?: Record<string, unknown>) => {
+    if (typeof error === 'string') {
+      logger.error(message, new Error(error), meta);
+    } else {
+      logger.error(message, error, meta);
+    }
+  },
+  http: (message: string, meta?: Record<string, unknown>) => logger.http(message, meta),
+};
+
+/**
+ * Legacy compatibility - maps old console usage patterns
+ */
+export const console_replacement = {
+  log: (message: any, ...args: any[]) => {
+    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const meta = args.length > 0 ? { args } : undefined;
+    logger.info(msg, meta);
+  },
+  error: (message: any, ...args: any[]) => {
+    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const meta = args.length > 0 ? { args } : undefined;
+    logger.error(msg, undefined, meta);
+  },
+  warn: (message: any, ...args: any[]) => {
+    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const meta = args.length > 0 ? { args } : undefined;
+    logger.warn(msg, meta);
+  },
+  info: (message: any, ...args: any[]) => {
+    const msg = typeof message === 'string' ? message : JSON.stringify(message);
+    const meta = args.length > 0 ? { args } : undefined;
+    logger.info(msg, meta);
+  },
+};
