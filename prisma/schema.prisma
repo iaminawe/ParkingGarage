@@ -85,6 +85,53 @@ enum PaymentStatus {
   DISPUTED
 }
 
+enum NotificationType {
+  PARKING_SESSION_STARTED
+  PARKING_SESSION_ENDED
+  PAYMENT_CONFIRMATION
+  PAYMENT_FAILED
+  ACCOUNT_CREATED
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  LOGIN_SECURITY_ALERT
+  SPOT_AVAILABILITY
+  RESERVATION_REMINDER
+  MAINTENANCE_ALERT
+  SYSTEM_ANNOUNCEMENT
+  BILLING_REMINDER
+  SUBSCRIPTION_EXPIRY
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  READ
+  CANCELLED
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum NotificationFrequency {
+  IMMEDIATE
+  DAILY_DIGEST
+  WEEKLY_DIGEST
+  NEVER
+}
+
 // Authentication Models (User Management System)
 model User {
   id                       String    @id @default(cuid())
@@ -122,11 +169,17 @@ model User {
   updatedAt                DateTime  @updatedAt
 
   // Relations
-  vehicles     Vehicle[] // User can own multiple vehicles
-  sessions     UserSession[]
-  auditLogs    SecurityAuditLog[]
-  devices      UserDevice[]
-  loginHistory LoginHistory[]
+  vehicles                Vehicle[] // User can own multiple vehicles
+  sessions                UserSession[]
+  auditLogs               SecurityAuditLog[]
+  devices                 UserDevice[]
+  loginHistory            LoginHistory[]
+  notifications           Notification[]
+  discountCodes           DiscountCode[]
+  discountUsages          DiscountUsage[]
+  promotions              Promotion[]
+  promotionUsages          PromotionUsage[]
+  notificationPreferences NotificationPreference[]
 
   // Performance indexes
   @@index([email])
@@ -289,9 +342,15 @@ model Garage {
   operatingHours String? // JSON: { open: "08:00", close: "22:00", timezone: "UTC" }
 
   // Relationships
-  floors       Floor[]
-  tickets      Ticket[]
-  transactions Transaction[]
+  floors          Floor[]
+  tickets         Ticket[]
+  transactions    Transaction[]
+  pricingRules    PricingRule[]
+  discountCodes   DiscountCode[]
+  promotions      Promotion[]
+  surgeZones      SurgeZone[]
+  demandForecasts DemandForecast[]
+  pricingHistory  PricingHistory[]
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -340,6 +399,9 @@ model ParkingSpot {
   vehicles        Vehicle[]        @relation("VehicleSpot")
   currentVehicles Vehicle[]        @relation("VehicleCurrentSpot")
   sessions        ParkingSession[]
+  discountUsages  DiscountUsage[]
+  promotionUsages  PromotionUsage[]
+  pricingHistory  PricingHistory[]
 
   // Performance indexes
   @@index([spotNumber])
@@ -383,11 +445,14 @@ model Vehicle {
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  sessions    ParkingSession[]
-  spot        ParkingSpot?     @relation("VehicleSpot", fields: [spotId], references: [id])
-  currentSpot ParkingSpot?     @relation("VehicleCurrentSpot", fields: [currentSpotId], references: [id])
-  owner       User?            @relation(fields: [ownerId], references: [id])
-  payments    Payment[]
+  sessions       ParkingSession[]
+  spot           ParkingSpot?     @relation("VehicleSpot", fields: [spotId], references: [id])
+  currentSpot    ParkingSpot?     @relation("VehicleCurrentSpot", fields: [currentSpotId], references: [id])
+  owner          User?            @relation(fields: [ownerId], references: [id])
+  payments       Payment[]
+  discountUsages DiscountUsage[]
+  promotionUsages PromotionUsage[]
+  pricingHistory PricingHistory[]
 
   // Performance indexes
   @@index([licensePlate])
@@ -424,9 +489,12 @@ model ParkingSession {
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  vehicle  Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  spot     ParkingSpot @relation(fields: [spotId], references: [id])
-  payments Payment[]
+  vehicle        Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  spot           ParkingSpot      @relation(fields: [spotId], references: [id])
+  payments       Payment[]
+  discountUsages DiscountUsage[]
+  promotionUsages PromotionUsage[]
+  pricingHistory PricingHistory[]
 
   // Performance indexes
   @@index([vehicleId])
@@ -462,7 +530,7 @@ model Payment {
   refundAmount  Float?        @default(0)
   refundedAt    DateTime?
   notes         String?
-  deletedAt     DateTime?     // For soft deletes
+  deletedAt     DateTime? // For soft deletes
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -552,6 +620,335 @@ model Ticket {
   @@map("tickets")
 }
 
+// Pricing and Promotion Models
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum MembershipTier {
+  BASIC
+  PREMIUM
+  VIP
+  CORPORATE
+}
+
+enum PricingRuleType {
+  BASE_RATE
+  SURGE_MULTIPLIER
+  TIME_BASED
+  OCCUPANCY_BASED
+  EVENT_BASED
+  SPOT_TYPE_PREMIUM
+}
+
+model PricingRule {
+  id          String          @id @default(cuid())
+  name        String
+  type        PricingRuleType
+  description String?
+  conditions  String // JSON string for rule conditions
+  action      String // JSON string for pricing action
+  priority    Int             @default(0)
+  isActive    Boolean         @default(true)
+  validFrom   DateTime?
+  validUntil  DateTime?
+  garageId    String? // Optional: rule specific to a garage
+  spotTypes   String? // JSON array of applicable spot types
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  garage  Garage?          @relation(fields: [garageId], references: [id])
+  history PricingHistory[]
+
+  // Performance indexes
+  @@index([type])
+  @@index([isActive])
+  @@index([priority])
+  @@index([validFrom, validUntil])
+  @@index([garageId, isActive])
+  @@map("pricing_rules")
+}
+
+model DiscountCode {
+  id                  String       @id @default(cuid())
+  code                String       @unique
+  name                String?
+  description         String?
+  type                DiscountType
+  value               Float
+  minAmount           Float? // Minimum transaction amount to apply
+  maxDiscount         Float? // Maximum discount amount for percentage discounts
+  usageLimit          Int? // Maximum number of uses
+  usedCount           Int          @default(0)
+  perUserLimit        Int? // Maximum uses per user
+  validFrom           DateTime
+  validUntil          DateTime
+  isActive            Boolean      @default(true)
+  applicableSpotTypes String? // JSON array of applicable spot types
+  membershipTiersOnly String? // JSON array of required membership tiers
+  garageId            String? // Optional: code specific to a garage
+  createdBy           String? // User ID who created the code
+  metadata            String? // JSON for additional configuration
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  // Relations
+  garage   Garage?          @relation(fields: [garageId], references: [id])
+  creator  User?            @relation(fields: [createdBy], references: [id])
+  usageLog DiscountUsage[]
+  history  PricingHistory[]
+
+  // Performance indexes
+  @@index([code])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+  @@index([type])
+  @@index([garageId])
+  @@index([usedCount, usageLimit])
+  @@map("discount_codes")
+}
+
+model DiscountUsage {
+  id             String   @id @default(cuid())
+  discountCodeId String
+  userId         String?
+  sessionId      String?
+  vehicleId      String?
+  spotId         String?
+  originalAmount Float
+  discountAmount Float
+  finalAmount    Float
+  ipAddress      String?
+  userAgent      String?
+  metadata       String? // JSON for additional tracking data
+  usedAt         DateTime @default(now())
+
+  // Relations
+  discountCode DiscountCode    @relation(fields: [discountCodeId], references: [id], onDelete: Cascade)
+  user         User?           @relation(fields: [userId], references: [id])
+  session      ParkingSession? @relation(fields: [sessionId], references: [id])
+  vehicle      Vehicle?        @relation(fields: [vehicleId], references: [id])
+  spot         ParkingSpot?    @relation(fields: [spotId], references: [id])
+
+  // Performance indexes
+  @@index([discountCodeId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([usedAt])
+  @@index([discountCodeId, userId])
+  @@map("discount_usage")
+}
+
+model MembershipBenefit {
+  id                  String         @id @default(cuid())
+  tier                MembershipTier @unique
+  name                String
+  description         String?
+  discountPercent     Float          @default(0)
+  priorityBooking     Boolean        @default(false)
+  extendedGracePeriod Int            @default(5) // minutes
+  freeHours           Float          @default(0) // free hours per month
+  specialRates        String? // JSON object for spot type specific rates
+  features            String? // JSON array of feature names
+  maxReservations     Int? // Maximum concurrent reservations
+  advanceBookingDays  Int? // How many days in advance can book
+  isActive            Boolean        @default(true)
+  sortOrder           Int            @default(0)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Performance indexes
+  @@index([tier])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("membership_benefits")
+}
+
+model Promotion {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  type            String // SURGE_REDUCTION, HAPPY_HOUR, EVENT_SPECIAL, etc.
+  conditions      String // JSON string for promotion conditions
+  discount        String // JSON string for discount configuration
+  startDate       DateTime
+  endDate         DateTime
+  isActive        Boolean  @default(true)
+  priority        Int      @default(0)
+  usageLimit      Int? // Maximum total uses
+  usedCount       Int      @default(0)
+  perUserLimit    Int? // Maximum uses per user
+  garageId        String? // Optional: promotion specific to a garage
+  applicableSpots String? // JSON array of applicable spot types
+  targetAudience  String? // JSON object for targeting criteria
+  createdBy       String? // User ID who created the promotion
+  metadata        String? // JSON for additional configuration
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  garage   Garage?          @relation(fields: [garageId], references: [id])
+  creator  User?            @relation(fields: [createdBy], references: [id])
+  usageLog PromotionUsage[]
+  history  PricingHistory[]
+
+  // Performance indexes
+  @@index([isActive])
+  @@index([startDate, endDate])
+  @@index([type])
+  @@index([priority])
+  @@index([garageId])
+  @@index([usedCount, usageLimit])
+  @@map("promotions")
+}
+
+model PromotionUsage {
+  id          String   @id @default(cuid())
+  promotionId String
+  userId      String?
+  sessionId   String?
+  vehicleId   String?
+  spotId      String?
+  savings     Float
+  metadata    String? // JSON for additional tracking data
+  usedAt      DateTime @default(now())
+
+  // Relations
+  promotion Promotion       @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  user      User?           @relation(fields: [userId], references: [id])
+  session   ParkingSession? @relation(fields: [sessionId], references: [id])
+  vehicle   Vehicle?        @relation(fields: [vehicleId], references: [id])
+  spot      ParkingSpot?    @relation(fields: [spotId], references: [id])
+
+  // Performance indexes
+  @@index([promotionId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([usedAt])
+  @@index([promotionId, userId])
+  @@map("promotion_usage")
+}
+
+model SurgeZone {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  floors             String // JSON array of floor numbers
+  spotTypes          String // JSON array of applicable spot types
+  currentMultiplier  Float    @default(1.0)
+  maxMultiplier      Float    @default(3.0)
+  occupancyThreshold Float    @default(0.8) // 80%
+  peakHours          String? // JSON array of peak hour objects
+  isActive           Boolean  @default(true)
+  garageId           String? // Optional: zone specific to a garage
+  priority           Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  garage  Garage?          @relation(fields: [garageId], references: [id])
+  history PricingHistory[]
+
+  // Performance indexes
+  @@index([isActive])
+  @@index([garageId])
+  @@index([currentMultiplier])
+  @@index([occupancyThreshold])
+  @@map("surge_zones")
+}
+
+model DemandForecast {
+  id                String    @id @default(cuid())
+  hour              Int // 0-23
+  dayOfWeek         Int // 0-6 (Sunday-Saturday)
+  expectedOccupancy Float // 0.0-1.0
+  surgeMultiplier   Float     @default(1.0)
+  confidence        Float // 0.0-1.0
+  spotType          SpotType?
+  garageId          String?
+  isActive          Boolean   @default(true)
+  lastUpdated       DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  garage Garage? @relation(fields: [garageId], references: [id])
+
+  @@unique([hour, dayOfWeek, spotType, garageId])
+  // Performance indexes
+  @@index([hour, dayOfWeek])
+  @@index([spotType])
+  @@index([garageId])
+  @@index([isActive])
+  @@index([expectedOccupancy])
+  @@map("demand_forecasts")
+}
+
+model PricingHistory {
+  id             String  @id @default(cuid())
+  sessionId      String?
+  vehicleId      String?
+  spotId         String?
+  garageId       String?
+  ruleId         String? // Applied pricing rule
+  discountCodeId String? // Applied discount code
+  promotionId    String? // Applied promotion
+  surgeZoneId    String? // Applied surge zone
+
+  // Pricing breakdown
+  baseRate             Float
+  surgeMultiplier      Float  @default(1.0)
+  surgeRate            Float
+  membershipDiscount   Float  @default(0)
+  discountCodeDiscount Float  @default(0)
+  promotionDiscount    Float  @default(0)
+  finalRate            Float
+  estimatedAmount      Float?
+  actualAmount         Float?
+
+  // Context information
+  spotType       SpotType?
+  spotFeatures   String? // JSON array
+  rateType       RateType?
+  membershipTier MembershipTier?
+  duration       Int? // minutes
+  checkInTime    DateTime
+  checkOutTime   DateTime?
+
+  // Metadata
+  calculationData String? // JSON object with full calculation details
+  appliedRules    String? // JSON array of all applied rules
+  metadata        String? // Additional tracking data
+  createdAt       DateTime @default(now())
+
+  // Relations
+  session      ParkingSession? @relation(fields: [sessionId], references: [id])
+  vehicle      Vehicle?        @relation(fields: [vehicleId], references: [id])
+  spot         ParkingSpot?    @relation(fields: [spotId], references: [id])
+  garage       Garage?         @relation(fields: [garageId], references: [id])
+  rule         PricingRule?    @relation(fields: [ruleId], references: [id])
+  discountCode DiscountCode?   @relation(fields: [discountCodeId], references: [id])
+  promotion    Promotion?      @relation(fields: [promotionId], references: [id])
+  surgeZone    SurgeZone?      @relation(fields: [surgeZoneId], references: [id])
+
+  // Performance indexes
+  @@index([sessionId])
+  @@index([vehicleId])
+  @@index([spotId])
+  @@index([garageId])
+  @@index([checkInTime])
+  @@index([spotType])
+  @@index([membershipTier])
+  @@index([ruleId])
+  @@index([discountCodeId])
+  @@index([createdAt])
+  @@index([checkInTime, spotType])
+  @@index([garageId, checkInTime])
+  @@map("pricing_history")
+}
+
 // Configuration and Security Models
 model EmailTemplate {
   id          String   @id @default(cuid())
@@ -591,4 +988,141 @@ model SecuritySettings {
   @@index([category])
   @@index([environmentSpecific])
   @@map("security_settings")
+}
+
+// Notification System Models
+model Notification {
+  id           String               @id @default(cuid())
+  userId       String
+  type         NotificationType
+  channel      NotificationChannel
+  status       NotificationStatus   @default(PENDING)
+  priority     NotificationPriority @default(MEDIUM)
+  subject      String
+  content      String
+  metadata     String? // JSON for additional notification data
+  readAt       DateTime?
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  failedAt     DateTime?
+  errorMessage String?
+  retryCount   Int                  @default(0)
+  maxRetries   Int                  @default(3)
+  scheduleAt   DateTime? // For scheduled notifications
+  expiresAt    DateTime? // For notifications that should expire
+  templateId   String? // Reference to NotificationTemplate
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  // Relations
+  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template NotificationTemplate? @relation(fields: [templateId], references: [id])
+  logs     NotificationLog[]
+
+  // Performance indexes
+  @@index([userId])
+  @@index([type])
+  @@index([channel])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([sentAt])
+  @@index([scheduleAt])
+  @@index([expiresAt])
+  // Composite indexes for common queries
+  @@index([userId, status])
+  @@index([userId, channel])
+  @@index([type, channel])
+  @@index([status, retryCount])
+  @@index([scheduleAt, status])
+  @@index([channel, priority, status])
+  @@map("notifications")
+}
+
+model NotificationTemplate {
+  id          String              @id @default(cuid())
+  name        String              @unique
+  type        NotificationType
+  channel     NotificationChannel
+  subject     String
+  body        String
+  variables   String? // JSON schema for template variables
+  isActive    Boolean             @default(true)
+  language    String              @default("en")
+  version     Int                 @default(1)
+  description String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  // Relations
+  notifications Notification[]
+
+  // Performance indexes
+  @@index([name])
+  @@index([type])
+  @@index([channel])
+  @@index([isActive])
+  @@index([language])
+  // Composite indexes for template lookup
+  @@index([type, channel])
+  @@index([type, channel, language])
+  @@index([isActive, type, channel])
+  @@map("notification_templates")
+}
+
+model NotificationPreference {
+  id                String                @id @default(cuid())
+  userId            String
+  channel           NotificationChannel
+  enabled           Boolean               @default(true)
+  quietHoursStart   String? // Time in HH:MM format
+  quietHoursEnd     String? // Time in HH:MM format
+  timezone          String                @default("UTC")
+  frequency         NotificationFrequency @default(IMMEDIATE)
+  categories        String? // JSON array of notification types user wants to receive
+  metadata          String? // JSON for additional preference data
+  doNotDisturbUntil DateTime? // Temporary do not disturb
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Constraints
+  @@unique([userId, channel])
+  // Performance indexes
+  @@index([userId])
+  @@index([channel])
+  @@index([enabled])
+  @@index([frequency])
+  // Composite indexes for preference lookup
+  @@index([userId, enabled])
+  @@index([userId, channel, enabled])
+  @@map("notification_preferences")
+}
+
+model NotificationLog {
+  id             String             @id @default(cuid())
+  notificationId String
+  status         NotificationStatus
+  timestamp      DateTime           @default(now())
+  details        String? // JSON for additional log details
+  error          String? // Error message if failed
+  retryAttempt   Int? // Which retry attempt this was
+  processingTime Int? // Processing time in milliseconds
+  externalId     String? // External service ID (email provider, SMS provider, etc.)
+  metadata       String? // JSON for additional metadata
+
+  // Relations
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([notificationId])
+  @@index([status])
+  @@index([timestamp])
+  // Composite indexes for log analysis
+  @@index([notificationId, timestamp])
+  @@index([status, timestamp])
+  @@index([retryAttempt, timestamp])
+  @@map("notification_logs")
 }
