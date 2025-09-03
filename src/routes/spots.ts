@@ -139,6 +139,8 @@ router.get('/info', (req: Request, res: Response): void => {
       'GET /spots': 'List spots with filtering and pagination',
       'GET /spots/:id': 'Get individual spot details',
       'PATCH /spots/:id': 'Update spot status/type/features',
+      'PUT /spots/:id/occupy': 'Mark specific spot as occupied',
+      'PUT /spots/:id/free': 'Mark specific spot as available',
       'GET /spots/statistics': 'Get spot statistics',
       'GET /spots/available': 'Get only available spots',
       'GET /spots/occupied': 'Get only occupied spots',
@@ -185,6 +187,58 @@ router.get(
   validateSpotId,
   async (req: Request<{ id: string }>, res: Response): Promise<void> => {
     await spotController.getSpotById(req, res);
+  }
+);
+
+/**
+ * PUT /api/v1/spots/:id/occupy
+ * Mark specific spot as occupied
+ *
+ * Path Parameters:
+ * - id: Spot ID in format F{floor}-B{bay}-S{spot}
+ *
+ * Request Body (JSON, Optional):
+ * {
+ *   "vehicleId": "string",       // Optional: Vehicle ID occupying the spot
+ *   "licensePlate": "string",    // Optional: License plate of occupying vehicle
+ *   "notes": "string"            // Optional: Additional notes
+ * }
+ *
+ * Response:
+ * - 200 OK with updated spot details
+ * - 400 Bad Request if spot is already occupied
+ * - 404 Not Found if spot doesn't exist
+ */
+router.put(
+  '/:id/occupy',
+  validateSpotId,
+  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+    await spotController.occupySpot(req, res);
+  }
+);
+
+/**
+ * PUT /api/v1/spots/:id/free
+ * Mark specific spot as available
+ *
+ * Path Parameters:
+ * - id: Spot ID in format F{floor}-B{bay}-S{spot}
+ *
+ * Request Body (JSON, Optional):
+ * {
+ *   "notes": "string"    // Optional: Additional notes about freeing the spot
+ * }
+ *
+ * Response:
+ * - 200 OK with updated spot details
+ * - 400 Bad Request if spot is already available
+ * - 404 Not Found if spot doesn't exist
+ */
+router.put(
+  '/:id/free',
+  validateSpotId,
+  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+    await spotController.freeSpot(req, res);
   }
 );
 

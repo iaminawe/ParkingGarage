@@ -12,9 +12,9 @@
 
 import { Router, Request, Response } from 'express';
 import { EnhancedCacheService, CacheKeys, CacheInvalidationRules } from '../services/EnhancedCacheService';
-import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorization';
+import { authenticate, authorize } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { USER_ROLES } from '../config/constants';
 import { body, query, param, validationResult } from 'express-validator';
 
 export interface CacheManagerConfig {
@@ -45,7 +45,7 @@ export class CacheManager {
   private setupRoutes(): void {
     // Apply authentication and authorization to all cache management routes
     this.router.use(authenticate);
-    this.router.use(authorize(['admin', 'operator']));
+    this.router.use(authorize([USER_ROLES.ADMIN, USER_ROLES.OPERATOR]));
 
     // Health and status endpoints
     this.router.get('/health', this.getHealth.bind(this));
@@ -141,8 +141,8 @@ export class CacheManager {
         error: health.error,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache health check error', error);
+    } catch (error: unknown) {
+      logger.error('Cache health check error', error as Error);
       res.status(500).json({
         status: 'unhealthy',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -165,8 +165,8 @@ export class CacheManager {
         recommendations: await this.generateMetricsRecommendations(metrics),
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache metrics error', error);
+    } catch (error: unknown) {
+      logger.error('Cache metrics error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -192,8 +192,8 @@ export class CacheManager {
         },
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache statistics error', error);
+    } catch (error: unknown) {
+      logger.error('Cache statistics error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -228,8 +228,8 @@ export class CacheManager {
         circuitBreaker: metrics.circuitBreakerState,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache status error', error);
+    } catch (error: unknown) {
+      logger.error('Cache status error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -272,8 +272,8 @@ export class CacheManager {
         totalKeys: keys.length,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache warming error', error);
+    } catch (error: unknown) {
+      logger.error('Cache warming error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -315,8 +315,8 @@ export class CacheManager {
         method: pattern ? 'pattern' : keys ? 'keys' : 'tags',
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache clear error', error);
+    } catch (error: unknown) {
+      logger.error('Cache clear error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -353,8 +353,8 @@ export class CacheManager {
         cascadeApplied: !!cascadeRules,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache invalidation error', error);
+    } catch (error: unknown) {
+      logger.error('Cache invalidation error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -382,8 +382,8 @@ export class CacheManager {
             const data = await this.getDataForKey(key);
             const success = await this.cacheService.set(key, data);
             if (success) refreshedCount++;
-          } catch (error) {
-            logger.warn(`Failed to refresh cache key: ${key}`, error);
+          } catch (error: unknown) {
+            logger.warn(`Failed to refresh cache key: ${key}`, error as Error);
           }
         }
       } else if (pattern) {
@@ -401,8 +401,8 @@ export class CacheManager {
         totalRequested: keys?.length || 0,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache refresh error', error);
+    } catch (error: unknown) {
+      logger.error('Cache refresh error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -422,8 +422,8 @@ export class CacheManager {
         flushedCount,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache flush expired keys error', error);
+    } catch (error: unknown) {
+      logger.error('Cache flush expired keys error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -443,8 +443,8 @@ export class CacheManager {
         message: 'Cache metrics reset successfully',
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache reset metrics error', error);
+    } catch (error: unknown) {
+      logger.error('Cache reset metrics error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -473,8 +473,8 @@ export class CacheManager {
         message: 'Background refresh started successfully',
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache start background refresh error', error);
+    } catch (error: unknown) {
+      logger.error('Cache start background refresh error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -498,8 +498,8 @@ export class CacheManager {
           : null,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Circuit breaker status error', error);
+    } catch (error: unknown) {
+      logger.error('Circuit breaker status error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -527,8 +527,8 @@ export class CacheManager {
         message: 'Circuit breaker reset attempted',
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Circuit breaker reset error', error);
+    } catch (error: unknown) {
+      logger.error('Circuit breaker reset error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -561,8 +561,8 @@ export class CacheManager {
         keys: Array.from(stats.expirationTimes.keys()).slice(0, 100), // Limit to 100 keys
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache list keys error', error);
+    } catch (error: unknown) {
+      logger.error('Cache list keys error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -586,7 +586,7 @@ export class CacheManager {
     }
 
     try {
-      const key = req.params.key;
+      const key = req.params.key!;
       const data = await this.cacheService.get(key);
 
       res.json({
@@ -595,8 +595,8 @@ export class CacheManager {
         data: data,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache inspect key error', error);
+    } catch (error: unknown) {
+      logger.error('Cache inspect key error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -615,7 +615,7 @@ export class CacheManager {
     }
 
     try {
-      const pattern = req.params.pattern;
+      const pattern = req.params.pattern!;
       const stats = await this.cacheService.getCacheStatistics(pattern);
       const metrics = this.cacheService.getMetrics();
 
@@ -629,8 +629,8 @@ export class CacheManager {
       };
 
       res.json(analysis);
-    } catch (error) {
-      logger.error('Cache analyze pattern error', error);
+    } catch (error: unknown) {
+      logger.error('Cache analyze pattern error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -677,8 +677,8 @@ export class CacheManager {
         optimizations,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache optimize error', error);
+    } catch (error: unknown) {
+      logger.error('Cache optimize error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -706,8 +706,8 @@ export class CacheManager {
         },
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
-      logger.error('Cache recommendations error', error);
+    } catch (error: unknown) {
+      logger.error('Cache recommendations error', error as Error);
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),

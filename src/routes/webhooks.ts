@@ -14,7 +14,7 @@ import { createLogger } from '../utils/logger';
 import { HTTP_STATUS } from '../config/constants';
 
 const router = Router();
-const stripeGateway = new StripePaymentGateway();
+const stripeGateway = process.env.STRIPE_SECRET_KEY ? new StripePaymentGateway() : null;
 const paymentService = PaymentService;
 const auditService = new SecurityAuditService();
 const logger = createLogger('WebhookRoutes');
@@ -56,6 +56,16 @@ const captureRawBody = (req: Request, res: Response, next: () => void) => {
  * @access  Public (with signature verification)
  */
 router.post('/stripe', webhookLimiter, captureRawBody, async (req: Request, res: Response): Promise<void> => {
+  // Check if Stripe is configured
+  if (!stripeGateway) {
+    logger.warn('Stripe webhook received but Stripe is not configured');
+    res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
+      success: false,
+      message: 'Stripe is not configured',
+    });
+    return;
+  }
+
   const signature = req.get('Stripe-Signature');
   const rawBody = (req as any).rawBody;
 
@@ -253,7 +263,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
             notes: { contains: stripePaymentIntentId } 
           }
         ],
-        status: { in: ['PENDING', 'PROCESSING'] },
+        status: { in: ['PENDING'] },
       },
       include: {
         session: true,
@@ -267,7 +277,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
         data: {
           status: 'COMPLETED',
           processedAt: new Date(),
-          gatewayResponse: JSON.stringify(paymentIntent),
+          notes: `${payment?.notes || ''}\nStripe Response: ${JSON.stringify(paymentIntent)}`.trim(),
         },
       });
 
@@ -333,7 +343,7 @@ async function handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
           { transactionId: stripePaymentIntentId },
           { notes: { contains: stripePaymentIntentId } }
         ],
-        status: { in: ['PENDING', 'PROCESSING'] },
+        status: { in: ['PENDING'] },
       },
     });
 
@@ -344,7 +354,7 @@ async function handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
           status: 'FAILED',
           processedAt: new Date(),
           failureReason: last_payment_error?.message || 'Payment failed',
-          gatewayResponse: JSON.stringify(paymentIntent),
+          notes: `${payment?.notes || ''}\nStripe Response: ${JSON.stringify(paymentIntent)}`.trim(),
         },
       });
 
@@ -388,7 +398,7 @@ async function handlePaymentIntentCanceled(paymentIntent: any): Promise<void> {
           { transactionId: stripePaymentIntentId },
           { notes: { contains: stripePaymentIntentId } }
         ],
-        status: { in: ['PENDING', 'PROCESSING'] },
+        status: { in: ['PENDING'] },
       },
     });
 
@@ -399,7 +409,7 @@ async function handlePaymentIntentCanceled(paymentIntent: any): Promise<void> {
           status: 'CANCELLED',
           processedAt: new Date(),
           failureReason: `Payment cancelled: ${cancellation_reason || 'Unknown reason'}`,
-          gatewayResponse: JSON.stringify(paymentIntent),
+          notes: `${payment?.notes || ''}\nStripe Response: ${JSON.stringify(paymentIntent)}`.trim(),
         },
       });
 
@@ -452,7 +462,7 @@ async function handlePaymentIntentRequiresAction(paymentIntent: any): Promise<vo
         where: { id: payment.id },
         data: {
           status: 'PENDING',
-          gatewayResponse: JSON.stringify(paymentIntent),
+          notes: `${payment?.notes || ''}\nStripe Response: ${JSON.stringify(paymentIntent)}`.trim(),
           // Could add a flag here to indicate additional authentication required
         },
       });
@@ -491,8 +501,8 @@ async function handlePaymentIntentProcessing(paymentIntent: any): Promise<void> 
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
-          status: 'PROCESSING',
-          gatewayResponse: JSON.stringify(paymentIntent),
+          status: 'PENDING',
+          notes: `${payment?.notes || ''}\nStripe Response: ${JSON.stringify(paymentIntent)}`.trim(),
         },
       });
 
@@ -544,7 +554,7 @@ async function handleChargeDisputeCreated(dispute: any): Promise<void> {
     // Find payment by charge ID and mark as disputed
     const payment = await prisma.payment.findFirst({
       where: {
-        gatewayResponse: { contains: chargeId },
+        notes: { contains: chargeId },
         status: 'COMPLETED',
       },
     });
@@ -554,7 +564,7 @@ async function handleChargeDisputeCreated(dispute: any): Promise<void> {
         where: { id: payment.id },
         data: {
           status: 'DISPUTED',
-          gatewayResponse: JSON.stringify(dispute),
+          notes: `${payment?.notes || ''}\nDispute: ${JSON.stringify(dispute)}`.trim(),
         },
       });
 
