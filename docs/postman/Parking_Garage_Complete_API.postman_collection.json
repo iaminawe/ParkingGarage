@@ -1,0 +1,1364 @@
+{
+	"info": {
+		"name": "Parking Garage Management API - Complete",
+		"description": "Comprehensive API collection for testing ALL endpoints of the Parking Garage Management System.\n\n## Full API Coverage:\n\n### 🔐 Authentication\n- User registration and login\n- Token management\n\n### 🏢 Garage Layout:\n- Manage floors and bays (areas within a floor)\n- Define and manage parking spots with unique identifiers\n- Garage configuration and statistics\n- Pricing rate management\n\n### 🅿️ Parking Spot Management:\n- List all parking spots with their availability status (available/occupied)\n- Retrieve only available spots\n- Mark spots as occupied or available\n- Advanced filtering and search\n\n### 🚗 Car Tracking:\n- Check a car in: Assign the car to an available spot\n- Check a car out: Free up the spot\n- Track check-in and check-out times\n- Cost estimation and billing\n\n### 🚙 Vehicle Management:\n- Vehicle records management\n- Search and filtering\n- Bulk operations\n\n### 📊 Session Management:\n- Parking session tracking\n- Session analytics\n- Export capabilities\n\n### 📈 System Statistics & Monitoring:\n- Real-time metrics\n- Performance monitoring\n- Health checks\n\n## Setup Instructions:\n1. Import this collection into Postman\n2. Import the environment template\n3. Update environment variables with your server details\n4. Run authentication requests first to get access token",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"description": "Authentication endpoints for user registration and login",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 or 400 (user already exists)\", function () {",
+									"    pm.expect([201, 400]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"Response has success field\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('success');",
+									"});",
+									"",
+									"if (pm.response.code === 201) {",
+									"    pm.test(\"Registration successful\", function () {",
+									"        const jsonData = pm.response.json();",
+									"        pm.expect(jsonData.success).to.be.true;",
+									"        pm.expect(jsonData.data).to.have.property('user');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePass123@\",\n    \"firstName\": \"Test\",\n    \"lastName\": \"User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/signup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"signup"
+							]
+						},
+						"description": "Register a new user account. Password must meet security requirements."
+					}
+				},
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains access token\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('accessToken');",
+									"    ",
+									"    // Store token in environment variable",
+									"    pm.environment.set('access_token', jsonData.data.accessToken);",
+									"});",
+									"",
+									"pm.test(\"User data is present\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.have.property('user');",
+									"    pm.expect(jsonData.data.user).to.have.property('email');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePass123@\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login with user credentials and retrieve access token."
+					}
+				}
+			]
+		},
+		{
+			"name": "🏢 Garage Layout Management",
+			"description": "Endpoints for managing floors, bays, and garage configuration",
+			"item": [
+				{
+					"name": "Initialize Garage Layout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Downtown Parking Garage\",\n    \"floors\": [\n        {\n            \"number\": 1,\n            \"bays\": 4,\n            \"spotsPerBay\": 25\n        },\n        {\n            \"number\": 2,\n            \"bays\": 4,\n            \"spotsPerBay\": 25\n        },\n        {\n            \"number\": 3,\n            \"bays\": 4,\n            \"spotsPerBay\": 25\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/garage/initialize",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"garage",
+								"initialize"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Garage Configuration",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/garage/?includeStats=true&includeSpots=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"garage",
+								""
+							],
+							"query": [
+								{
+									"key": "includeStats",
+									"value": "true"
+								},
+								{
+									"key": "includeSpots",
+									"value": "true"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Garage Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/garage/statistics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"garage",
+								"statistics"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Garage Pricing Rates",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"standard\": 5.00,\n    \"compact\": 4.00,\n    \"oversized\": 7.50,\n    \"ev_charging\": 6.00\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/garage/rates",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"garage",
+								"rates"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Garage Capacity Information",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/garage/capacity",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"garage",
+								"capacity"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🅿️ Parking Spot Management",
+			"description": "Endpoints for managing individual parking spots and their status",
+			"item": [
+				{
+					"name": "List All Parking Spots",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/?limit=50&sort=spotNumber&order=asc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								""
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								},
+								{
+									"key": "sort",
+									"value": "spotNumber"
+								},
+								{
+									"key": "order",
+									"value": "asc"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Available Spots Only",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/available",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"available"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Available Spots by Type",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/available?type=standard",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"available"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "standard"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Occupied Spots",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/occupied",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"occupied"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Specific Spot Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/{{test_spot_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"{{test_spot_id}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Mark Spot as Occupied (Direct)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"licensePlate\": \"{{test_license_plate}}\",\n    \"notes\": \"Direct spot occupation for testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/spots/{{test_spot_id}}/occupy",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"{{test_spot_id}}",
+								"occupy"
+							]
+						}
+					}
+				},
+				{
+					"name": "Mark Spot as Available (Direct)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"notes\": \"Spot freed after testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/spots/{{test_spot_id}}/free",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"{{test_spot_id}}",
+								"free"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Spot Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/statistics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"statistics"
+							]
+						}
+					}
+				},
+				{
+					"name": "Search Spots",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/search?query=A-001",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"search"
+							],
+							"query": [
+								{
+									"key": "query",
+									"value": "A-001"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🚗 Car Tracking (Check-in/Check-out)",
+			"description": "Endpoints for vehicle check-in, check-out, and tracking operations",
+			"item": [
+				{
+					"name": "Check Availability Before Check-in",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/checkin/availability",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkin",
+								"availability"
+							]
+						}
+					}
+				},
+				{
+					"name": "Vehicle Check-in",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"licensePlate\": \"{{test_license_plate}}\",\n    \"vehicleType\": \"standard\",\n    \"rateType\": \"hourly\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/checkin/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkin",
+								""
+							]
+						}
+					}
+				},
+				{
+					"name": "Vehicle Check-in (Different Types)",
+					"item": [
+						{
+							"name": "Check-in Compact Vehicle",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"licensePlate\": \"COMP456\",\n    \"vehicleType\": \"compact\",\n    \"rateType\": \"daily\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/checkin/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"checkin",
+										""
+									]
+								}
+							}
+						},
+						{
+							"name": "Check-in Oversized Vehicle",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"licensePlate\": \"TRUCK789\",\n    \"vehicleType\": \"oversized\",\n    \"rateType\": \"monthly\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/checkin/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"checkin",
+										""
+									]
+								}
+							}
+						},
+						{
+							"name": "Check-in Electric Vehicle",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"licensePlate\": \"TESLA001\",\n    \"vehicleType\": \"standard\",\n    \"rateType\": \"hourly\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/checkin/",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"checkin",
+										""
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Cost Estimate Before Check-out",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/checkout/estimate/{{test_license_plate}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkout",
+								"estimate",
+								"{{test_license_plate}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Vehicle Check-out",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"licensePlate\": \"{{test_license_plate}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/checkout/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkout",
+								""
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Vehicles Ready for Check-out",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/checkout/ready",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkout",
+								"ready"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Check-in Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/checkin/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkin",
+								"stats"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Check-out Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/checkout/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkout",
+								"stats"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🚙 Vehicle Management",
+			"description": "Endpoints for managing vehicle records and information",
+			"item": [
+				{
+					"name": "List All Vehicles",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vehicles/?page=1&limit=20",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vehicles",
+								""
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create New Vehicle Record",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"licensePlate\": \"NEW123\",\n    \"vehicleType\": \"standard\",\n    \"rateType\": \"hourly\",\n    \"make\": \"Toyota\",\n    \"model\": \"Camry\",\n    \"color\": \"Blue\",\n    \"year\": 2022,\n    \"ownerName\": \"John Doe\",\n    \"ownerEmail\": \"john@example.com\",\n    \"ownerPhone\": \"+1-555-0123\",\n    \"notes\": \"Regular customer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/vehicles/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vehicles",
+								""
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Specific Vehicle",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vehicles/{vehicle-id}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vehicles",
+								"{vehicle-id}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Vehicle Information",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"make\": \"Honda\",\n    \"model\": \"Accord\",\n    \"color\": \"Red\",\n    \"ownerPhone\": \"+1-555-9999\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/vehicles/{vehicle-id}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vehicles",
+								"{vehicle-id}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Vehicle Record",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vehicles/{vehicle-id}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vehicles",
+								"{vehicle-id}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Search Vehicles",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vehicles/search?search=toyota",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vehicles",
+								"search"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "toyota"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Vehicle Metrics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vehicles/metrics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vehicles",
+								"metrics"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📊 Session Management",
+			"description": "Endpoints for managing parking sessions and analytics",
+			"item": [
+				{
+					"name": "List Parking Sessions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sessions/?status=active",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"sessions",
+								""
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "active"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Session Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sessions/{session-id}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"sessions",
+								"{session-id}"
+							]
+						}
+					}
+				},
+				{
+					"name": "End Active Session",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Normal checkout\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/sessions/{session-id}/end",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"sessions",
+								"{session-id}",
+								"end"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Session Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sessions/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"sessions",
+								"stats"
+							]
+						}
+					}
+				},
+				{
+					"name": "Export Sessions as CSV",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sessions/export/csv",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"sessions",
+								"export",
+								"csv"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📈 System Statistics & Monitoring",
+			"description": "Endpoints for monitoring system performance and occupancy statistics",
+			"item": [
+				{
+					"name": "Get Comprehensive Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/stats/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"stats",
+								""
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Real-time Occupancy",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/stats/occupancy",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"stats",
+								"occupancy"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Dashboard Metrics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/stats/dashboard",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"stats",
+								"dashboard"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Occupancy Trends",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/stats/trends",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"stats",
+								"trends"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Revenue Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/stats/revenue",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"stats",
+								"revenue"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Usage Patterns",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/stats/usage",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"stats",
+								"usage"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🔧 Health Checks",
+			"description": "System health monitoring endpoints",
+			"item": [
+				{
+					"name": "System Health",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					}
+				},
+				{
+					"name": "Check-in Service Health",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/checkin/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkin",
+								"health"
+							]
+						}
+					}
+				},
+				{
+					"name": "Check-out Service Health",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/checkout/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkout",
+								"health"
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"exec": [
+					"// Set default test license plate if not already set",
+					"if (!pm.environment.get('test_license_plate')) {",
+					"    pm.environment.set('test_license_plate', 'TEST' + Math.floor(Math.random() * 1000));",
+					"}",
+					"",
+					"// Log current request for debugging",
+					"console.log('Making request to:', pm.request.url.toString());"
+				],
+				"type": "text/javascript"
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"exec": [
+					"// Common validations for all API responses",
+					"pm.test(\"Response time is acceptable (< 5000ms)\", function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"pm.test(\"Response has JSON format\", function () {",
+					"    pm.response.to.have.header(\"content-type\");",
+					"    pm.expect(pm.response.headers.get(\"content-type\")).to.include(\"application/json\");",
+					"});",
+					"",
+					"// Log response details",
+					"console.log('Response status:', pm.response.status);",
+					"console.log('Response time:', pm.response.responseTime + 'ms');"
+				],
+				"type": "text/javascript"
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "test_license_plate",
+			"value": "TEST123",
+			"type": "string",
+			"description": "Default license plate for testing"
+		}
+	]
+}

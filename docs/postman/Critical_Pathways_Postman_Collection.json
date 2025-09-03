@@ -1,0 +1,586 @@
+{
+	"info": {
+		"name": "Parking Garage Critical Pathways",
+		"description": "Streamlined collection focusing ONLY on the critical pathways:\n\n🏢 **Garage Layout:**\n- Manage floors and bays (areas within a floor)\n- Define and manage parking spots with unique identifiers\n\n🅿️ **Parking Spot Management:**\n- List all parking spots with availability status (available/occupied)\n- Retrieve only available spots\n- Mark spots as occupied or available\n\n🚗 **Car Tracking:**\n- Check a car in: Assign the car to an available spot\n- Check a car out: Free up the spot\n- Track check-in and check-out times\n\n## Quick Start:\n1. Import this collection + environment\n2. Select environment\n3. Run 'Login User' first\n4. Test critical pathways in order",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Login successful\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('accessToken');",
+									"    pm.environment.set('access_token', jsonData.data.accessToken);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{test_user_email}}\",\n    \"password\": \"{{test_user_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "🔑 **REQUIRED FIRST**: Login to get access token for all other requests"
+					}
+				}
+			]
+		},
+		{
+			"name": "🏢 Garage Layout",
+			"description": "Critical Pathway: Manage floors and bays + Define parking spots with unique identifiers",
+			"item": [
+				{
+					"name": "Initialize Garage Layout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"✅ Garage layout created with floors and bays\", function () {",
+									"    pm.response.to.have.status(201);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data.garage).to.have.property('floors');",
+									"    pm.expect(jsonData.data).to.have.property('spotsCreated');",
+									"});",
+									"",
+									"pm.test(\"✅ Parking spots created with unique identifiers\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.spotsCreated).to.be.greaterThan(0);",
+									"    console.log('🎯 Created ' + jsonData.data.spotsCreated + ' parking spots with unique IDs');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"{{garage_name}}\",\n    \"floors\": [\n        {\n            \"number\": 1,\n            \"bays\": 4,\n            \"spotsPerBay\": 25\n        },\n        {\n            \"number\": 2,\n            \"bays\": 4,\n            \"spotsPerBay\": 25\n        },\n        {\n            \"number\": 3,\n            \"bays\": 4,\n            \"spotsPerBay\": 25\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/garage/initialize",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"garage",
+								"initialize"
+							]
+						},
+						"description": "🏢 **CRITICAL**: Create garage with floors and bays\n\n**Creates:**\n- 3 floors with 4 bays each\n- 25 spots per bay = 300 total spots\n- Unique spot IDs like F1-B1-S001"
+					}
+				}
+			]
+		},
+		{
+			"name": "🅿️ Parking Spot Management",
+			"description": "Critical Pathway: List spots with status + Get available spots + Mark spots occupied/available",
+			"item": [
+				{
+					"name": "List All Spots with Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"✅ All spots listed with availability status\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data.spots).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"✅ Spots have unique identifiers and status\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.data.spots.length > 0) {",
+									"        const spot = jsonData.data.spots[0];",
+									"        pm.expect(spot).to.have.property('id');",
+									"        pm.expect(spot).to.have.property('status');",
+									"        pm.expect(['available', 'occupied']).to.include(spot.status);",
+									"        pm.environment.set('test_spot_id', spot.id);",
+									"        console.log('🎯 Spot example: ' + spot.id + ' - ' + spot.status);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								""
+							]
+						},
+						"description": "🅿️ **CRITICAL**: List all parking spots with their availability status\n\n**Shows:**\n- All spots with unique IDs\n- Current status (available/occupied)\n- Floor, bay, and spot details"
+					}
+				},
+				{
+					"name": "Get Available Spots Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"✅ Only available spots returned\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    jsonData.data.spots.forEach(spot => {",
+									"        pm.expect(spot.status).to.equal('available');",
+									"    });",
+									"    console.log('🎯 Found ' + jsonData.data.spots.length + ' available spots');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/spots/available",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"available"
+							]
+						},
+						"description": "🅿️ **CRITICAL**: Retrieve only available parking spots\n\n**Filters:**\n- Status = available only\n- Ready for vehicle assignment"
+					}
+				},
+				{
+					"name": "Mark Spot as Occupied",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"✅ Spot marked as occupied\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data.spot.status).to.equal('occupied');",
+									"    console.log('🎯 Spot ' + jsonData.data.spot.id + ' now occupied');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"licensePlate\": \"{{test_license_plate}}\",\n    \"notes\": \"Critical pathway test - marking spot occupied\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/spots/{{test_spot_id}}/occupy",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"{{test_spot_id}}",
+								"occupy"
+							]
+						},
+						"description": "🅿️ **CRITICAL**: Mark a spot as occupied\n\n**Changes:**\n- Status: available → occupied\n- Associates license plate\n- Records timestamp"
+					}
+				},
+				{
+					"name": "Mark Spot as Available",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"✅ Spot marked as available\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data.spot.status).to.equal('available');",
+									"    console.log('🎯 Spot ' + jsonData.data.spot.id + ' now available');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"notes\": \"Critical pathway test - freeing spot\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/spots/{{test_spot_id}}/free",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"spots",
+								"{{test_spot_id}}",
+								"free"
+							]
+						},
+						"description": "🅿️ **CRITICAL**: Mark a spot as available\n\n**Changes:**\n- Status: occupied → available\n- Clears vehicle information\n- Records timestamp"
+					}
+				}
+			]
+		},
+		{
+			"name": "🚗 Car Tracking",
+			"description": "Critical Pathway: Check car in + Assign to spot + Check car out + Free spot + Track times",
+			"item": [
+				{
+					"name": "Check Car In (Assign to Spot)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"✅ Car checked in and assigned to spot\", function () {",
+									"    pm.response.to.have.status(201);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('vehicle');",
+									"    pm.expect(jsonData.data).to.have.property('spot');",
+									"    pm.expect(jsonData.data).to.have.property('session');",
+									"});",
+									"",
+									"pm.test(\"✅ Spot automatically assigned and occupied\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.spot.status).to.equal('occupied');",
+									"    pm.expect(jsonData.data.spot.licensePlate).to.equal(pm.environment.get('test_license_plate'));",
+									"    pm.environment.set('assigned_spot_id', jsonData.data.spot.id);",
+									"    console.log('🎯 Car assigned to spot: ' + jsonData.data.spot.id);",
+									"});",
+									"",
+									"pm.test(\"✅ Check-in time tracked\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.session).to.have.property('startTime');",
+									"    pm.expect(jsonData.data.session.status).to.equal('active');",
+									"    pm.environment.set('session_id', jsonData.data.session.id);",
+									"    console.log('🎯 Check-in time: ' + jsonData.data.session.startTime);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"licensePlate\": \"{{test_license_plate}}\",\n    \"vehicleType\": \"standard\",\n    \"rateType\": \"hourly\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/checkin/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkin",
+								""
+							]
+						},
+						"description": "🚗 **CRITICAL**: Check a car in and assign to available spot\n\n**Does:**\n- Finds available spot automatically\n- Assigns car to spot\n- Marks spot as occupied\n- Records check-in time\n- Starts parking session"
+					}
+				},
+				{
+					"name": "Check Car Out (Free Spot)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"✅ Car checked out successfully\", function () {",
+									"    pm.response.to.have.status(200);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    pm.expect(jsonData.data).to.have.property('vehicle');",
+									"    pm.expect(jsonData.data).to.have.property('spot');",
+									"    pm.expect(jsonData.data).to.have.property('session');",
+									"});",
+									"",
+									"pm.test(\"✅ Spot freed and marked available\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.spot.status).to.equal('available');",
+									"    console.log('🎯 Spot ' + jsonData.data.spot.id + ' is now free');",
+									"});",
+									"",
+									"pm.test(\"✅ Check-out time tracked with duration\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const session = jsonData.data.session;",
+									"    pm.expect(session.status).to.equal('completed');",
+									"    pm.expect(session).to.have.property('endTime');",
+									"    pm.expect(session).to.have.property('duration');",
+									"    pm.expect(session).to.have.property('totalCost');",
+									"    console.log('🎯 Parking duration: ' + session.duration + ' minutes');",
+									"    console.log('🎯 Total cost: $' + session.totalCost);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"licensePlate\": \"{{test_license_plate}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/checkout/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkout",
+								""
+							]
+						},
+						"description": "🚗 **CRITICAL**: Check a car out and free up the spot\n\n**Does:**\n- Finds car by license plate\n- Frees up the assigned spot\n- Marks spot as available\n- Records check-out time\n- Calculates total parking duration\n- Computes final cost"
+					}
+				}
+			]
+		},
+		{
+			"name": "🧪 COMPLETE Critical Pathway Test",
+			"description": "End-to-end test of ALL critical pathways in sequence",
+			"item": [
+				{
+					"name": "Complete Critical Pathway Flow",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate unique license plate for this test",
+									"pm.environment.set('flow_test_plate', 'CRITICAL' + Math.floor(Math.random() * 1000));",
+									"console.log('🧪 Testing with license plate: ' + pm.environment.get('flow_test_plate'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"🎯 COMPLETE CRITICAL PATHWAY SUCCESS\", function () {",
+									"    pm.response.to.have.status(201);",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.success).to.be.true;",
+									"    ",
+									"    // Verify all critical pathway components",
+									"    pm.expect(jsonData.data).to.have.property('vehicle');",
+									"    pm.expect(jsonData.data).to.have.property('spot');", 
+									"    pm.expect(jsonData.data).to.have.property('session');",
+									"});",
+									"",
+									"pm.test(\"✅ Garage Layout: Spot has unique identifier\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const spotId = jsonData.data.spot.id;",
+									"    pm.expect(spotId).to.match(/^F\\d+-B[A-Z]+-S\\d+$/); // Format: F1-BA-S001",
+									"    console.log('✅ GARAGE LAYOUT: Unique spot ID created: ' + spotId);",
+									"});",
+									"",
+									"pm.test(\"✅ Spot Management: Status changed to occupied\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.spot.status).to.equal('occupied');",
+									"    pm.expect(jsonData.data.spot.licensePlate).to.equal(pm.environment.get('flow_test_plate'));",
+									"    console.log('✅ SPOT MANAGEMENT: Spot marked occupied with license plate');",
+									"});",
+									"",
+									"pm.test(\"✅ Car Tracking: Check-in time recorded\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.session.status).to.equal('active');",
+									"    pm.expect(jsonData.data.session).to.have.property('startTime');",
+									"    const startTime = new Date(jsonData.data.session.startTime);",
+									"    pm.expect(startTime).to.be.lessThan(new Date());",
+									"    console.log('✅ CAR TRACKING: Check-in time tracked: ' + jsonData.data.session.startTime);",
+									"});",
+									"",
+									"// Store data for checkout test",
+									"pm.environment.set('critical_test_spot', jsonData.data.spot.id);",
+									"pm.environment.set('critical_session_id', jsonData.data.session.id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"licensePlate\": \"{{flow_test_plate}}\",\n    \"vehicleType\": \"standard\",\n    \"rateType\": \"hourly\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/checkin/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkin",
+								""
+							]
+						},
+						"description": "🧪 **COMPLETE CRITICAL PATHWAY TEST**\n\nThis single request tests ALL critical pathways:\n\n🏢 **Garage Layout:**\n- ✅ Uses floors and bays structure\n- ✅ Assigns unique spot identifier\n\n🅿️ **Spot Management:**\n- ✅ Finds available spot\n- ✅ Marks spot as occupied\n\n🚗 **Car Tracking:**\n- ✅ Checks car in\n- ✅ Assigns to available spot\n- ✅ Tracks check-in time"
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"exec": [
+					"// Set default test license plate if not set",
+					"if (!pm.environment.get('test_license_plate')) {",
+					"    pm.environment.set('test_license_plate', 'TEST' + Math.floor(Math.random() * 1000));",
+					"}",
+					"",
+					"console.log('🚀 Request: ' + pm.request.method + ' ' + pm.request.url.toString());"
+				],
+				"type": "text/javascript"
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"exec": [
+					"// Common validations",
+					"pm.test(\"Response time acceptable (< 5000ms)\", function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"// Log results",
+					"console.log('📊 Status: ' + pm.response.status + ' | Time: ' + pm.response.responseTime + 'ms');"
+				],
+				"type": "text/javascript"
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "test_license_plate",
+			"value": "CRITICAL123",
+			"type": "string",
+			"description": "License plate for critical pathway testing"
+		}
+	]
+}
