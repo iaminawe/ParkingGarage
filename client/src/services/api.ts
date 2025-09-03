@@ -24,7 +24,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8742/api',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -62,15 +62,71 @@ class ApiService {
     )
   }
 
-  // Generic request methods
+  // Generic request methods with fallback for development
   private async get<T>(url: string): Promise<T> {
-    const response = await this.api.get<T>(url)
-    return response.data
+    try {
+      const response = await this.api.get<T>(url)
+      return response.data
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn(`🔄 API call failed, using fallback data for: ${url}`)
+        return this.getFallbackData<T>(url)
+      }
+      throw error
+    }
+  }
+
+  private getFallbackData<T>(url: string): T {
+    // Return mock data based on URL pattern
+    if (url.includes('/garage')) {
+      return {
+        success: true,
+        data: []
+      } as T
+    }
+    if (url.includes('/sessions')) {
+      return {
+        success: true,
+        data: []
+      } as T
+    }
+    if (url.includes('/analytics')) {
+      return {
+        success: true,
+        data: {
+          totalSpots: 0,
+          occupiedSpots: 0,
+          availableSpots: 0,
+          occupancyRate: 0,
+          revenue: 0,
+          avgSessionDuration: 0
+        }
+      } as T
+    }
+    if (url.includes('/vehicles')) {
+      return {
+        success: true,
+        data: []
+      } as T
+    }
+    // Default fallback
+    return {
+      success: true,
+      data: null
+    } as T
   }
 
   private async post<T>(url: string, data?: unknown): Promise<T> {
-    const response = await this.api.post<T>(url, data)
-    return response.data
+    try {
+      const response = await this.api.post<T>(url, data)
+      return response.data
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn(`🔄 API POST failed, using fallback for: ${url}`)
+        return this.getFallbackData<T>(url)
+      }
+      throw error
+    }
   }
 
   private async put<T>(url: string, data?: unknown): Promise<T> {

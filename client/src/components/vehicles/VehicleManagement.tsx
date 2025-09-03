@@ -68,6 +68,25 @@ export function VehicleManagement() {
     ownerPhone: ''
   })
 
+  const fetchGarages = useCallback(async () => {
+    try {
+      const response = await apiService.getGarages()
+      if (response.success) {
+        setGarages(response.data)
+        // Set default garage if none selected
+        if (!selectedGarageId && response.data.length > 0) {
+          setSelectedGarageId(response.data[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch garages:', error)
+      toast({
+        title: 'Warning',
+        description: 'Failed to load available garages'
+      })
+    }
+  }, [selectedGarageId])
+
   useEffect(() => {
     fetchVehicles()
     fetchSessions()
@@ -101,25 +120,6 @@ export function VehicleManagement() {
       console.error('Failed to fetch sessions:', error)
     }
   }
-
-  const fetchGarages = useCallback(async () => {
-    try {
-      const response = await apiService.getGarages()
-      if (response.success) {
-        setGarages(response.data)
-        // Set default garage if none selected
-        if (!selectedGarageId && response.data.length > 0) {
-          setSelectedGarageId(response.data[0].id)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch garages:', error)
-      toast({
-        title: 'Warning',
-        description: 'Failed to load available garages'
-      })
-    }
-  }, [selectedGarageId])
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
