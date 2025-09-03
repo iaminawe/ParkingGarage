@@ -23,6 +23,7 @@ router.get('/', (req: Request, res: Response): void => {
         auth: '/api/auth',
         garage: '/api/garage',
         spots: '/api/spots',
+        floors: '/api/floors',
         checkin: '/api/checkin',
         checkout: '/api/checkout',
         vehicles: '/api/vehicles',
@@ -48,6 +49,7 @@ router.get('/', (req: Request, res: Response): void => {
 import authRoutes from './auth';
 import garageRoutes from './garage';
 import spotsRoutes from './spots';
+import floorsRoutes from './floors';
 import checkinRoutes from './checkin';
 import checkoutRoutes from './checkout';
 import vehiclesRoutes from './vehicles';
@@ -72,6 +74,7 @@ router.use('/auth', authRoutes);
 // Mount other route modules
 router.use('/garage', garageRoutes);
 router.use('/spots', spotsRoutes);
+router.use('/floors', floorsRoutes);
 router.use('/checkin', checkinRoutes);
 router.use('/checkout', checkoutRoutes);
 router.use('/vehicles', vehiclesRoutes);
