@@ -251,6 +251,76 @@ class EmailService {
   /**
    * Send password reset email with secure token
    */
+  async sendPasswordResetEmail(
+    email: string,
+    token: string,
+    userName: string,
+    language = 'en'
+  ): Promise<boolean> {
+    try {
+      return await this.sendEmail({
+        to: email,
+        templateName: 'PASSWORD_RESET',
+        templateVariables: {
+          userName,
+          resetUrl: `${env.FRONTEND_URL}/reset-password?token=${token}`,
+          userEmail: email,
+          expirationMinutes: 60,
+        },
+        priority: 'high',
+      });
+    } catch (error) {
+      console.error('Send password reset email error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send password change confirmation email
+   */
+  async sendPasswordChangeConfirmation(
+    userId: string,
+    email: string,
+    userName: string,
+    language = 'en'
+  ): Promise<boolean> {
+    try {
+      const success = await this.sendEmail(
+        {
+          to: email,
+          templateName: 'PASSWORD_CHANGED',
+          templateVariables: {
+            userName,
+            userEmail: email,
+            timestamp: new Date().toLocaleString(),
+            supportUrl: `${env.FRONTEND_URL}/support`,
+          },
+          priority: 'high',
+        },
+        userId
+      );
+
+      if (success) {
+        await this.auditService.logSecurityEvent({
+          userId,
+          action: 'PASSWORD_CHANGE_EMAIL_SENT',
+          category: 'AUTH',
+          severity: 'LOW',
+          description: 'Password change confirmation email sent',
+          metadata: { email },
+        });
+      }
+
+      return success;
+    } catch (error) {
+      console.error('Send password change confirmation error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send password reset email with secure token (legacy method for backward compatibility)
+   */
   async sendPasswordReset(
     userId: string,
     email: string,

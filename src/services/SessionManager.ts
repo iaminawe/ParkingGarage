@@ -2,6 +2,7 @@ import { createClient, RedisClientType } from 'redis';
 import { env } from '../config/environment';
 import { TIME_CONSTANTS, SECURITY } from '../config/constants';
 import { CacheService } from './CacheService';
+import { logger } from '../utils/logger';
 import * as crypto from 'crypto';
 
 export interface SessionData {
@@ -64,17 +65,28 @@ export class SessionManager {
         });
 
         this.redisClient.on('error', error => {
-          console.warn('Redis connection error, falling back to in-memory cache:', error.message);
+          logger.warn('Redis connection error, falling back to in-memory cache', {
+            component: 'SessionManager',
+            error: error.message,
+            fallback: 'in-memory'
+          });
           this.isRedisAvailable = false;
         });
 
         this.redisClient.on('connect', () => {
-          console.log('✅ Redis connected for session management');
+          logger.info('Redis connected for session management', {
+            component: 'SessionManager',
+            service: 'redis'
+          });
           this.isRedisAvailable = true;
         });
 
         this.redisClient.on('disconnect', () => {
-          console.warn('Redis disconnected, using fallback cache');
+          logger.warn('Redis disconnected, using fallback cache', {
+            component: 'SessionManager',
+            service: 'redis',
+            fallback: 'in-memory'
+          });
           this.isRedisAvailable = false;
         });
 
@@ -82,7 +94,11 @@ export class SessionManager {
         this.isRedisAvailable = true;
       }
     } catch (error) {
-      console.warn('Redis initialization failed, using in-memory cache:', (error as Error).message);
+      logger.warn('Redis initialization failed, using in-memory cache', {
+        component: 'SessionManager',
+        error: (error as Error).message,
+        fallback: 'in-memory'
+      });
       this.isRedisAvailable = false;
     }
   }
@@ -142,7 +158,10 @@ export class SessionManager {
 
       return true;
     } catch (error) {
-      console.error('Error creating session:', error);
+      logger.error('Error creating session', error as Error, {
+        component: 'SessionManager',
+        operation: 'create'
+      });
       return false;
     }
   }
@@ -174,7 +193,10 @@ export class SessionManager {
 
       return sessionData;
     } catch (error) {
-      console.error('Error retrieving session:', error);
+      logger.error('Error retrieving session', error as Error, {
+        component: 'SessionManager',
+        operation: 'retrieve'
+      });
       return null;
     }
   }
@@ -220,7 +242,10 @@ export class SessionManager {
 
       return true;
     } catch (error) {
-      console.error('Error updating session:', error);
+      logger.error('Error updating session', error as Error, {
+        component: 'SessionManager',
+        operation: 'update'
+      });
       return false;
     }
   }
@@ -257,7 +282,10 @@ export class SessionManager {
 
       return true;
     } catch (error) {
-      console.error('Error deleting session:', error);
+      logger.error('Error deleting session', error as Error, {
+        component: 'SessionManager',
+        operation: 'delete'
+      });
       return false;
     }
   }
@@ -279,7 +307,10 @@ export class SessionManager {
 
       return sessionDataStr ? JSON.parse(sessionDataStr) : null;
     } catch (error) {
-      console.error('Error retrieving session (read-only):', error);
+      logger.error('Error retrieving session (read-only)', error as Error, {
+        component: 'SessionManager',
+        operation: 'get-readonly'
+      });
       return null;
     }
   }
@@ -302,7 +333,10 @@ export class SessionManager {
         return sessions.filter(s => s !== null) as SessionData[];
       }
     } catch (error) {
-      console.error('Error getting user sessions:', error);
+      logger.error('Error getting user sessions', error as Error, {
+        component: 'SessionManager',
+        operation: 'get-user-sessions'
+      });
       return [];
     }
   }
@@ -332,7 +366,10 @@ export class SessionManager {
 
       return sessions.length;
     } catch (error) {
-      console.error('Error revoking user sessions:', error);
+      logger.error('Error revoking user sessions', error as Error, {
+        component: 'SessionManager',
+        operation: 'revoke-sessions'
+      });
       return 0;
     }
   }
@@ -351,11 +388,18 @@ export class SessionManager {
 
         for (const session of sessionsToRemove) {
           // Would need session ID to delete properly - this is simplified
-          console.log('Would remove session for user:', userId);
+          logger.debug('Would remove session for user', {
+            component: 'SessionManager',
+            operation: 'enforce-limit',
+            userId
+          });
         }
       }
     } catch (error) {
-      console.error('Error enforcing session limit:', error);
+      logger.error('Error enforcing session limit', error as Error, {
+        component: 'SessionManager',
+        operation: 'enforce-limit'
+      });
     }
   }
 
@@ -382,18 +426,28 @@ export class SessionManager {
       if (currentDeviceInfo && session.deviceInfo) {
         if (currentDeviceInfo !== session.deviceInfo) {
           // Log potential session hijacking attempt
-          console.warn(
-            `Device mismatch for session ${sessionId}: expected ${session.deviceInfo}, got ${currentDeviceInfo}`
-          );
+          logger.warn('Device mismatch detected for session', {
+            component: 'SessionManager',
+            operation: 'validate-session',
+            sessionId,
+            expectedDevice: session.deviceInfo,
+            actualDevice: currentDeviceInfo,
+            securityEvent: 'device-mismatch'
+          });
           return { valid: false, reason: 'Device mismatch' };
         }
       }
 
       // Check for suspicious IP changes (optional - can be made configurable)
       if (currentIpAddress && session.ipAddress && currentIpAddress !== session.ipAddress) {
-        console.warn(
-          `IP change detected for session ${sessionId}: ${session.ipAddress} -> ${currentIpAddress}`
-        );
+        logger.warn('IP address change detected for session', {
+          component: 'SessionManager',
+          operation: 'validate-session',
+          sessionId,
+          previousIp: session.ipAddress,
+          currentIp: currentIpAddress,
+          securityEvent: 'ip-change'
+        });
         // Don't invalidate session for IP changes as they can be legitimate
         // but log for monitoring
       }
@@ -415,7 +469,11 @@ export class SessionManager {
       if (this.isRedisAvailable && this.redisClient) {
         // Redis handles TTL automatically, but we can clean up orphaned user session sets
         // This would require more complex logic to iterate through keys
-        console.log('Redis handles session TTL automatically');
+        logger.debug('Redis handles session TTL automatically', {
+          component: 'SessionManager',
+          operation: 'cleanup',
+          storage: 'redis'
+        });
       } else {
         // For in-memory cache, we rely on the cache service's own cleanup
         cleanedCount = await this.fallbackCache.cleanup();
@@ -423,7 +481,10 @@ export class SessionManager {
 
       return cleanedCount;
     } catch (error) {
-      console.error('Error cleaning up sessions:', error);
+      logger.error('Error cleaning up sessions', error as Error, {
+        component: 'SessionManager',
+        operation: 'cleanup'
+      });
       return 0;
     }
   }
@@ -457,7 +518,10 @@ export class SessionManager {
         storage: this.isRedisAvailable ? 'redis' : 'memory',
       };
     } catch (error) {
-      console.error('Error getting session stats:', error);
+      logger.error('Error getting session stats', error as Error, {
+        component: 'SessionManager',
+        operation: 'stats'
+      });
       return {
         totalSessions: 0,
         activeSessions: 0,
@@ -475,7 +539,10 @@ export class SessionManager {
         await this.redisClient.quit();
       }
     } catch (error) {
-      console.error('Error closing session manager:', error);
+      logger.error('Error closing session manager', error as Error, {
+        component: 'SessionManager',
+        operation: 'close'
+      });
     }
   }
 }

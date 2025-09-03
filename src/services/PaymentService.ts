@@ -6,7 +6,9 @@
 import { prisma } from '../config/database';
 import { SecurityAuditService } from './SecurityAuditService';
 import { BillingService } from './billingService';
+import StripePaymentGateway from './StripePaymentGateway';
 import type { PaymentMethod, PaymentStatus, PaymentType } from '@prisma/client';
+import { createHmac } from 'crypto';
 
 export interface PaymentGatewayConfig {
   provider: 'stripe' | 'paypal' | 'square' | 'mock';
@@ -89,14 +91,20 @@ export interface Receipt {
 class PaymentService {
   private auditService: SecurityAuditService;
   private billingService: BillingService;
+  private stripeGateway: StripePaymentGateway;
   private gatewayConfigs: Map<string, PaymentGatewayConfig>;
   private fraudThreshold = 0.7;
+  private idempotencyKeys: Map<string, { result: any; timestamp: number }> = new Map();
+  private readonly idempotencyTTL: number;
 
   constructor() {
     this.auditService = new SecurityAuditService();
     this.billingService = new BillingService();
+    this.stripeGateway = new StripePaymentGateway();
     this.gatewayConfigs = new Map();
+    this.idempotencyTTL = parseInt(process.env.PAYMENT_IDEMPOTENCY_TTL || '86400') * 1000; // Convert to milliseconds
     this.initializeGateways();
+    this.startIdempotencyCleanup();
   }
 
   /**
@@ -302,7 +310,7 @@ class PaymentService {
       }
 
       // Process refund through gateway
-      const gatewayResult = await this.processRefundGateway(payment, refundAmount);
+      const gatewayResult = await this.processRefundGateway(payment, refundAmount, refundRequest.reason);
 
       // Update payment record
       await prisma.payment.update({
@@ -452,70 +460,197 @@ class PaymentService {
   }
 
   /**
-   * Process payment through gateway (stub implementation)
+   * Process payment through Stripe gateway
    */
   private async processPaymentGateway(
     request: PaymentRequest,
     fraudCheck: FraudCheckResult
   ): Promise<Omit<PaymentResult, 'paymentId'>> {
-    // This is a stub implementation - in production, integrate with actual payment gateways
-    const gateway = this.gatewayConfigs.get('mock') || this.gatewayConfigs.get('stripe');
+    try {
+      // Generate idempotency key for this payment
+      const idempotencyKey = this.generateIdempotencyKey(request);
 
-    if (!gateway) {
-      throw new Error('No payment gateway configured');
-    }
+      // Check for existing idempotent request
+      const existingResult = this.getIdempotentResult(idempotencyKey);
+      if (existingResult) {
+        return existingResult;
+      }
 
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      // Create or retrieve customer if customer data provided
+      let customerId: string | undefined;
+      if (request.customerData?.email) {
+        try {
+          const customer = await this.stripeGateway.createCustomer({
+            email: request.customerData.email,
+            name: request.customerData.name,
+            phone: request.customerData.phone,
+            description: `Customer for payment: ${idempotencyKey}`,
+            metadata: {
+              sessionId: request.sessionId || '',
+              vehicleId: request.vehicleId || '',
+            },
+          }, `customer_${idempotencyKey}`);
+          customerId = customer.id;
+        } catch (error) {
+          // If customer creation fails, continue without customer
+          console.warn('Failed to create customer, proceeding without customer ID:', error);
+        }
+      }
 
-    // Mock success/failure based on fraud score
-    const shouldSucceed = fraudCheck.riskScore < 0.8 && Math.random() > 0.05; // 5% random failure rate
-
-    if (shouldSucceed) {
-      return {
-        success: true,
-        transactionId: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        status: 'COMPLETED',
+      // Create payment intent
+      const paymentIntent = await this.stripeGateway.createPaymentIntent({
         amount: request.amount,
-        fees: Math.round(request.amount * 0.029 * 100) / 100, // 2.9% fee
-        message: 'Payment processed successfully',
-      };
-    } else {
+        currency: request.currency,
+        customerId,
+        receiptEmail: request.customerData?.email,
+        description: request.description || 'Parking fee payment',
+        metadata: {
+          sessionId: request.sessionId || '',
+          vehicleId: request.vehicleId || '',
+          fraudScore: fraudCheck.riskScore.toString(),
+          ...request.metadata,
+        },
+        captureMethod: 'automatic',
+        confirmationMethod: 'automatic',
+      }, idempotencyKey);
+
+      // Calculate fees
+      const feeCalculation = this.stripeGateway.calculateProcessingFees(request.amount);
+
+      let result: Omit<PaymentResult, 'paymentId'>;
+
+      // For successful payment intent creation
+      if (paymentIntent.status === 'succeeded') {
+        result = {
+          success: true,
+          transactionId: paymentIntent.id,
+          status: 'COMPLETED',
+          amount: request.amount,
+          fees: feeCalculation.feeAmount,
+          message: 'Payment processed successfully',
+        };
+      } else if (paymentIntent.status === 'requires_payment_method' || 
+                 paymentIntent.status === 'requires_confirmation' ||
+                 paymentIntent.status === 'requires_action') {
+        result = {
+          success: false,
+          transactionId: paymentIntent.id,
+          status: 'PENDING',
+          amount: request.amount,
+          fees: feeCalculation.feeAmount,
+          message: 'Payment requires additional action',
+        };
+      } else if (paymentIntent.status === 'processing') {
+        result = {
+          success: false,
+          transactionId: paymentIntent.id,
+          status: 'PROCESSING',
+          amount: request.amount,
+          fees: feeCalculation.feeAmount,
+          message: 'Payment is being processed',
+        };
+      } else {
+        result = {
+          success: false,
+          transactionId: paymentIntent.id,
+          status: 'FAILED',
+          amount: request.amount,
+          message: 'Payment failed',
+          errorCode: 'PAYMENT_FAILED',
+        };
+      }
+
+      // Store result for idempotency
+      this.storeIdempotentResult(idempotencyKey, result);
+
+      return result;
+    } catch (error) {
+      console.error('Stripe payment processing error:', error);
+      
+      // Handle specific Stripe errors
+      if ((error as any).code) {
+        return {
+          success: false,
+          status: 'FAILED',
+          amount: request.amount,
+          message: (error as Error).message,
+          errorCode: (error as any).code,
+        };
+      }
+
       return {
         success: false,
         status: 'FAILED',
         amount: request.amount,
-        message: 'Payment declined by processor',
-        errorCode: 'DECLINED_BY_PROCESSOR',
+        message: 'Payment gateway error',
+        errorCode: 'GATEWAY_ERROR',
       };
     }
   }
 
   /**
-   * Process refund through gateway (stub implementation)
+   * Process refund through Stripe gateway
    */
   private async processRefundGateway(
     originalPayment: any,
-    refundAmount: number
+    refundAmount: number,
+    reason?: string
   ): Promise<{ success: boolean; refundId?: string; status: string; message?: string }> {
-    // Simulate refund processing
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Generate idempotency key for this refund
+      const idempotencyKey = `refund_${originalPayment.id}_${refundAmount}_${Date.now()}`;
 
-    // Mock refund success (95% success rate)
-    const shouldSucceed = Math.random() > 0.05;
+      // Create refund through Stripe
+      const refund = await this.stripeGateway.createRefund({
+        paymentIntentId: originalPayment.transactionId,
+        amount: refundAmount,
+        reason: (reason as any) || 'requested_by_customer',
+        metadata: {
+          originalPaymentId: originalPayment.id,
+          refundReason: reason || 'Customer requested refund',
+        },
+      }, idempotencyKey);
 
-    if (shouldSucceed) {
+      await this.auditService.logSecurityEvent({
+        action: 'STRIPE_REFUND_CREATED',
+        category: 'PAYMENT',
+        severity: 'MEDIUM',
+        description: `Stripe refund created: ${refund.id}`,
+        metadata: {
+          refundId: refund.id,
+          originalPaymentId: originalPayment.id,
+          paymentIntentId: originalPayment.transactionId,
+          refundAmount,
+          reason,
+        },
+      });
+
       return {
         success: true,
-        refundId: `ref_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        status: 'COMPLETED',
+        refundId: refund.id,
+        status: refund.status.toUpperCase(),
         message: 'Refund processed successfully',
       };
-    } else {
+    } catch (error) {
+      console.error('Stripe refund processing error:', error);
+
+      await this.auditService.logSecurityEvent({
+        action: 'STRIPE_REFUND_FAILED',
+        category: 'PAYMENT',
+        severity: 'HIGH',
+        description: `Stripe refund failed: ${(error as Error).message}`,
+        metadata: {
+          originalPaymentId: originalPayment.id,
+          paymentIntentId: originalPayment.transactionId,
+          refundAmount,
+          error: (error as Error).message,
+        },
+      });
+
       return {
         success: false,
         status: 'FAILED',
-        message: 'Refund processing failed',
+        message: (error as Error).message || 'Refund processing failed',
       };
     }
   }
@@ -642,6 +777,357 @@ class PaymentService {
       totalRevenue: totalRevenue._sum.amount || 0,
       averageAmount: avgAmount._avg.amount || 0,
       timeframe,
+    };
+  }
+
+  /**
+   * Generate idempotency key for payment request
+   */
+  private generateIdempotencyKey(request: PaymentRequest): string {
+    const keyData = {
+      amount: request.amount,
+      currency: request.currency,
+      sessionId: request.sessionId,
+      vehicleId: request.vehicleId,
+      paymentMethod: request.paymentMethod,
+      timestamp: Math.floor(Date.now() / 60000), // Round to minute for some tolerance
+    };
+
+    const keyString = JSON.stringify(keyData);
+    return createHmac('sha256', process.env.ENCRYPTION_KEY || 'default-key')
+      .update(keyString)
+      .digest('hex')
+      .substring(0, 32);
+  }
+
+  /**
+   * Get cached idempotent result
+   */
+  private getIdempotentResult(idempotencyKey: string): any | null {
+    const cached = this.idempotencyKeys.get(idempotencyKey);
+    if (cached && Date.now() - cached.timestamp < this.idempotencyTTL) {
+      return cached.result;
+    }
+    return null;
+  }
+
+  /**
+   * Store idempotent result
+   */
+  private storeIdempotentResult(idempotencyKey: string, result: any): void {
+    this.idempotencyKeys.set(idempotencyKey, {
+      result,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Start periodic cleanup of expired idempotency keys
+   */
+  private startIdempotencyCleanup(): void {
+    setInterval(() => {
+      const now = Date.now();
+      for (const [key, value] of this.idempotencyKeys.entries()) {
+        if (now - value.timestamp > this.idempotencyTTL) {
+          this.idempotencyKeys.delete(key);
+        }
+      }
+    }, 60000); // Clean up every minute
+  }
+
+  /**
+   * Create payment intent for frontend integration
+   */
+  async createPaymentIntent(request: PaymentRequest, userId?: string): Promise<{
+    clientSecret: string;
+    paymentIntentId: string;
+    amount: number;
+  }> {
+    try {
+      // Validate payment request
+      const validation = await this.validatePaymentRequest(request);
+      if (!validation.isValid) {
+        throw new Error(`Invalid payment request: ${validation.reasons.join(', ')}`);
+      }
+
+      // Fraud detection
+      const fraudCheck = await this.performFraudCheck(request);
+      if (!fraudCheck.isValid || fraudCheck.recommendedAction === 'decline') {
+        throw new Error('Payment declined due to security concerns');
+      }
+
+      // Generate idempotency key
+      const idempotencyKey = this.generateIdempotencyKey(request);
+
+      // Create customer if needed
+      let customerId: string | undefined;
+      if (request.customerData?.email) {
+        try {
+          const customer = await this.stripeGateway.createCustomer({
+            email: request.customerData.email,
+            name: request.customerData.name,
+            phone: request.customerData.phone,
+            metadata: {
+              sessionId: request.sessionId || '',
+              vehicleId: request.vehicleId || '',
+            },
+          }, `customer_${idempotencyKey}`);
+          customerId = customer.id;
+        } catch (error) {
+          // Continue without customer if creation fails
+        }
+      }
+
+      // Create payment intent
+      const paymentIntent = await this.stripeGateway.createPaymentIntent({
+        amount: request.amount,
+        currency: request.currency,
+        customerId,
+        receiptEmail: request.customerData?.email,
+        description: request.description || 'Parking fee payment',
+        metadata: {
+          sessionId: request.sessionId || '',
+          vehicleId: request.vehicleId || '',
+          userId: userId || '',
+          ...request.metadata,
+        },
+        confirmationMethod: 'manual', // Client will confirm
+      }, idempotencyKey);
+
+      // Create preliminary payment record
+      const payment = await prisma.payment.create({
+        data: {
+          amount: request.amount,
+          currency: request.currency,
+          paymentMethod: request.paymentMethod,
+          paymentType: 'PARKING',
+          status: 'PENDING',
+          transactionId: paymentIntent.id,
+          sessionId: request.sessionId,
+          vehicleId: request.vehicleId,
+          notes: `Stripe PaymentIntent: ${paymentIntent.id}`,
+        },
+      });
+
+      await this.auditService.logSecurityEvent({
+        userId,
+        action: 'PAYMENT_INTENT_CREATED_FOR_CLIENT',
+        category: 'PAYMENT',
+        severity: 'LOW',
+        description: `Payment intent created for client integration: ${paymentIntent.id}`,
+        metadata: {
+          paymentIntentId: paymentIntent.id,
+          paymentId: payment.id,
+          amount: request.amount,
+          currency: request.currency,
+        },
+      });
+
+      return {
+        clientSecret: paymentIntent.clientSecret,
+        paymentIntentId: paymentIntent.id,
+        amount: request.amount,
+      };
+    } catch (error) {
+      await this.auditService.logSecurityEvent({
+        userId,
+        action: 'PAYMENT_INTENT_CREATION_FAILED',
+        category: 'PAYMENT',
+        severity: 'HIGH',
+        description: `Payment intent creation failed: ${(error as Error).message}`,
+        metadata: { request, error: (error as Error).message },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Confirm payment intent (called after client-side confirmation)
+   */
+  async confirmPaymentIntent(paymentIntentId: string, userId?: string): Promise<PaymentResult> {
+    try {
+      // Retrieve payment intent from Stripe
+      const paymentIntent = await this.stripeGateway.retrievePaymentIntent(paymentIntentId);
+
+      // Find corresponding payment record
+      const payment = await prisma.payment.findFirst({
+        where: {
+          transactionId: paymentIntentId,
+          status: { in: ['PENDING', 'PROCESSING'] },
+        },
+        include: { session: true },
+      });
+
+      if (!payment) {
+        throw new Error('Payment not found or already processed');
+      }
+
+      // Update payment based on Stripe status
+      let status: PaymentStatus;
+      let processedAt: Date | null = null;
+      let failureReason: string | null = null;
+
+      switch (paymentIntent.status) {
+        case 'succeeded':
+          status = 'COMPLETED';
+          processedAt = new Date();
+          break;
+        case 'processing':
+          status = 'PROCESSING';
+          break;
+        case 'requires_action':
+        case 'requires_confirmation':
+        case 'requires_payment_method':
+          status = 'PENDING';
+          break;
+        case 'canceled':
+          status = 'CANCELLED';
+          processedAt = new Date();
+          failureReason = 'Payment was cancelled';
+          break;
+        default:
+          status = 'FAILED';
+          processedAt = new Date();
+          failureReason = 'Payment failed';
+      }
+
+      // Update payment record
+      const updatedPayment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status,
+          processedAt,
+          failureReason,
+          gatewayResponse: JSON.stringify(paymentIntent),
+        },
+      });
+
+      // Update session if payment completed
+      if (status === 'COMPLETED' && payment.sessionId) {
+        await prisma.parkingSession.update({
+          where: { id: payment.sessionId },
+          data: {
+            isPaid: true,
+            amountPaid: payment.amount,
+            paymentMethod: payment.paymentMethod,
+            paymentTime: new Date(),
+          },
+        });
+      }
+
+      const result: PaymentResult = {
+        success: status === 'COMPLETED',
+        paymentId: payment.id,
+        transactionId: paymentIntentId,
+        status,
+        amount: payment.amount,
+        message: status === 'COMPLETED' ? 'Payment completed successfully' : failureReason || 'Payment processing',
+      };
+
+      await this.auditService.logSecurityEvent({
+        userId,
+        action: status === 'COMPLETED' ? 'PAYMENT_CONFIRMED_SUCCESS' : 'PAYMENT_CONFIRMED_PENDING',
+        category: 'PAYMENT',
+        severity: 'LOW',
+        description: `Payment confirmation processed: ${status}`,
+        metadata: {
+          paymentIntentId,
+          paymentId: payment.id,
+          status,
+          amount: payment.amount,
+        },
+      });
+
+      return result;
+    } catch (error) {
+      await this.auditService.logSecurityEvent({
+        userId,
+        action: 'PAYMENT_CONFIRMATION_FAILED',
+        category: 'PAYMENT',
+        severity: 'HIGH',
+        description: `Payment confirmation failed: ${(error as Error).message}`,
+        metadata: { paymentIntentId, error: (error as Error).message },
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Create and attach payment method to customer
+   */
+  async savePaymentMethod(customerId: string, paymentMethodId: string, userId?: string): Promise<{
+    success: boolean;
+    paymentMethod?: any;
+    message: string;
+  }> {
+    try {
+      const paymentMethod = await this.stripeGateway.attachPaymentMethod({
+        paymentMethodId,
+        customerId,
+      });
+
+      await this.auditService.logSecurityEvent({
+        userId,
+        action: 'PAYMENT_METHOD_SAVED',
+        category: 'PAYMENT',
+        severity: 'LOW',
+        description: `Payment method saved for customer: ${customerId}`,
+        metadata: {
+          paymentMethodId,
+          customerId,
+          paymentMethodType: paymentMethod.type,
+        },
+      });
+
+      return {
+        success: true,
+        paymentMethod,
+        message: 'Payment method saved successfully',
+      };
+    } catch (error) {
+      await this.auditService.logSecurityEvent({
+        userId,
+        action: 'PAYMENT_METHOD_SAVE_FAILED',
+        category: 'PAYMENT',
+        severity: 'MEDIUM',
+        description: `Payment method save failed: ${(error as Error).message}`,
+        metadata: {
+          paymentMethodId,
+          customerId,
+          error: (error as Error).message,
+        },
+      });
+
+      return {
+        success: false,
+        message: (error as Error).message || 'Failed to save payment method',
+      };
+    }
+  }
+
+  /**
+   * List customer payment methods
+   */
+  async getCustomerPaymentMethods(customerId: string): Promise<any[]> {
+    try {
+      return await this.stripeGateway.listCustomerPaymentMethods(customerId);
+    } catch (error) {
+      console.error('Failed to retrieve customer payment methods:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Health check for payment gateway
+   */
+  async healthCheck(): Promise<{ stripe: boolean; overall: boolean }> {
+    const stripeHealthy = await this.stripeGateway.healthCheck();
+    
+    return {
+      stripe: stripeHealthy,
+      overall: stripeHealthy, // Can expand this for other gateways
     };
   }
 }

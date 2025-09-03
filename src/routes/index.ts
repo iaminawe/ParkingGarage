@@ -33,6 +33,7 @@ router.get('/', (req: Request, res: Response): void => {
         payments: '/api/payments',
         transactions: '/api/transactions',
         analytics: '/api/analytics',
+        webhooks: '/api/webhooks',
         documentation: '/api-docs',
       },
       timestamp: new Date().toISOString(),
@@ -60,6 +61,7 @@ import reservationsRoutes from './reservations';
 import paymentsRoutes from './payments';
 import transactionsRoutes from './transactions';
 import analyticsRoutes from './analytics';
+import webhookRoutes from './webhooks';
 
 // Mount health check routes first (no auth required)
 router.use('/health', healthRoutes);
@@ -75,6 +77,9 @@ router.use('/checkout', checkoutRoutes);
 router.use('/vehicles', vehiclesRoutes);
 router.use('/sessions', sessionsRoutes);
 router.use('/stats', statsRoutes);
+
+// Mount webhook routes (no auth required)
+router.use('/webhooks', webhookRoutes);
 
 // Mount new API route modules
 router.use('/users', usersRoutes);

@@ -263,7 +263,7 @@ class NotificationService {
       const template = await this.getNotificationTemplate(
         request.type,
         'EMAIL',
-        preferences.language
+        'en' // Default to English for now
       );
       const processedContent = this.processTemplate(template, request.templateVariables || {});
 
@@ -321,13 +321,13 @@ class NotificationService {
       const template = await this.getNotificationTemplate(
         request.type,
         'SMS',
-        preferences.language
+        'en' // Default to English for now
       );
       const processedContent = this.processTemplate(template, request.templateVariables || {});
 
       const messageId = await this.sendSMS(
         user.phoneNumber,
-        processedContent.body || request.message
+        processedContent.body || request.content
       );
 
       return {
@@ -1015,18 +1015,21 @@ class NotificationService {
    * Helper methods for default templates
    */
   private getDefaultSubject(type: NotificationType): string {
-    const subjects = {
-      RESERVATION_CONFIRMED: 'Parking Reservation Confirmed',
-      RESERVATION_REMINDER: 'Parking Reservation Reminder',
-      RESERVATION_CANCELLED: 'Parking Reservation Cancelled',
-      PAYMENT_SUCCESSFUL: 'Payment Successful',
+    const subjects: Record<NotificationType, string> = {
+      PARKING_SESSION_STARTED: 'Parking Session Started',
+      PARKING_SESSION_ENDED: 'Parking Session Ended',
+      PAYMENT_CONFIRMATION: 'Payment Confirmed',
       PAYMENT_FAILED: 'Payment Failed',
-      SPOT_AVAILABLE: 'Parking Spot Available',
-      OVERTIME_WARNING: 'Overtime Parking Warning',
-      CHECKOUT_REMINDER: 'Checkout Reminder',
-      SECURITY_ALERT: 'Security Alert',
-      MAINTENANCE_NOTICE: 'Maintenance Notice',
-      PROMOTION_OFFER: 'Special Offer',
+      ACCOUNT_CREATED: 'Welcome! Account Created',
+      EMAIL_VERIFICATION: 'Verify Your Email Address',
+      PASSWORD_RESET: 'Password Reset Request',
+      LOGIN_SECURITY_ALERT: 'Security Alert - New Login',
+      SPOT_AVAILABILITY: 'Parking Spot Available',
+      RESERVATION_REMINDER: 'Parking Reservation Reminder',
+      MAINTENANCE_ALERT: 'Maintenance Notice',
+      SYSTEM_ANNOUNCEMENT: 'System Announcement',
+      BILLING_REMINDER: 'Billing Reminder',
+      SUBSCRIPTION_EXPIRY: 'Subscription Expiring Soon',
     };
     return subjects[type] || 'Notification';
   }
@@ -1038,16 +1041,52 @@ class NotificationService {
   private getDefaultBody(type: NotificationType, channel: NotificationChannel): string {
     const isShort = channel === 'SMS' || channel === 'PUSH';
 
-    const bodies = {
-      RESERVATION_CONFIRMED: isShort
-        ? 'Your parking reservation for spot {{spotNumber}} is confirmed.'
-        : 'Your parking reservation has been confirmed for spot {{spotNumber}} at {{time}}.',
-      PAYMENT_SUCCESSFUL: isShort
-        ? 'Payment of ${{amount}} processed successfully.'
-        : 'Your payment of ${{amount}} has been processed successfully. Thank you!',
+    const bodies: Record<NotificationType, string> = {
+      PARKING_SESSION_STARTED: isShort
+        ? 'Parking session started at spot {{spotNumber}}.'
+        : 'Your parking session has started at spot {{spotNumber}} on {{time}}. Remember to pay before leaving!',
+      PARKING_SESSION_ENDED: isShort
+        ? 'Parking session ended. Total: ${{amount}}.'
+        : 'Your parking session has ended. Total amount: ${{amount}}. Thank you for using our service!',
+      PAYMENT_CONFIRMATION: isShort
+        ? 'Payment of ${{amount}} confirmed.'
+        : 'Your payment of ${{amount}} has been confirmed. Receipt has been sent to your email.',
+      PAYMENT_FAILED: isShort
+        ? 'Payment of ${{amount}} failed. Please try again.'
+        : 'Your payment of ${{amount}} could not be processed. Please update your payment method and try again.',
+      ACCOUNT_CREATED: isShort
+        ? 'Welcome {{userName}}! Your account has been created.'
+        : 'Welcome {{userName}}! Your parking account has been successfully created. You can now make reservations and manage your parking sessions.',
+      EMAIL_VERIFICATION: isShort
+        ? 'Please verify your email address.'
+        : 'Hi {{userName}}, please verify your email address by clicking the verification link sent to your inbox.',
+      PASSWORD_RESET: isShort
+        ? 'Password reset requested. Check your email.'
+        : 'A password reset has been requested for your account. Check your email for instructions.',
+      LOGIN_SECURITY_ALERT: isShort
+        ? 'New login detected from {{location}}.'
+        : 'We detected a new login to your account from {{location}} at {{time}}. If this wasn\'t you, please secure your account immediately.',
+      SPOT_AVAILABILITY: isShort
+        ? 'Parking spot {{spotNumber}} is now available.'
+        : 'Good news! Parking spot {{spotNumber}} is now available for reservation. Reserve now to guarantee your spot.',
+      RESERVATION_REMINDER: isShort
+        ? 'Reservation reminder: {{time}} at spot {{spotNumber}}.'
+        : 'Reminder: You have a parking reservation today at {{time}} for spot {{spotNumber}}. See you there!',
+      MAINTENANCE_ALERT: isShort
+        ? 'Maintenance scheduled for {{time}}.'
+        : 'Scheduled maintenance will take place on {{time}}. Some areas may be temporarily unavailable.',
+      SYSTEM_ANNOUNCEMENT: isShort
+        ? 'System announcement: {{message}}'
+        : 'Important announcement: {{message}}. Thank you for your attention.',
+      BILLING_REMINDER: isShort
+        ? 'Bill of ${{amount}} due on {{dueDate}}.'
+        : 'Your bill of ${{amount}} is due on {{dueDate}}. Please make payment to avoid late fees.',
+      SUBSCRIPTION_EXPIRY: isShort
+        ? 'Your subscription expires on {{expiryDate}}.'
+        : 'Your subscription will expire on {{expiryDate}}. Renew now to continue enjoying premium features.',
     };
 
-    return bodies[type as keyof typeof bodies] || 'You have a new notification.';
+    return bodies[type] || 'You have a new notification.';
   }
 
   private getDefaultTemplate(

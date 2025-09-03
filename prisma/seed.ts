@@ -10,7 +10,7 @@
  *   npm run db:seed -- --env=production --size=large
  */
 
-import { PrismaClient } from '../src/generated/prisma';
+import { PrismaClient } from '@prisma/client';
 
 interface SeedOptions {
   env?: 'development' | 'staging' | 'production' | 'test';

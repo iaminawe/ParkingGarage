@@ -9,6 +9,7 @@ import type { VehicleType } from '@prisma/client';
 import type { GarageService } from '../services/garageService';
 import type { SpotService } from '../services/spotService';
 import type { VehicleRepository } from '../repositories/VehicleRepository';
+import { logger } from './logger';
 
 // Lazy load services to avoid instantiation before database initialization
 let GarageServiceClass: typeof GarageService | undefined;
@@ -90,11 +91,18 @@ export class SeedDataInitializer {
       }
 
       // Different version - we might want to re-seed or migrate
-      console.log(`🔄 Seed version mismatch. Current: ${CURRENT_SEED_VERSION}, Database: ${seedVersion?.value}`);
+      logger.info('Seed version mismatch detected', {
+        component: 'seedData',
+        currentVersion: CURRENT_SEED_VERSION,
+        databaseVersion: seedVersion?.value
+      });
       return false;
     } catch (error) {
       // If we can't check, assume not seeded
-      console.log('⚠️ Could not check seed status:', error);
+      logger.warn('Could not check seed status', {
+        component: 'seedData',
+        error: error instanceof Error ? error.message : String(error)
+      });
       return false;
     }
   }
@@ -144,9 +152,15 @@ export class SeedDataInitializer {
         }
       });
 
-      console.log('✅ Database marked as seeded with version:', CURRENT_SEED_VERSION);
+      logger.info('Database marked as seeded', {
+        component: 'seedData',
+        version: CURRENT_SEED_VERSION
+      });
     } catch (error) {
-      console.error('❌ Failed to mark database as seeded:', error);
+      logger.error('Failed to mark database as seeded', error as Error, {
+        component: 'seedData',
+        version: CURRENT_SEED_VERSION
+      });
       throw error;
     }
   }
@@ -157,7 +171,7 @@ export class SeedDataInitializer {
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
-      console.log('🌱 Seed data already initialized');
+      logger.info('Seed data already initialized', { component: 'seedData' });
       return;
     }
 
@@ -165,12 +179,18 @@ export class SeedDataInitializer {
       // Check if database has already been seeded
       const isSeeded = await this.isDatabaseSeeded();
       if (isSeeded) {
-        console.log('✅ Database already seeded. Skipping seed data initialization.');
+        logger.info('Database already seeded, skipping seed data initialization', {
+          component: 'seedData',
+          action: 'skip'
+        });
         this.initialized = true;
         return;
       }
 
-      console.log('🌱 First-time setup: Initializing seed data...');
+      logger.info('First-time setup: Initializing seed data', {
+        component: 'seedData',
+        action: 'initialize'
+      });
       
       // Load services now that database is initialized
       if (!GarageServiceClass) {
@@ -201,13 +221,19 @@ export class SeedDataInitializer {
       await this.markDatabaseAsSeeded();
 
       this.initialized = true;
-      console.log('✅ Seed data initialization complete!');
+      logger.info('Seed data initialization complete', {
+        component: 'seedData',
+        status: 'success'
+      });
 
       // Log current status
       await this.logCurrentStatus();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Seed data initialization failed:', errorMessage);
+      logger.error('Seed data initialization failed', error instanceof Error ? error : new Error(errorMessage), {
+        component: 'seedData',
+        errorMessage
+      });
       // Don't throw - allow app to continue even if seed fails
     }
   }
@@ -223,7 +249,11 @@ export class SeedDataInitializer {
     try {
       // Check if garage already exists
       if (this.garageService.isGarageInitialized()) {
-        console.log('🏢 Garage already initialized');
+        logger.info('Garage already initialized', {
+          component: 'seedData',
+          action: 'garage-init',
+          status: 'skipped'
+        });
         return;
       }
 
@@ -262,7 +292,11 @@ export class SeedDataInitializer {
       };
 
       const result = await this.garageService.initializeGarage(garageConfig);
-      console.log(`🏢 Garage initialized with ${result.spotsCreated} parking spots`);
+      logger.info('Garage initialized', {
+        component: 'seedData',
+        action: 'garage-init',
+        spotsCreated: result.spotsCreated
+      });
 
       // Set default rates (commented out - updateRates method not implemented)
       // await this.garageService.updateRates({
@@ -272,11 +306,18 @@ export class SeedDataInitializer {
       //   weekend: 35.00
       // });
 
-      console.log('💰 Default parking rates would be set (feature pending)');
+      logger.debug('Default parking rates feature pending', {
+        component: 'seedData',
+        feature: 'parking-rates'
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (errorMessage.includes('already initialized')) {
-        console.log('🏢 Garage already exists, skipping initialization');
+        logger.info('Garage already exists, skipping initialization', {
+          component: 'seedData',
+          action: 'garage-check',
+          status: 'exists'
+        });
       } else {
         throw error;
       }
@@ -392,7 +433,11 @@ export class SeedDataInitializer {
       { licensePlate: 'LUX-003', make: 'Ferrari', model: '488', color: 'Red', floor: 5, bay: 2 },
     ];
 
-    console.log(`🚗 Adding ${sampleVehicles.length} sample vehicles...`);
+    logger.info('Adding sample vehicles', {
+      component: 'seedData',
+      action: 'add-vehicles',
+      count: sampleVehicles.length
+    });
 
     for (const vehicleData of sampleVehicles) {
       try {
@@ -433,11 +478,19 @@ export class SeedDataInitializer {
             licensePlate: vehicle.licensePlate,
           });
 
-          console.log(`  ✓ Parked ${vehicleData.licensePlate} in spot ${spot.id}`);
+          logger.debug('Vehicle parked successfully', {
+            component: 'seedData',
+            licensePlate: vehicleData.licensePlate,
+            spotId: spot.id
+          });
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.log(`  ⚠️ Could not park ${vehicleData.licensePlate}: ${errorMessage}`);
+        logger.warn('Could not park vehicle', {
+          component: 'seedData',
+          licensePlate: vehicleData.licensePlate,
+          error: errorMessage
+        });
       }
     }
   }
@@ -456,7 +509,10 @@ export class SeedDataInitializer {
       { floor: 4, bay: 3, spotIndex: 2, reason: 'EV charger maintenance' },
     ];
 
-    console.log('🔧 Setting maintenance spots...');
+    logger.info('Setting maintenance spots', {
+      component: 'seedData',
+      action: 'set-maintenance'
+    });
 
     for (const maintenance of maintenanceSpots) {
       try {
@@ -472,11 +528,18 @@ export class SeedDataInitializer {
             reason: maintenance.reason,
             estimatedCompletion: new Date(Date.now() + 86400000).toISOString(), // 24 hours from now
           });
-          console.log(`  ✓ Set spot ${spot.id} to maintenance: ${maintenance.reason}`);
+          logger.debug('Maintenance spot set successfully', {
+            component: 'seedData',
+            spotId: spot.id,
+            reason: maintenance.reason
+          });
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.log(`  ⚠️ Could not set maintenance spot: ${errorMessage}`);
+        logger.warn('Could not set maintenance spot', {
+          component: 'seedData',
+          error: errorMessage
+        });
       }
     }
   }
@@ -497,25 +560,35 @@ export class SeedDataInitializer {
       const garageConfig = await this.garageService.getGarageConfiguration();
       const stats: GarageStats = await this.garageService.getStatistics();
 
-      console.log('\\n📊 Current Garage Status:');
-      console.log('├─ Name:', garageConfig.name);
-      console.log('├─ Total Spots:', stats.occupancy.total);
-      console.log('├─ Available:', stats.occupancy.available);
-      console.log('├─ Occupied:', stats.occupancy.occupied);
-      console.log('├─ Maintenance:', 4); // We know we set 4 maintenance spots
-      console.log('├─ Occupancy Rate:', `${stats.occupancy.occupancyRate.toFixed(1)}%`);
-      console.log('└─ Floors:', garageConfig.floors.length);
+      logger.info('Current Garage Status', {
+        component: 'seedData',
+        action: 'status-display'
+        garageName: garageConfig.name,
+        totalSpots: stats.occupancy.total,
+        available: stats.occupancy.available,
+        occupied: stats.occupancy.occupied,
+        maintenance: 4, // We know we set 4 maintenance spots
+        occupancyRate: `${stats.occupancy.occupancyRate.toFixed(1)}%`,
+        floors: garageConfig.floors.length
+      });
 
       // Show sample API calls
-      console.log('\\n🔗 Sample API Endpoints:');
-      console.log('├─ GET /api/garage/status');
-      console.log('├─ GET /api/spots?status=available');
-      console.log('├─ GET /api/spots?floor=1&bay=1');
-      console.log('├─ POST /api/checkin { "licensePlate": "TEST-123" }');
-      console.log('└─ GET /health');
+      logger.debug('Sample API Endpoints available', {
+        component: 'seedData',
+        endpoints: [
+          'GET /api/garage/status',
+          'GET /api/spots?status=available',
+          'GET /api/spots?floor=1&bay=1',
+          'POST /api/checkin { "licensePlate": "TEST-123" }',
+          'GET /health'
+        ]
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Could not log status:', errorMessage);
+      logger.error('Could not log status', undefined, {
+        component: 'seedData',
+        error: errorMessage
+      });
     }
   }
 
@@ -523,7 +596,10 @@ export class SeedDataInitializer {
    * Reset all data (useful for testing)
    */
   async reset(): Promise<void> {
-    console.log('🔄 Resetting all seed data...');
+    logger.info('Resetting all seed data', {
+      component: 'seedData',
+      action: 'reset'
+    });
 
     if (!this.garageService || !this.spotService || !this.vehicleRepository) {
       throw new Error('Services not initialized');
@@ -546,9 +622,15 @@ export class SeedDataInitializer {
           }
         }
       });
-      console.log('✅ Seed flags cleared');
+      logger.info('Seed flags cleared', {
+        component: 'seedData',
+        action: 'clear-flags'
+      });
     } catch (error) {
-      console.error('⚠️ Could not clear seed flags:', error);
+      logger.error('Could not clear seed flags', error as Error, {
+        component: 'seedData',
+        action: 'clear-flags'
+      });
     }
 
     this.initialized = false;
@@ -562,7 +644,10 @@ export class SeedDataInitializer {
    * This will clear the seed flags and re-run the seeding process
    */
   async forceSeed(): Promise<void> {
-    console.log('⚠️ Force re-seeding database...');
+    logger.info('Force re-seeding database', {
+      component: 'seedData',
+      action: 'force-reseed'
+    });
     
     // Clear seed flags
     if (!this.prisma) {
@@ -577,9 +662,15 @@ export class SeedDataInitializer {
           }
         }
       });
-      console.log('✅ Seed flags cleared');
+      logger.info('Seed flags cleared', {
+        component: 'seedData',
+        action: 'clear-flags-force'
+      });
     } catch (error) {
-      console.error('⚠️ Could not clear seed flags:', error);
+      logger.error('Could not clear seed flags', error as Error, {
+        component: 'seedData',
+        action: 'clear-flags-force'
+      });
     }
 
     // Reset initialized flag

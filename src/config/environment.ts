@@ -21,25 +21,80 @@ const environmentSchema = z.object({
     .refine(
       val =>
         val !== 'your-super-secret-jwt-key' &&
-        val !== 'your-super-secure-jwt-secret-minimum-32-characters',
+        val !== 'your-super-secure-jwt-secret-minimum-32-characters' &&
+        val !== 'your-super-secure-jwt-secret-minimum-64-characters-long' &&
+        val !== 'parking-garage-super-secret-jwt-key-change-in-production-2024' &&
+        val !== 'development-jwt-secret-minimum-32-chars-long-do-not-use-in-production',
       'JWT_SECRET cannot use default/example values'
+    )
+    .refine(
+      (val, ctx) => {
+        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+        return val.length >= 64;
+      },
+      'JWT_SECRET must be at least 64 characters long in production'
     ),
 
   JWT_REFRESH_SECRET: z
     .string()
     .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters long')
     .refine(
-      val => val !== 'your-super-secret-refresh-key',
+      val => 
+        val !== 'your-super-secret-refresh-key' &&
+        val !== 'parking-garage-super-secret-refresh-key-change-in-production-2024' &&
+        val !== 'development-refresh-secret-minimum-32-chars-long-do-not-use-in-production',
       'JWT_REFRESH_SECRET cannot use default/example values'
+    )
+    .refine(
+      (val, ctx) => {
+        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+        return val.length >= 64;
+      },
+      'JWT_REFRESH_SECRET must be at least 64 characters long in production'
     ),
 
   JWT_EXPIRES_IN: z.string().default('1h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
   // Security Configuration
-  BCRYPT_SALT_ROUNDS: z.string().transform(Number).pipe(z.number().min(10).max(15)).default(12),
-  MAX_LOGIN_ATTEMPTS: z.string().transform(Number).pipe(z.number().min(3).max(10)).default(5),
-  LOCKOUT_TIME: z.string().transform(Number).pipe(z.number().min(5).max(60)).default(15),
+  BCRYPT_SALT_ROUNDS: z
+    .string()
+    .transform(Number)
+    .pipe(z.number().min(10).max(15))
+    .default('12')
+    .refine(
+      (val, ctx) => {
+        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+        return val >= 12;
+      },
+      'BCRYPT_SALT_ROUNDS must be at least 12 in production'
+    ),
+  
+  MAX_LOGIN_ATTEMPTS: z
+    .string()
+    .transform(Number)
+    .pipe(z.number().min(1).max(10))
+    .default('5')
+    .refine(
+      (val, ctx) => {
+        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+        return val <= 3;
+      },
+      'MAX_LOGIN_ATTEMPTS should be 3 or less in production for enhanced security'
+    ),
+    
+  LOCKOUT_TIME: z
+    .string()
+    .transform(Number)
+    .pipe(z.number().min(5).max(120))
+    .default('15')
+    .refine(
+      (val, ctx) => {
+        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+        return val >= 30;
+      },
+      'LOCKOUT_TIME should be at least 30 minutes in production'
+    ),
 
   // Optional Configuration
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
@@ -70,9 +125,41 @@ const environmentSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional(),
 
   // Security Configuration
-  SESSION_SECRET: z.string().min(32).optional(),
-  CSRF_SECRET: z.string().min(32).optional(),
-  ENCRYPTION_KEY: z.string().min(32).optional(),
+  SESSION_SECRET: z
+    .string()
+    .min(32, 'SESSION_SECRET must be at least 32 characters long')
+    .optional()
+    .refine(
+      (val, ctx) => {
+        if (!val || ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+        return val.length >= 64;
+      },
+      'SESSION_SECRET must be at least 64 characters long in production'
+    ),
+  
+  CSRF_SECRET: z
+    .string()
+    .min(32, 'CSRF_SECRET must be at least 32 characters long')
+    .optional()
+    .refine(
+      (val, ctx) => {
+        if (!val || ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+        return val.length >= 64;
+      },
+      'CSRF_SECRET must be at least 64 characters long in production'
+    ),
+    
+  DATABASE_ENCRYPTION_KEY: z
+    .string()
+    .min(32, 'DATABASE_ENCRYPTION_KEY must be at least 32 characters long')
+    .optional()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        return /^[a-fA-F0-9]+$/.test(val) && val.length === 64;
+      },
+      'DATABASE_ENCRYPTION_KEY must be a 64-character hexadecimal string (256-bit key)'
+    ),
 
   // Rate Limiting
   EMAIL_RATE_LIMIT_PER_HOUR: z.string().transform(Number).pipe(z.number()).default(100),

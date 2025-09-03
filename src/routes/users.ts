@@ -24,6 +24,7 @@ import {
 } from '../middleware/auth';
 import { HTTP_STATUS, API_RESPONSES, RATE_LIMITS, USER_ROLES, UserRole } from '../config/constants';
 import { createLogger } from '../utils/logger';
+import { EmailService } from '../services/EmailService';
 import { PaginatedResult } from '../types/models';
 
 const router = Router();
@@ -348,19 +349,81 @@ router.post(
         return;
       }
 
-      // This would need to be implemented in the auth service
-      // For now, return a success response
-      logger.info('Password change requested', { userId: currentUser.id });
+      // Use auth service to handle password change
+      const authService = (await import('../services/authService')).default;
+      const result = await authService.changePassword({
+        userId: currentUser.id,
+        currentPassword,
+        newPassword,
+      });
+
+      if (!result.success) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(result);
+        return;
+      }
+
+      // Send password change confirmation email
+      const emailService = (await import('../services/EmailService')).default;
+      await emailService.sendPasswordChangeConfirmation(
+        currentUser.id,
+        currentUser.email,
+        `${currentUser.firstName || 'User'}`
+      );
+
+      logger.info('Password changed successfully', { userId: currentUser.id });
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
-        message: 'Password changed successfully',
+        message: 'Password changed successfully. You have been logged out of all devices for security.',
       });
     } catch (error) {
       logger.error('Failed to change password', error as Error);
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /api/users/request-password-reset
+ * @desc    Request password reset email
+ * @access  Public
+ */
+router.post(
+  '/request-password-reset',
+  sensitiveOperationsLimiter,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { email } = req.body;
+
+      // Input validation
+      if (!email) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Email is required',
+        });
+        return;
+      }
+
+      // Use auth service to handle password reset request
+      const authService = (await import('../services/authService')).default;
+      const result = await authService.requestPasswordReset({ email });
+
+      // Always return success to prevent email enumeration
+      logger.info('Password reset requested', { email });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      logger.error('Failed to request password reset', error as Error);
+      // Still return success for security
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'If an account with this email exists, a password reset link has been sent.',
       });
     }
   }
@@ -395,13 +458,23 @@ router.post(
         return;
       }
 
-      // This would need to be implemented in the auth service
-      // For now, return a success response
-      logger.info('Password reset requested', { token: token.substring(0, 10) + '...' });
+      // Use auth service to handle password reset
+      const authService = (await import('../services/authService')).default;
+      const result = await authService.confirmPasswordReset({ token, newPassword });
+
+      if (!result.success) {
+        const statusCode = result.message?.includes('token') ? HTTP_STATUS.BAD_REQUEST : HTTP_STATUS.BAD_REQUEST;
+        res.status(statusCode).json(result);
+        return;
+      }
+
+      logger.info('Password reset completed successfully', { 
+        token: token.substring(0, 10) + '...' 
+      });
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
-        message: 'Password reset successfully',
+        message: 'Password reset successfully. Please log in with your new password.',
       });
     } catch (error) {
       logger.error('Failed to reset password', error as Error);

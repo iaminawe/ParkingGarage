@@ -6,6 +6,8 @@ import { prisma } from '../config/database';
 import { env } from '../config/environment';
 import { CacheService } from './CacheService';
 import { EmailService } from './EmailService';
+import { SecurityAuditService } from './SecurityAuditService';
+import { authLogger } from '../utils/logger';
 import {
   SECURITY,
   TIME_CONSTANTS,
@@ -74,6 +76,7 @@ class AuthService {
   private readonly PASSWORD_SALT_ROUNDS: number;
   private readonly cacheService: CacheService;
   private readonly emailService: EmailService;
+  private readonly auditService: SecurityAuditService;
 
   constructor() {
     // Use validated environment configuration - no defaults allowed
@@ -86,6 +89,7 @@ class AuthService {
     this.PASSWORD_SALT_ROUNDS = env.BCRYPT_SALT_ROUNDS;
     this.cacheService = new CacheService();
     this.emailService = new EmailService();
+    this.auditService = new SecurityAuditService();
   }
 
   /**
@@ -146,7 +150,10 @@ class AuthService {
     } catch (error) {
       // Log specific JWT errors for debugging in development
       if (env.NODE_ENV === 'development' && error instanceof jwt.JsonWebTokenError) {
-        console.warn('JWT verification failed:', error.message);
+        authLogger.warn('JWT verification failed', {
+          error: error.message,
+          operation: 'verify-token'
+        });
       }
       return null;
     }
@@ -217,9 +224,13 @@ class AuthService {
 
     // Log security event for monitoring
     if (env.NODE_ENV === 'production') {
-      console.log(
-        `Successful login: user=${userId}, ip=${deviceInfo?.ipAddress}, userAgent=${deviceInfo?.userAgent}`
-      );
+      authLogger.info('Successful login', {
+        operation: 'login-success',
+        userId,
+        ipAddress: deviceInfo?.ipAddress,
+        userAgent: deviceInfo?.userAgent,
+        securityEvent: true
+      });
     }
   }
 
@@ -279,7 +290,10 @@ class AuthService {
         message: API_RESPONSES.SUCCESS.SIGNUP,
       };
     } catch (error) {
-      console.error('Signup error:', error);
+      authLogger.error('Signup error', error as Error, {
+        operation: 'signup',
+        email: signupData.email
+      });
       return {
         success: false,
         message: 'Registration failed. Please try again.',
@@ -362,7 +376,10 @@ class AuthService {
         message: API_RESPONSES.SUCCESS.LOGIN,
       };
     } catch (error) {
-      console.error('Login error:', error);
+      authLogger.error('Login error', error as Error, {
+        operation: 'login',
+        email: loginData.email
+      });
       return {
         success: false,
         message: 'Login failed. Please try again.',
@@ -437,7 +454,9 @@ class AuthService {
         message: 'Token refreshed successfully',
       };
     } catch (error) {
-      console.error('Token refresh error:', error);
+      authLogger.error('Token refresh error', error as Error, {
+        operation: 'refresh-token'
+      });
       return {
         success: false,
         message: 'Token refresh failed',
@@ -471,7 +490,9 @@ class AuthService {
         message: 'Logged out successfully',
       };
     } catch (error) {
-      console.error('Logout error:', error);
+      authLogger.error('Logout error', error as Error, {
+        operation: 'logout'
+      });
       return {
         success: false,
         message: 'Logout failed',
@@ -514,7 +535,9 @@ class AuthService {
         count: result.count,
       };
     } catch (error) {
-      console.error('Logout all devices error:', error);
+      authLogger.error('Logout all devices error', error as Error, {
+        operation: 'logout-all'
+      });
       return {
         success: false,
         message: 'Logout from all devices failed',
@@ -603,12 +626,17 @@ class AuthService {
       });
 
       if (env.NODE_ENV === 'development' && result.count > 0) {
-        console.log(`🧹 Cleaned up ${result.count} expired/revoked sessions`);
+        authLogger.info('Cleaned up expired/revoked sessions', {
+          operation: 'session-cleanup',
+          cleanedCount: result.count
+        });
       }
 
       return result.count;
     } catch (error) {
-      console.error('Session cleanup error:', error);
+      authLogger.error('Session cleanup error', error as Error, {
+        operation: 'session-cleanup'
+      });
       return 0;
     }
   }
@@ -628,7 +656,9 @@ class AuthService {
 
       return result.count;
     } catch (error) {
-      console.error('Error revoking user sessions:', error);
+      authLogger.error('Error revoking user sessions', error as Error, {
+        operation: 'revoke-sessions'
+      });
       return 0;
     }
   }
@@ -866,6 +896,19 @@ class AuthService {
         user.passwordHash
       );
       if (!isCurrentPasswordValid) {
+        // Log failed password change attempt
+        await this.auditService.logSecurityEvent({
+          userId: data.userId,
+          action: 'PASSWORD_CHANGE_FAILED',
+          category: 'AUTH',
+          severity: 'MEDIUM',
+          description: 'Password change failed: incorrect current password',
+          metadata: { 
+            reason: 'INVALID_CURRENT_PASSWORD',
+            userEmail: user.email 
+          },
+        });
+
         return {
           success: false,
           message: 'Current password is incorrect',

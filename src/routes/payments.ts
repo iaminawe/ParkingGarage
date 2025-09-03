@@ -14,6 +14,7 @@ import PaymentRepository, {
   UpdatePaymentData,
   PaymentSearchCriteria,
 } from '../repositories/PaymentRepository';
+import PaymentService from '../services/PaymentService';
 import { authenticate, authorize, managerOrAdmin, AuthRequest } from '../middleware/auth';
 import { HTTP_STATUS, API_RESPONSES, RATE_LIMITS, USER_ROLES } from '../config/constants';
 import { createLogger } from '../utils/logger';
@@ -662,6 +663,150 @@ router.put('/:id/fail', authenticate, managerOrAdmin, sensitivePaymentLimiter, (
         message: API_RESPONSES.ERRORS.INTERNAL_ERROR,
       });
     }
+  }
+}) as any);
+
+/**
+ * @route   POST /api/payments/intent
+ * @desc    Create payment intent for Stripe integration
+ * @access  Private (All authenticated users)
+ */
+router.post('/intent', authenticate, sensitivePaymentLimiter, (async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const {
+      amount,
+      currency = 'USD',
+      sessionId,
+      vehicleId,
+      description,
+      customerData,
+      paymentMethod = 'CREDIT_CARD',
+    } = req.body;
+    const currentUser = req.user;
+
+    // Input validation
+    if (!amount || amount <= 0) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: 'Payment amount must be greater than zero',
+      });
+      return;
+    }
+
+    // Create payment intent
+    const result = await PaymentService.createPaymentIntent({
+      amount: parseFloat(amount),
+      currency,
+      sessionId,
+      vehicleId,
+      description,
+      customerData,
+      paymentMethod,
+    }, currentUser.id);
+
+    logger.info('Payment intent created successfully', {
+      paymentIntentId: result.paymentIntentId,
+      amount: result.amount,
+      currency,
+      userId: currentUser.id,
+    });
+
+    res.status(HTTP_STATUS.CREATED).json({
+      success: true,
+      data: result,
+      message: 'Payment intent created successfully',
+    });
+  } catch (error) {
+    logger.error('Failed to create payment intent', error as Error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: (error as Error).message || API_RESPONSES.ERRORS.INTERNAL_ERROR,
+    });
+  }
+}) as any);
+
+/**
+ * @route   POST /api/payments/confirm/:paymentIntentId
+ * @desc    Confirm payment intent after client-side processing
+ * @access  Private (All authenticated users)
+ */
+router.post('/confirm/:paymentIntentId', authenticate, sensitivePaymentLimiter, (async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { paymentIntentId } = req.params;
+    const currentUser = req.user;
+
+    if (!paymentIntentId) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: 'Payment intent ID is required',
+      });
+      return;
+    }
+
+    const result = await PaymentService.confirmPaymentIntent(paymentIntentId, currentUser.id);
+
+    logger.info('Payment intent confirmed', {
+      paymentIntentId,
+      paymentId: result.paymentId,
+      status: result.status,
+      success: result.success,
+      userId: currentUser.id,
+    });
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: result,
+      message: result.success ? 'Payment completed successfully' : 'Payment confirmation processed',
+    });
+  } catch (error) {
+    logger.error('Failed to confirm payment intent', error as Error, {
+      paymentIntentId: req.params.paymentIntentId,
+    });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: (error as Error).message || API_RESPONSES.ERRORS.INTERNAL_ERROR,
+    });
+  }
+}) as any);
+
+/**
+ * @route   GET /api/payments/health
+ * @desc    Payment gateway health check
+ * @access  Private (Staff only)
+ */
+router.get('/health', authenticate, managerOrAdmin, (async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const healthStatus = await PaymentService.healthCheck();
+
+    logger.info('Payment gateway health check performed', {
+      userId: req.user.id,
+      healthStatus,
+    });
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: healthStatus,
+      message: 'Payment gateway health check completed',
+    });
+  } catch (error) {
+    logger.error('Payment gateway health check failed', error as Error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: 'Health check failed',
+      data: {
+        stripe: false,
+        overall: false,
+      },
+    });
   }
 }) as any);
 
