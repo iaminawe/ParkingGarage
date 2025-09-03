@@ -8,6 +8,8 @@ import {
   Users,
   Settings,
   ParkingSquare,
+  LogIn,
+  MapPin,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Separator } from '@/components/ui/separator'
@@ -19,6 +21,11 @@ const navigationItems = [
     icon: LayoutDashboard,
   },
   {
+    title: 'Check-In/Out',
+    href: '/checkin-checkout',
+    icon: LogIn,
+  },
+  {
     title: 'Vehicles',
     href: '/vehicles',
     icon: Car,
@@ -27,6 +34,11 @@ const navigationItems = [
     title: 'Parking Spots',
     href: '/spots',
     icon: ParkingSquare,
+  },
+  {
+    title: 'Floors',
+    href: '/floors',
+    icon: MapPin,
   },
   {
     title: 'Garage Config',
