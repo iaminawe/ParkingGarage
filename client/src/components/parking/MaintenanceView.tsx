@@ -36,7 +36,6 @@ import {
   Clock, 
   Plus, 
   Search,
-  Filter,
   Calendar,
   User,
   MapPin
@@ -394,7 +393,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium">Priority</label>
-                      <Select value={newTicket.priority} onValueChange={(value: any) => setNewTicket({...newTicket, priority: value})}>
+                      <Select value={newTicket.priority} onValueChange={(value: 'low' | 'medium' | 'high' | 'critical') => setNewTicket({...newTicket, priority: value})}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>

@@ -43,7 +43,7 @@ export const SignupForm: React.FC = () => {
       // In demo mode, signup just logs the user in
       await login(email, password)
       navigate('/dashboard', { replace: true })
-    } catch (err) {
+    } catch {
       setError('Signup failed. Please try again.')
     }
   }

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/loading'
 import {
@@ -29,7 +28,6 @@ import {
   Clock,
   TrendingUp,
   FileSpreadsheet,
-  Printer,
   Mail,
   Settings,
   Eye
@@ -39,13 +37,6 @@ import { cn } from '@/utils/cn'
 
 interface ReportsViewProps {
   garageId: string
-  sharedState: {
-    selectedFloor: number
-    searchQuery: string
-    statusFilter: string
-    typeFilter: string
-    lastRefresh: Date
-  }
   className?: string
 }
 
@@ -72,7 +63,6 @@ interface ScheduledReport {
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
   garageId,
-  sharedState,
   className = ''
 }) => {
   const [loading, setLoading] = useState(false)
@@ -181,9 +171,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     console.log(`Scheduling report: ${templateId}`)
   }
 
-  const handleDownload = (templateId: string, format: string) => {
-    console.log(`Downloading ${templateId} in ${format} format`)
-  }
 
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'PPP')
@@ -270,7 +257,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 {/* Export Format */}
                 <div className="space-y-2">
                   <Label>Export Format</Label>
-                  <Select value={selectedFormat} onValueChange={(value: any) => setSelectedFormat(value)}>
+                  <Select value={selectedFormat} onValueChange={(value: 'pdf' | 'csv' | 'excel') => setSelectedFormat(value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

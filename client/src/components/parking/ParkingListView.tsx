@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/loading'
-import { Search, Filter, SortAsc, SortDesc, MapPin, Clock, Zap, Users } from 'lucide-react'
+import { Search, SortAsc, SortDesc, MapPin, Clock, Zap, Users } from 'lucide-react'
 import { apiService } from '@/services/api'
 import type { ParkingSpot } from '@/types/api'
 
@@ -101,8 +101,8 @@ export const ParkingListView: React.FC<ParkingListViewProps> = ({
 
     // Apply sorting
     filtered.sort((a, b) => {
-      let aValue: any = a[sortConfig.field as keyof ParkingSpot]
-      let bValue: any = b[sortConfig.field as keyof ParkingSpot]
+      let aValue: string | number | undefined = a[sortConfig.field as keyof ParkingSpot] as string | number | undefined
+      let bValue: string | number | undefined = b[sortConfig.field as keyof ParkingSpot] as string | number | undefined
 
       if (sortConfig.field === 'occupancyDuration') {
         aValue = a.currentVehicle ? Date.now() - new Date(a.currentVehicle.checkInTime).getTime() : 0

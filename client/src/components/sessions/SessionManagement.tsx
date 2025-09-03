@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Card, 
   CardContent, 
@@ -66,19 +66,14 @@ export function SessionManagement() {
     todaySessions: 0
   })
 
-  useEffect(() => {
-    fetchSessions()
-    calculateStats()
-  }, [filters])
-
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       setLoading(true)
       const response = await apiService.getSessions()
       if (response.success) {
         setSessions(response.data)
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to fetch sessions',
@@ -87,9 +82,9 @@ export function SessionManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
-  const calculateStats = () => {
+  const calculateStats = useCallback(() => {
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     
@@ -128,7 +123,16 @@ export function SessionManagement() {
       todayRevenue,
       todaySessions: todaySessions.length
     })
-  }
+  }, [sessions])
+
+  useEffect(() => {
+    fetchSessions()
+  }, [fetchSessions, filters])
+
+  useEffect(() => {
+    calculateStats()
+  }, [calculateStats])
+
 
   const handleEndSession = async (sessionId: string) => {
     try {

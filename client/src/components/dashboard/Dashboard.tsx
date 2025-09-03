@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { apiService } from '@/services/api'
 import { socketService } from '@/services/socket'
@@ -19,6 +19,32 @@ interface DashboardData {
   }
 }
 
+interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message?: string
+}
+
+interface GarageStatusUpdate {
+  analytics?: GarageAnalytics
+  occupancy?: {
+    occupied: number
+    available: number
+    total: number
+  }
+}
+
+interface SpotUpdate {
+  spotId: string
+  status: string
+  garageId?: string
+}
+
+interface SessionUpdate extends Partial<ParkingSession> {
+  id: string
+  type: 'start' | 'end' | 'update'
+}
+
 const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData>({
     analytics: null,
@@ -32,7 +58,7 @@ const Dashboard: React.FC = () => {
 
   // Helper function to fetch API data with fallback
   const fetchWithFallback = async <T,>(
-    apiCall: () => Promise<any>,
+    apiCall: () => Promise<ApiResponse<T>>,
     fallbackValue: T,
     endpoint: string
   ): Promise<T> => {
@@ -45,7 +71,7 @@ const Dashboard: React.FC = () => {
     }
   }
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setError(null)
 
@@ -95,7 +121,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     // Initialize WebSocket connection
@@ -113,7 +139,7 @@ const Dashboard: React.FC = () => {
     setConnectionStatus(socketService.getConnectionStatus())
     
     // Listen for real-time updates
-    const handleGarageStatusUpdate = (update: any) => {
+    const handleGarageStatusUpdate = (update: GarageStatusUpdate) => {
       console.log('🔄 Received garage status update:', update)
       
       // Update relevant data based on the update
@@ -134,7 +160,7 @@ const Dashboard: React.FC = () => {
       })
     }
     
-    const handleSpotUpdate = (update: any) => {
+    const handleSpotUpdate = (update: SpotUpdate) => {
       console.log('🔄 Received spot update:', update)
       
       // Refresh analytics when spots change
@@ -144,7 +170,7 @@ const Dashboard: React.FC = () => {
       }, 1000) // Small delay to ensure server has processed the update
     }
     
-    const handleSessionUpdate = (sessionData: any) => {
+    const handleSessionUpdate = (sessionData: SessionUpdate) => {
       console.log('🔄 Received session update:', sessionData)
       
       // Update recent sessions
@@ -170,7 +196,7 @@ const Dashboard: React.FC = () => {
       socketService.leaveGarage('main')
       // Don't disconnect here as other components might be using it
     }
-  }, [])
+  }, [fetchDashboardData])
 
   if (isLoading) {
     return (
