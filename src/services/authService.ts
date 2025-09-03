@@ -343,7 +343,7 @@ class AuthService {
       // Generate new tokens
       const { token, refreshToken, expiresAt, refreshExpiresAt } = this.generateTokens(user);
 
-      // Create user session
+      // Create user session (omit deviceFingerprint to avoid foreign key constraint)
       await prisma.userSession.create({
         data: {
           userId: user.id,
@@ -353,7 +353,7 @@ class AuthService {
           refreshExpiresAt,
           deviceInfo: deviceInfo?.userAgent,
           ipAddress: deviceInfo?.ipAddress,
-          deviceFingerprint: deviceInfo?.deviceFingerprint,
+          // deviceFingerprint omitted to avoid foreign key constraint with UserDevice
         },
       });
 
