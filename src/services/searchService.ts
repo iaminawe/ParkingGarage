@@ -255,23 +255,27 @@ class SearchService {
       let vehicles: any[] = [];
 
       if (spotId) {
-        // Find vehicles in specific spot
-        const vehiclesInSpot = await this.vehicleRepository.search({ spotId });
-        vehicles = vehiclesInSpot;
+        // Find vehicles in specific spot by searching for vehicles with this spotId
+        const vehiclesInSpot = await this.vehicleRepository.findCurrentlyParked();
+        vehicles = vehiclesInSpot.filter(v => v.spotId === spotId);
       } else if (floor && bay) {
-        // Find vehicles in specific floor and bay
-        const spots = await this.spotRepository.findByFloorAndBay(floor, bay);
+        // Find vehicles in specific floor and section (bay)
+        const spots = await this.spotRepository.findByLevelAndSection(floor, bay.toString());
         const vehiclePromises = spots
-          .filter(spot => spot.currentVehicleId)
-          .map(spot => this.vehicleRepository.findById(spot.currentVehicleId));
-        vehicles = (await Promise.all(vehiclePromises)).filter(vehicle => vehicle !== null);
+          .map((spot: any) => this.vehicleRepository.findCurrentlyParked()
+            .then((parkedVehicles: any[]) => parkedVehicles.find(v => v.spotId === spot.id))
+          );
+        const foundVehicles = (await Promise.all(vehiclePromises)).filter((vehicle: any) => vehicle !== null);
+        vehicles = foundVehicles;
       } else if (floor) {
         // Find vehicles on specific floor
-        const spots = await this.spotRepository.findByFloor(floor);
+        const spots = await this.spotRepository.findByLevel(floor);
         const vehiclePromises = spots
-          .filter(spot => spot.currentVehicleId)
-          .map(spot => this.vehicleRepository.findById(spot.currentVehicleId));
-        vehicles = (await Promise.all(vehiclePromises)).filter(vehicle => vehicle !== null);
+          .map((spot: any) => this.vehicleRepository.findCurrentlyParked()
+            .then((parkedVehicles: any[]) => parkedVehicles.find(v => v.spotId === spot.id))
+          );
+        const foundVehicles = (await Promise.all(vehiclePromises)).filter((vehicle: any) => vehicle !== null);
+        vehicles = foundVehicles;
       } else {
         // Return all parked vehicles
         vehicles = await this.vehicleRepository.findCurrentlyParked();
@@ -280,14 +284,18 @@ class SearchService {
       // Format response with location and duration info
       const results: VehicleLocationInfo[] = [];
       for (const vehicle of vehicles) {
-        const spot = vehicle.currentSpotId ? await this.spotRepository.findById(vehicle.currentSpotId) : null;
+        const spot = vehicle.spotId ? await this.spotRepository.findById(vehicle.spotId) : null;
         results.push({
           licensePlate: vehicle.licensePlate,
-          spotId: vehicle.currentSpotId || '',
-          checkInTime: vehicle.createdAt.toISOString(),
-          vehicleType: vehicle.vehicleType.toLowerCase() as VehicleType,
-          currentDuration: this._calculateCurrentDuration(vehicle.createdAt.toISOString()),
-          status: vehicle.status.toLowerCase() as VehicleStatus,
+          spotId: vehicle.spotId || '',
+          checkInTime: typeof vehicle.checkInTime === 'string' ? vehicle.checkInTime : vehicle.checkInTime?.toISOString() || vehicle.createdAt?.toISOString() || new Date().toISOString(),
+          vehicleType: vehicle.vehicleType,
+          currentDuration: this._calculateCurrentDuration(
+            typeof vehicle.checkInTime === 'string' 
+              ? vehicle.checkInTime 
+              : vehicle.checkInTime?.toISOString() || vehicle.createdAt?.toISOString() || new Date().toISOString()
+          ),
+          status: vehicle.status,
           spot: spot
             ? {
                 floor: spot.level,
