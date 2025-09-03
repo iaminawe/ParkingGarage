@@ -13,9 +13,9 @@ export class SecurityMiddleware {
   private cacheService: CacheService | null = null;
 
   constructor() {
-    // Initialize CacheService only if Redis configuration is available
+    // Get or create CacheService singleton with security-specific configuration
     try {
-      this.cacheService = new CacheService({
+      this.cacheService = CacheService.getInstance({
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
         password: process.env.REDIS_PASSWORD,
@@ -24,6 +24,10 @@ export class SecurityMiddleware {
         maxRetries: 3,
         retryDelayMs: 1000,
       });
+      
+      if (!this.cacheService) {
+        console.warn('CacheService singleton not available, using in-memory fallback');
+      }
     } catch (error) {
       console.warn('CacheService initialization failed, using in-memory fallback:', error);
       this.cacheService = null;
@@ -204,14 +208,70 @@ export class SecurityMiddleware {
         let score = 0;
 
         if (this.cacheService) {
-          // Use CacheService if available
-          const currentScore = (await this.cacheService.get(key)) || '0';
-          score = parseInt(String(currentScore), 10);
-
-          // Increase score for suspicious patterns
-          if (this.isSuspiciousRequest(req)) {
-            score += 1;
-            await this.cacheService.set(key, score.toString(), 3600); // 1 hour TTL
+          try {
+            // Use CacheService if available
+            const currentScore = await this.cacheService.get(key);
+            
+            // If cache returns null due to connection issues, disable cache
+            if (currentScore === null) {
+              // Check if this is a connection error by trying to set a test value
+              const testResult = await this.cacheService.set('_test_connection', '1', 1);
+              if (!testResult) {
+                // Connection failed, disable cache and fall back to in-memory
+                console.warn('Cache service connection failed, falling back to in-memory');
+                this.cacheService = null;
+                
+                // Use in-memory fallback for this request
+                const now = Date.now();
+                const entry = inMemoryScores.get(key);
+                
+                if (entry && entry.expires > now) {
+                  score = entry.score;
+                } else {
+                  score = 0;
+                }
+                
+                if (this.isSuspiciousRequest(req)) {
+                  score += 1;
+                  inMemoryScores.set(key, { score, expires: now + 3600000 }); // 1 hour TTL
+                }
+              } else {
+                // Cache is working, key just doesn't exist yet
+                score = 0;
+                if (this.isSuspiciousRequest(req)) {
+                  score += 1;
+                  await this.cacheService.set(key, score.toString(), 3600); // 1 hour TTL
+                }
+              }
+            } else {
+              // Cache returned a value
+              score = parseInt(String(currentScore), 10);
+              
+              // Increase score for suspicious patterns
+              if (this.isSuspiciousRequest(req)) {
+                score += 1;
+                await this.cacheService.set(key, score.toString(), 3600); // 1 hour TTL
+              }
+            }
+          } catch (cacheError) {
+            // If cache fails, fall back to in-memory tracking for this request
+            console.warn('Cache operation failed, falling back to in-memory:', cacheError);
+            this.cacheService = null; // Disable cache for future requests
+            
+            // Use in-memory fallback for this request
+            const now = Date.now();
+            const entry = inMemoryScores.get(key);
+            
+            if (entry && entry.expires > now) {
+              score = entry.score;
+            } else {
+              score = 0;
+            }
+            
+            if (this.isSuspiciousRequest(req)) {
+              score += 1;
+              inMemoryScores.set(key, { score, expires: now + 3600000 }); // 1 hour TTL
+            }
           }
         } else {
           // Use in-memory fallback

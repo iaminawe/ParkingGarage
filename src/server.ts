@@ -1,6 +1,7 @@
 import { Server as HTTPServer } from 'http';
 import { serverConfig, logServerConfig, getServerUrl, features } from './config';
 import { DatabaseService } from './services/DatabaseService';
+import { CacheService } from './services/CacheService';
 import { SocketService } from './services/SocketService';
 import { socketIORegistry } from './services/SocketIORegistry';
 import type {
@@ -11,6 +12,18 @@ import type {
 
 // Initialize services before any imports that might use them
 const dbService = DatabaseService.getInstance();
+
+// Initialize CacheService singleton if Redis is available
+const cacheService = CacheService.getInstance({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD,
+  keyPrefix: 'parking:',
+  defaultTTL: 3600,
+  maxRetries: 3,
+  retryDelayMs: 1000,
+});
+
 const socketService = SocketService.getInstance({
   cors: serverConfig.cors,
   transports: serverConfig.transports,
@@ -132,12 +145,16 @@ class ResourceManager {
       console.log('🔌 Phase 2: Closing Socket.IO connections...');
       await socketService.shutdown();
 
-      // Phase 3: Database cleanup
-      console.log('💾 Phase 3: Closing database connections...');
+      // Phase 3: Close cache service
+      console.log('🗄️ Phase 3: Closing cache service...');
+      await ResourceManager.closeCacheService();
+
+      // Phase 4: Database cleanup
+      console.log('💾 Phase 4: Closing database connections...');
       await ResourceManager.closeDatabaseConnections();
 
-      // Phase 4: Wait for HTTP server to finish existing requests
-      console.log('🌐 Phase 4: Waiting for HTTP server to close...');
+      // Phase 5: Wait for HTTP server to finish existing requests
+      console.log('🌐 Phase 5: Waiting for HTTP server to close...');
       if (server) {
         await ResourceManager.closeHTTPServer(server);
       }
@@ -162,6 +179,27 @@ class ResourceManager {
     }
   }
 
+
+  /**
+   * Close cache service connections
+   * 
+   * Disconnects from Redis cache service if available.
+   * 
+   * @returns Promise that resolves when cache service is closed
+   */
+  private static async closeCacheService(): Promise<void> {
+    try {
+      if (cacheService) {
+        await cacheService.disconnect();
+        console.log('✅ Cache service closed successfully');
+      } else {
+        console.log('ℹ️ Cache service was not initialized');
+      }
+    } catch (error) {
+      console.error('❌ Error closing cache service:', error);
+      // Don't throw - cache service closure is not critical for shutdown
+    }
+  }
 
   /**
    * Close database connections using DatabaseService
