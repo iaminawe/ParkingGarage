@@ -602,3 +602,54 @@ export interface AuthContextType extends AuthState {
   logout: () => void
   refreshAuth: () => Promise<void>
 }
+
+// Floor Management Types
+export interface Floor {
+  id: string
+  garageId: string
+  floorNumber: number
+  description?: string
+  totalSpots: number
+  availableSpots?: number
+  occupancyRate?: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  garage?: ParkingGarage
+  spots?: ParkingSpot[]
+}
+
+export interface FloorStatistics {
+  totalFloors: number
+  activeFloors: number
+  totalSpots: number
+  availableSpots: number
+  occupiedSpots: number
+  occupancyRate: number
+  floorBreakdown: {
+    floorNumber: number
+    totalSpots: number
+    availableSpots: number
+    occupancyRate: number
+  }[]
+}
+
+export interface BayInfo {
+  bayNumber: string
+  totalSpots: number
+  availableSpots: number
+  occupiedSpots: number
+  occupancyRate: number
+  spots?: ParkingSpot[]
+}
+
+export interface FloorFilters {
+  garageId?: string
+  floorNumber?: number
+  isActive?: boolean
+  hasAvailableSpots?: boolean
+  limit?: number
+  offset?: number
+  sort?: 'floorNumber' | 'totalSpots' | 'createdAt' | 'updatedAt'
+  order?: 'asc' | 'desc'
+}

@@ -17,6 +17,10 @@ import type {
   PeakHoursData,
   SpotUtilizationData,
   AnalyticsFilters,
+  Floor,
+  FloorStatistics,
+  BayInfo,
+  FloorFilters,
 } from '@/types/api'
 
 class ApiService {
@@ -24,7 +28,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8742/api',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -88,7 +92,7 @@ class ApiService {
     return this.get<ApiResponse<ParkingGarage[]>>('/garage')
   }
 
-  async getGarageById(id: string): Promise<ApiResponse<ParkingGarage>> {
+  async getGarageById(_id: string): Promise<ApiResponse<ParkingGarage>> {
     return this.get<ApiResponse<ParkingGarage>>(`/garage`)
   }
 
@@ -96,11 +100,11 @@ class ApiService {
     return this.post<ApiResponse<ParkingGarage>>('/garage/initialize', garage)
   }
 
-  async updateGarage(id: string, garage: Partial<ParkingGarage>): Promise<ApiResponse<ParkingGarage>> {
+  async updateGarage(_id: string, garage: Partial<ParkingGarage>): Promise<ApiResponse<ParkingGarage>> {
     return this.put<ApiResponse<ParkingGarage>>(`/garage/config`, garage)
   }
 
-  async deleteGarage(id: string): Promise<ApiResponse<void>> {
+  async deleteGarage(_id: string): Promise<ApiResponse<void>> {
     return this.delete<ApiResponse<void>>(`/garage/reset`)
   }
 
@@ -441,7 +445,7 @@ class ApiService {
   }
 
   // Check-in/Check-out API methods
-  async getAvailability(garageId: string): Promise<ApiResponse<{
+  async getAvailability(_garageId: string): Promise<ApiResponse<{
     overall: {
       total: number
       available: number
@@ -457,7 +461,7 @@ class ApiService {
     return this.get<ApiResponse<any>>(`/checkin/availability`)
   }
 
-  async getRates(garageId: string): Promise<ApiResponse<{
+  async getRates(_garageId: string): Promise<ApiResponse<{
     standard: number
     compact: number
     oversized: number
@@ -538,6 +542,34 @@ class ApiService {
     return this.post<ApiResponse<any>>(`/sessions/${sessionId}/checkout`)
   }
 
+    // Get current parking sessions with enhanced details
+  async getCurrentSessions(params?: {
+    garageId?: string
+    floorId?: string
+    search?: string
+    page?: number
+    limit?: number
+  }): Promise<PaginatedResponse<ParkingSession & {
+    vehicle: Vehicle
+    spot: ParkingSpot
+    garage: ParkingGarage
+    duration: number
+    estimatedCost: number
+  }>> {
+    const queryParams = new URLSearchParams()
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    return this.get<PaginatedResponse<any>>(`/sessions/current${query}`)
+  }
+
   // Legacy license plate-based methods for backward compatibility
   async getCheckoutEstimateByLicensePlate(licensePlate: string): Promise<ApiResponse<{
     licensePlate: string
@@ -579,6 +611,211 @@ class ApiService {
     }
   }>> {
     return this.post<ApiResponse<any>>('/parking/checkout', data)
+  }
+
+  // Floor API methods
+  async getFloors(filters?: FloorFilters): Promise<ApiResponse<Floor[]>> {
+    const params = new URLSearchParams()
+    
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.append(key, String(value))
+        }
+      })
+    }
+    
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return this.get<ApiResponse<Floor[]>>(`/floors${query}`)
+  }
+
+  async getFloorById(id: string): Promise<ApiResponse<Floor>> {
+    return this.get<ApiResponse<Floor>>(`/floors/${id}`)
+  }
+
+  async getFloorStatistics(garageId?: string): Promise<ApiResponse<FloorStatistics>> {
+    const query = garageId ? `?garageId=${garageId}` : ''
+    return this.get<ApiResponse<FloorStatistics>>(`/floors/statistics${query}`)
+  }
+
+  async createFloor(floor: {
+    garageId: string
+    floorNumber: number
+    description?: string
+    totalSpots?: number
+    isActive?: boolean
+  }): Promise<ApiResponse<Floor>> {
+    return this.post<ApiResponse<Floor>>('/floors', floor)
+  }
+
+  async updateFloor(id: string, floor: Partial<Floor>): Promise<ApiResponse<Floor>> {
+    return this.put<ApiResponse<Floor>>(`/floors/${id}`, floor)
+  }
+
+  async deleteFloor(id: string): Promise<ApiResponse<void>> {
+    return this.delete<ApiResponse<void>>(`/floors/${id}`)
+  }
+
+  async getFloorBays(id: string, options?: {
+    includeSpots?: boolean
+    status?: 'available' | 'occupied' | 'all'
+  }): Promise<ApiResponse<BayInfo[]>> {
+    const params = new URLSearchParams()
+    
+    if (options) {
+      Object.entries(options).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (typeof value === 'boolean') {
+            params.append(key, value.toString())
+          } else if (typeof value === 'string' && value !== '') {
+            params.append(key, value)
+          } else if (typeof value !== 'string') {
+            params.append(key, String(value))
+          }
+        }
+      })
+    }
+    
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return this.get<ApiResponse<BayInfo[]>>(`/floors/${id}/bays${query}`)
+  }
+
+  async getBayDetails(floorId: string, bayNumber: string, options?: {
+    includeSpots?: boolean
+    status?: 'available' | 'occupied' | 'all'
+  }): Promise<ApiResponse<BayInfo>> {
+    const params = new URLSearchParams()
+    
+    if (options) {
+      Object.entries(options).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (typeof value === 'boolean') {
+            params.append(key, value.toString())
+          } else if (typeof value === 'string' && value !== '') {
+            params.append(key, value)
+          } else if (typeof value !== 'string') {
+            params.append(key, String(value))
+          }
+        }
+      })
+    }
+    
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return this.get<ApiResponse<BayInfo>>(`/floors/${floorId}/bays/${bayNumber}${query}`)
+  }
+
+  async updateFloorSpotCount(id: string): Promise<ApiResponse<Floor>> {
+    return this.put<ApiResponse<Floor>>(`/floors/${id}/update-spot-count`)
+  }
+
+  // Enhanced check-in/check-out with license plate search
+  async searchLicensePlate(query: string): Promise<ApiResponse<{
+    licensePlate: string
+    vehicle?: Vehicle
+    currentSession?: ParkingSession
+    isCurrentlyParked: boolean
+    lastSession?: ParkingSession
+  }[]>> {
+    return this.get<ApiResponse<any[]>>(`/vehicles/search?licensePlate=${encodeURIComponent(query)}`)
+  }
+
+  // Get live garage status with real-time occupancy
+  async getLiveGarageStatus(garageId?: string): Promise<ApiResponse<{
+    garages: {
+      id: string
+      name: string
+      totalSpots: number
+      availableSpots: number
+      occupiedSpots: number
+      occupancyRate: number
+      floors: {
+        floorNumber: number
+        totalSpots: number
+        availableSpots: number
+        occupancyRate: number
+      }[]
+    }[]
+    overall: {
+      totalSpots: number
+      availableSpots: number
+      occupiedSpots: number
+      occupancyRate: number
+    }
+  }>> {
+    const query = garageId ? `?garageId=${garageId}` : ''
+    return this.get<ApiResponse<any>>(`/garage/live-status${query}`)
+  }
+
+  // Get spots with enhanced filtering
+  async getSpotsAdvanced(params?: {
+    garageId?: string
+    floorId?: string
+    floorNumber?: number
+    bay?: string
+    status?: ParkingSpot['status']
+    type?: ParkingSpot['type']
+    search?: string
+    includeVehicle?: boolean
+    includeSession?: boolean
+    page?: number
+    limit?: number
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }): Promise<PaginatedResponse<ParkingSpot>> {
+    const queryParams = new URLSearchParams()
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    return this.get<PaginatedResponse<ParkingSpot>>(`/spots${query}`)
+  }
+
+  // Update multiple spots at once
+  async bulkUpdateSpots(spotIds: string[], updates: {
+    status?: ParkingSpot['status']
+    type?: ParkingSpot['type']
+    maintenanceNotes?: string
+  }): Promise<ApiResponse<ParkingSpot[]>> {
+    return this.post<ApiResponse<ParkingSpot[]>>('/spots/bulk-update', {
+      spotIds,
+      updates
+    })
+  }
+
+  // Get recent activity
+  async getRecentActivity(params?: {
+    limit?: number
+    type?: 'checkin' | 'checkout' | 'all'
+    garageId?: string
+  }): Promise<ApiResponse<{
+    id: string
+    type: 'checkin' | 'checkout'
+    timestamp: string
+    licensePlate: string
+    spotNumber: string
+    floor: number
+    bay?: string
+    duration?: number
+    cost?: number
+  }[]>> {
+    const queryParams = new URLSearchParams()
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
+    return this.get<ApiResponse<any[]>>(`/sessions/recent${query}`)
   }
 }
 

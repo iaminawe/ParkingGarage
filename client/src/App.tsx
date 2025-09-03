@@ -6,9 +6,11 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { HomePage } from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
 import SignupPage from '@/pages/SignupPage'
-import Dashboard from '@/components/dashboard/Dashboard'
+import EnhancedDashboard from '@/components/dashboard/EnhancedDashboard'
 import { VehicleManagement } from '@/components/vehicles/VehicleManagement'
+import CheckInCheckOut from '@/components/vehicles/CheckInCheckOut'
 import { SpotManagement } from '@/components/spots/SpotManagement'
+import FloorManagement from '@/components/floors/FloorManagement'
 import { GarageConfiguration } from '@/components/garage/GarageConfiguration'
 import { SessionManagement } from '@/components/sessions/SessionManagement'
 import AnalyticsPage from '@/components/analytics/AnalyticsPage'
@@ -34,7 +36,12 @@ function App() {
                 }
               >
                 <Route index element={<HomePage />} />
-                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="dashboard" element={<EnhancedDashboard />} />
+                <Route path="checkin-checkout" element={
+                  <ProtectedRoute requiredRole="operator">
+                    <CheckInCheckOut />
+                  </ProtectedRoute>
+                } />
                 <Route 
                   path="garages" 
                   element={
@@ -56,6 +63,14 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="operator">
                       <SpotManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="floors" 
+                  element={
+                    <ProtectedRoute requiredRole="operator">
+                      <FloorManagement />
                     </ProtectedRoute>
                   } 
                 />
