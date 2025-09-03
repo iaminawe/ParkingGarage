@@ -1,192 +1,417 @@
+# ==============================================================================
+# Production Docker Compose Configuration for ParkingGarage Application
+# ==============================================================================
+
 version: '3.8'
 
 services:
+  # Main Application Service
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+        VERSION: ${VERSION:-1.0.0}
+    image: parkinggarage-api:${VERSION:-latest}
     container_name: parkinggarage-app
+    restart: unless-stopped
+    
+    # Port configuration
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
+    
+    # Environment variables with security best practices
     environment:
+      # Application Configuration
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/data/parkinggarage.db
       - PORT=3000
       - HOST=0.0.0.0
-      - LOG_LEVEL=info
-      - RATE_LIMIT_WINDOW_MS=900000
-      - RATE_LIMIT_MAX_REQUESTS=100
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      
+      # Database Configuration
+      - DATABASE_URL=file:/app/data/parkinggarage.db
+      
+      # Security Configuration
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - BCRYPT_ROUNDS=${BCRYPT_ROUNDS:-12}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      
+      # Rate Limiting Configuration
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-900000}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-100}
+      - RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS=${RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS:-false}
+      
+      # Email Configuration (optional)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@parkinggarage.com}
+      
+      # Monitoring and Performance
+      - ENABLE_METRICS=${ENABLE_METRICS:-true}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - PERFORMANCE_MONITORING=${PERFORMANCE_MONITORING:-true}
+      
+      # Feature Flags
+      - ENABLE_SWAGGER=${ENABLE_SWAGGER:-false}
+      - ENABLE_STATUS_MONITOR=${ENABLE_STATUS_MONITOR:-false}
+      
+    # Volume mounts for persistence
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./backups:/app/backups
-      - ./uploads:/app/uploads
-    restart: unless-stopped
+      - app_data:/app/data
+      - app_logs:/app/logs
+      - app_backups:/app/backups
+      - app_uploads:/app/uploads:rw
+      - app_temp:/app/temp:rw
+    
+    # Resource limits for security and stability
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Health check configuration
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "node", "/app/healthcheck.js"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    depends_on:
-      - nginx
+    
+    # Security configuration
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    
+    # Network configuration
     networks:
       - parkinggarage-network
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Nginx Reverse Proxy
   nginx:
-    image: nginx:alpine
+    image: nginx:1.25-alpine
     container_name: parkinggarage-nginx
+    restart: unless-stopped
+    
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./ssl:/etc/ssl/certs:ro
-      - ./logs/nginx:/var/log/nginx
+      - nginx_cache:/var/cache/nginx
+      - nginx_logs:/var/log/nginx
+      - ${SSL_CERT_PATH:-./ssl}:/etc/ssl/certs:ro
+    
+    environment:
+      - NGINX_HOST=${NGINX_HOST:-localhost}
+      - NGINX_PORT=80
+      - UPSTREAM_SERVER=app:3000
+    
     depends_on:
-      - app
-    restart: unless-stopped
+      app:
+        condition: service_healthy
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    
     networks:
       - parkinggarage-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Redis Cache (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: parkinggarage-redis
+    restart: unless-stopped
+    
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    
+    command: >
+      redis-server 
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    
+    volumes:
+      - redis_data:/data
+    
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    
+    networks:
+      - parkinggarage-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Backup Service
   backup:
     build:
       context: .
       dockerfile: Dockerfile
+    image: parkinggarage-api:${VERSION:-latest}
     container_name: parkinggarage-backup
+    restart: unless-stopped
+    
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/parkinggarage.db
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 2 * * *}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+      - S3_BACKUP_ENABLED=${S3_BACKUP_ENABLED:-false}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - S3_BUCKET=${S3_BUCKET:-}
+    
     volumes:
-      - ./data:/app/data:ro
-      - ./backups:/app/backups
-      - ./logs:/app/logs:ro
+      - app_data:/app/data:ro
+      - app_backups:/app/backups:rw
+      - app_logs:/app/logs:ro
+    
     command: >
       sh -c "
-        echo 'Setting up backup schedule...' &&
-        crond -f &
-        echo '0 2 * * * /app/scripts/backup.sh' | crontab - &&
-        echo 'Backup service started. Running initial backup...' &&
+        echo 'Setting up backup service...' &&
+        echo '${BACKUP_SCHEDULE:-0 2 * * *} /app/scripts/backup.sh' > /var/spool/cron/crontabs/parkinggarage &&
+        echo 'Running initial backup...' &&
         /app/scripts/backup.sh &&
-        echo 'Initial backup completed. Waiting for scheduled backups...' &&
-        tail -f /var/log/cron.log
+        echo 'Backup service ready. Starting cron daemon...' &&
+        crond -f -l 2
       "
-    restart: unless-stopped
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    depends_on:
+      app:
+        condition: service_healthy
+    
     networks:
       - parkinggarage-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
+  # Monitoring Service
   monitoring:
     image: prom/node-exporter:latest
     container_name: parkinggarage-monitoring
+    restart: unless-stopped
+    
     ports:
-      - "9100:9100"
+      - "${METRICS_PORT:-9100}:9100"
+    
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+    
     command:
       - '--path.procfs=/host/proc'
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    restart: unless-stopped
+      - '--web.listen-address=:9100'
+      - '--log.level=warn'
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 64M
+        reservations:
+          cpus: '0.05'
+          memory: 16M
+    
     networks:
       - parkinggarage-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
+  # Health Check Service
   healthcheck:
     build:
       context: .
       dockerfile: Dockerfile
+    image: parkinggarage-api:${VERSION:-latest}
     container_name: parkinggarage-healthcheck
+    restart: unless-stopped
+    
     environment:
       - NODE_ENV=production
-      - HEALTH_CHECK_URL=http://app:3000
+      - HEALTH_CHECK_URL=http://app:3000/api/v1/health
+      - HEALTH_CHECK_INTERVAL=${HEALTH_CHECK_INTERVAL:-300}
+      - NOTIFICATION_WEBHOOK=${NOTIFICATION_WEBHOOK:-}
+      - ALERT_EMAIL=${ALERT_EMAIL:-}
+    
     volumes:
-      - ./logs:/app/logs
+      - app_logs:/app/logs:rw
+    
     command: >
       sh -c "
         echo 'Setting up health monitoring...' &&
-        crond -f &
-        echo '*/5 * * * * /app/scripts/health-check.sh --silent' | crontab - &&
-        echo 'Health monitoring started.' &&
-        tail -f /app/logs/health.log
+        echo '*/${HEALTH_CHECK_INTERVAL:-5} * * * * /app/scripts/health-check.sh' > /var/spool/cron/crontabs/parkinggarage &&
+        echo 'Health monitoring ready. Starting cron daemon...' &&
+        crond -f -l 2
       "
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+        reservations:
+          cpus: '0.02'
+          memory: 16M
+    
     depends_on:
-      - app
-    restart: unless-stopped
+      app:
+        condition: service_healthy
+    
     networks:
       - parkinggarage-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
+# ==============================================================================
+# Named Volumes for Data Persistence
+# ==============================================================================
 volumes:
+  # Application data volume
   app_data:
     driver: local
     driver_opts:
       type: none
       device: ${PWD}/data
-      o: bind
-  
+      o: bind,rw
+
+  # Application logs volume
   app_logs:
     driver: local
     driver_opts:
       type: none
       device: ${PWD}/logs
-      o: bind
-  
+      o: bind,rw
+
+  # Backup storage volume
   app_backups:
     driver: local
     driver_opts:
       type: none
       device: ${PWD}/backups
-      o: bind
+      o: bind,rw
 
+  # Upload storage volume
+  app_uploads:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/uploads
+      o: bind,rw
+
+  # Temporary files volume
+  app_temp:
+    driver: local
+
+  # Redis data volume
+  redis_data:
+    driver: local
+
+  # Nginx cache volume
+  nginx_cache:
+    driver: local
+
+  # Nginx logs volume
+  nginx_logs:
+    driver: local
+
+# ==============================================================================
+# Network Configuration
+# ==============================================================================
 networks:
   parkinggarage-network:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: pg-bridge
     ipam:
       driver: default
       config:
         - subnet: 172.20.0.0/16
-
-# Development override
-# Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
----
-version: '3.8'
-
-services:
-  app-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    container_name: parkinggarage-app-dev
-    ports:
-      - "3000:3000"
-      - "9229:9229"  # Debug port
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=file:/app/data/parkinggarage.db
-      - PORT=3000
-      - DEBUG=*
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - ./data:/app/data
-      - ./logs:/app/logs
-    command: npm run dev
-    restart: unless-stopped
-    networks:
-      - parkinggarage-network
-
-  # Database GUI for development
-  sqlite-web:
-    image: coleifer/sqlite-web
-    container_name: parkinggarage-sqlite-web
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/data
-    command: sqlite_web -H 0.0.0.0 -p 8080 /data/parkinggarage.db
-    depends_on:
-      - app-dev
-    restart: unless-stopped
-    networks:
-      - parkinggarage-network
+          gateway: 172.20.0.1
+    labels:
+      - "com.parkinggarage.network=main"

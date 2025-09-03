@@ -1,0 +1,225 @@
+name: Docker Build and Deploy
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/parkinggarage-api
+
+jobs:
+  # Security scanning and vulnerability assessment
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Build and test the Docker image
+  build:
+    runs-on: ubuntu-latest
+    needs: security-scan
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-metadata: ${{ steps.meta.outputs.json }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Test Docker image
+        run: |
+          docker run --rm --name test-container \
+            -e NODE_ENV=production \
+            -e JWT_SECRET=test-secret-for-ci-only \
+            -e SESSION_SECRET=test-session-secret-for-ci-only \
+            --health-cmd="node /app/healthcheck.js" \
+            --health-interval=30s \
+            --health-timeout=10s \
+            --health-retries=3 \
+            --health-start-period=40s \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }} &
+          
+          # Wait for container to be healthy
+          sleep 45
+          
+          # Check if container is running
+          if docker ps | grep -q test-container; then
+            echo "Container is running successfully"
+            docker logs test-container
+            docker stop test-container
+          else
+            echo "Container failed to start"
+            docker logs test-container || true
+            exit 1
+          fi
+
+  # Security scan of the built image
+  image-security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Run Trivy vulnerability scanner on image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-image-results.sarif'
+
+  # Deploy to staging environment
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [build, image-security-scan]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging.parkinggarage.com
+    steps:
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop"
+          # Add your staging deployment commands here
+          # Example: SSH into staging server and update docker-compose
+
+  # Deploy to production environment
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [build, image-security-scan]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://parkinggarage.com
+    steps:
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment..."
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          # Add your production deployment commands here
+          # Example: SSH into production server and update docker-compose
+
+  # Generate SBOM and security attestation
+  provenance:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      actions: read
+      id-token: write
+      packages: write
+    steps:
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+  # Performance testing of the deployed application
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run performance tests
+        run: |
+          # Start the application container for testing
+          docker run -d --name perf-test \
+            -p 3000:3000 \
+            -e NODE_ENV=production \
+            -e JWT_SECRET=test-secret-for-performance-testing \
+            -e SESSION_SECRET=test-session-secret-for-performance-testing \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          
+          # Wait for application to start
+          sleep 30
+          
+          # Install performance testing tools
+          npm install -g autocannon
+          
+          # Run performance tests
+          autocannon -c 10 -d 30 -p 10 http://localhost:3000/api/v1/health
+          
+          # Cleanup
+          docker stop perf-test
+          docker rm perf-test
