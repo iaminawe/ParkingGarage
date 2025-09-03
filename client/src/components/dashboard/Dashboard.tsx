@@ -30,24 +30,24 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'error'>('disconnected')
 
+  // Helper function to fetch API data with fallback
+  const fetchWithFallback = async <T,>(
+    apiCall: () => Promise<any>,
+    fallbackValue: T,
+    endpoint: string
+  ): Promise<T> => {
+    try {
+      const response = await apiCall()
+      return response.success ? response.data : fallbackValue
+    } catch (error) {
+      console.warn(`Failed to fetch ${endpoint}:`, error)
+      return fallbackValue
+    }
+  }
+
   const fetchDashboardData = async () => {
     try {
       setError(null)
-      
-      // Fetch each API endpoint independently and handle failures gracefully
-      const fetchWithFallback = async <T>(
-        apiCall: () => Promise<any>,
-        fallbackValue: T,
-        endpoint: string
-      ): Promise<T> => {
-        try {
-          const response = await apiCall()
-          return response.success ? response.data : fallbackValue
-        } catch (error) {
-          console.warn(`Failed to fetch ${endpoint}:`, error)
-          return fallbackValue
-        }
-      }
 
       const [garages, systemAnalytics, sessions] = await Promise.all([
         fetchWithFallback(
