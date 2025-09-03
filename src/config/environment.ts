@@ -28,9 +28,12 @@ const environmentSchema = z.object({
       'JWT_SECRET cannot use default/example values'
     )
     .refine(
-      (val, ctx) => {
-        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
-        return val.length >= 64;
+      (val) => {
+        // In production, JWT_SECRET should be at least 64 characters
+        if (process.env.NODE_ENV === 'production') {
+          return val.length >= 64;
+        }
+        return true;
       },
       'JWT_SECRET must be at least 64 characters long in production'
     ),
@@ -46,9 +49,12 @@ const environmentSchema = z.object({
       'JWT_REFRESH_SECRET cannot use default/example values'
     )
     .refine(
-      (val, ctx) => {
-        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
-        return val.length >= 64;
+      (val) => {
+        // In production, JWT_REFRESH_SECRET should be at least 64 characters
+        if (process.env.NODE_ENV === 'production') {
+          return val.length >= 64;
+        }
+        return true;
       },
       'JWT_REFRESH_SECRET must be at least 64 characters long in production'
     ),
@@ -63,9 +69,12 @@ const environmentSchema = z.object({
     .pipe(z.number().min(10).max(15))
     .default('12')
     .refine(
-      (val, ctx) => {
-        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
-        return val >= 12;
+      (val) => {
+        // In production, BCRYPT_SALT_ROUNDS should be at least 12
+        if (process.env.NODE_ENV === 'production') {
+          return val >= 12;
+        }
+        return true;
       },
       'BCRYPT_SALT_ROUNDS must be at least 12 in production'
     ),
