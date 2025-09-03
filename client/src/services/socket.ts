@@ -5,7 +5,7 @@ type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'error'
 
 class SocketService {
   private socket: Socket | null = null
-  private listeners: Map<string, Array<(...args: any[]) => void>> = new Map()
+  private listeners: Map<string, Array<(...args: unknown[]) => void>> = new Map()
   private connectionStatus: ConnectionStatus = 'disconnected'
   private statusCallbacks: Array<(status: ConnectionStatus) => void> = []
 
@@ -105,7 +105,7 @@ class SocketService {
   }
 
   // Generic event listeners
-  on(event: string, callback: (...args: any[]) => void): void {
+  on(event: string, callback: (...args: unknown[]) => void): void {
     if (!this.socket) {
       console.warn('Socket not connected. Call connect() first.')
       return
@@ -120,7 +120,7 @@ class SocketService {
     this.listeners.get(event)?.push(callback)
   }
 
-  off(event: string, callback?: (...args: any[]) => void): void {
+  off(event: string, callback?: (...args: unknown[]) => void): void {
     if (!this.socket) return
 
     if (callback) {
@@ -166,20 +166,20 @@ class SocketService {
     this.on('garage:status', callback)
   }
 
-  onSessionStart(callback: (sessionData: any) => void): void {
+  onSessionStart(callback: (sessionData: unknown) => void): void {
     this.on('session:started', callback)
   }
 
-  onSessionEnd(callback: (sessionData: any) => void): void {
+  onSessionEnd(callback: (sessionData: unknown) => void): void {
     this.on('session:ended', callback)
   }
 
   // Admin/operator specific events
-  onEmergencyAlert(callback: (alert: any) => void): void {
+  onEmergencyAlert(callback: (alert: unknown) => void): void {
     this.on('emergency:alert', callback)
   }
 
-  onSystemNotification(callback: (notification: any) => void): void {
+  onSystemNotification(callback: (notification: unknown) => void): void {
     this.on('system:notification', callback)
   }
 

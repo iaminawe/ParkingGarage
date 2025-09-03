@@ -5,7 +5,7 @@
 /**
  * Convert array of objects to CSV format and trigger download
  */
-export const exportToCsv = (data: Record<string, any>[], filename: string): void => {
+export const exportToCsv = (data: Record<string, unknown>[], filename: string): void => {
   if (!data || data.length === 0) {
     console.warn('No data to export')
     return
@@ -59,7 +59,7 @@ export const exportToExcel = (data: Record<string, unknown>[], filename: string)
 /**
  * Helper function to escape CSV values
  */
-const escapeCSVValue = (value: any): string => {
+const escapeCSVValue = (value: unknown): string => {
   if (value === null || value === undefined) {
     return ''
   }
