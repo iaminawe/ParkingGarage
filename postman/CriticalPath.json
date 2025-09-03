@@ -1,0 +1,1539 @@
+{
+  "info": {
+    "name": "Parking Garage - Critical Paths",
+    "description": "Critical path testing collection for the Parking Garage Management System. This collection focuses on essential business workflows and user journeys.\n\n## Critical Path Categories\n1. **Garage Initialization & Layout**: Setting up floors, bays, and spots\n2. **Parking Spot Management**: Availability checking and status management\n3. **Vehicle Check-in Flow**: Complete check-in process with spot assignment\n4. **Vehicle Check-out Flow**: Complete check-out process with billing\n5. **End-to-End Scenarios**: Full customer journey workflows\n6. **Error Handling**: Common failure scenarios and edge cases\n\n## Prerequisites\n- Import the Parking Garage Environment\n- Ensure API server is running on localhost:3000\n- Collection variables will be auto-generated during execution\n\n## Usage\n1. Run 'Initialize Test Environment' folder first\n2. Execute critical path folders in sequence\n3. View test results and performance metrics\n4. Clean up with 'Reset Test Environment' folder",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "parking-garage-critical-paths-v1",
+    "_exporter_id": "parking-garage-system"
+  },
+  "item": [
+    {
+      "name": "Initialize Test Environment",
+      "description": "Set up the garage environment for critical path testing",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Verify API is healthy and ready for testing"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('API is healthy', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.equal('healthy');",
+                  "});",
+                  "",
+                  "pm.test('Response time acceptable', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Initialize Garage Layout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Critical Path Test Garage\",\n  \"floors\": [\n    {\n      \"number\": 1,\n      \"bays\": 2,\n      \"spotsPerBay\": 5\n    },\n    {\n      \"number\": 2,\n      \"bays\": 2,\n      \"spotsPerBay\": 5\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/garage",
+              "host": ["{{baseUrl}}"],
+              "path": ["garage"]
+            },
+            "description": "Create a test garage with 2 floors, 2 bays each, 5 spots per bay (20 total spots)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Garage initialized successfully', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spotsCreated).to.equal(20);",
+                  "    pm.expect(jsonData.garage.name).to.equal('Critical Path Test Garage');",
+                  "});",
+                  "",
+                  "pm.test('Floor and bay structure correct', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.garage.floors).to.have.length(2);",
+                  "    pm.expect(jsonData.garage.floors[0].bays).to.equal(2);",
+                  "    pm.expect(jsonData.garage.floors[0].spotsPerBay).to.equal(5);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Initial Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/checkin/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin", "availability"]
+            },
+            "description": "Confirm all spots are available after initialization"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('All spots available initially', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.totalSpots).to.equal(20);",
+                  "    pm.expect(jsonData.availableSpots).to.equal(20);",
+                  "    pm.expect(jsonData.occupancyRate).to.equal(0);",
+                  "});",
+                  "",
+                  "pm.test('Vehicle type availability correct', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.byVehicleType.standard).to.be.greaterThan(0);",
+                  "    pm.expect(jsonData.byVehicleType.compact).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Critical Path 1: Garage Layout Management",
+      "description": "Test floor and bay management, spot configuration",
+      "item": [
+        {
+          "name": "Get Garage Configuration",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/garage?includeStats=true&includeSpots=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["garage"],
+              "query": [
+                {
+                  "key": "includeStats",
+                  "value": "true"
+                },
+                {
+                  "key": "includeSpots",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Retrieve complete garage configuration with statistics and spot details"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Configuration retrieved successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('garage');",
+                  "    pm.expect(jsonData).to.have.property('stats');",
+                  "    pm.expect(jsonData).to.have.property('spots');",
+                  "});",
+                  "",
+                  "pm.test('Floor structure matches initialization', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const floors = jsonData.garage.floors;",
+                  "    pm.expect(floors).to.have.length(2);",
+                  "    pm.expect(floors[0].number).to.equal(1);",
+                  "    pm.expect(floors[1].number).to.equal(2);",
+                  "});",
+                  "",
+                  "pm.test('Spot identifiers are unique and formatted correctly', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const spots = jsonData.spots;",
+                  "    const spotIds = spots.map(spot => spot.id);",
+                  "    const uniqueIds = [...new Set(spotIds)];",
+                  "    pm.expect(spotIds.length).to.equal(uniqueIds.length);",
+                  "    ",
+                  "    spots.forEach(spot => {",
+                  "        pm.expect(spot.id).to.match(/^F\\d+-B\\d+-S\\d{3}$/);",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Garage Rates",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"standard\": 5.00,\n  \"compact\": 4.00,\n  \"oversized\": 7.00,\n  \"ev_charging\": 3.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/garage/rates",
+              "host": ["{{baseUrl}}"],
+              "path": ["garage", "rates"]
+            },
+            "description": "Update hourly parking rates for critical path testing"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rates updated successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.rates.standard).to.equal(5.00);",
+                  "    pm.expect(jsonData.rates.compact).to.equal(4.00);",
+                  "});",
+                  "",
+                  "pm.test('Rate update affects all vehicle types', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const rates = jsonData.rates;",
+                  "    pm.expect(rates).to.have.property('standard');",
+                  "    pm.expect(rates).to.have.property('compact');",
+                  "    pm.expect(rates).to.have.property('oversized');",
+                  "    pm.expect(rates).to.have.property('ev_charging');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Critical Path 2: Parking Spot Management",
+      "description": "Test spot availability, status management, and queries",
+      "item": [
+        {
+          "name": "Get All Available Spots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/available",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "available"]
+            },
+            "description": "Retrieve all currently available parking spots"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Available spots returned successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spots).to.be.an('array');",
+                  "    pm.expect(jsonData.total).to.equal(20);",
+                  "});",
+                  "",
+                  "pm.test('All spots are available', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const spots = jsonData.spots;",
+                  "    spots.forEach(spot => {",
+                  "        pm.expect(spot.isOccupied).to.be.false;",
+                  "        pm.expect(spot.currentVehicle).to.be.null;",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Store first available spot for later use', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const firstSpot = jsonData.spots[0];",
+                  "    pm.collectionVariables.set('testSpotId', firstSpot.id);",
+                  "    pm.collectionVariables.set('testFloor', firstSpot.floor);",
+                  "    pm.collectionVariables.set('testBay', firstSpot.bay);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Available Spots by Vehicle Type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/available?vehicleType=standard",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "available"],
+              "query": [
+                {
+                  "key": "vehicleType",
+                  "value": "standard"
+                }
+              ]
+            },
+            "description": "Get available spots filtered by vehicle type compatibility"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Filtered spots returned', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spots).to.be.an('array');",
+                  "    pm.expect(jsonData.total).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('All returned spots support standard vehicles', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const spots = jsonData.spots;",
+                  "    spots.forEach(spot => {",
+                  "        pm.expect(['standard', 'oversized']).to.include(spot.type);",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Specific Spot Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{testSpotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{testSpotId}}"]
+            },
+            "description": "Retrieve detailed information for a specific parking spot"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Spot details retrieved successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spot).to.be.an('object');",
+                  "    pm.expect(jsonData.spot.id).to.equal(pm.collectionVariables.get('testSpotId'));",
+                  "});",
+                  "",
+                  "pm.test('Spot has required properties', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const spot = jsonData.spot;",
+                  "    pm.expect(spot).to.have.property('id');",
+                  "    pm.expect(spot).to.have.property('floor');",
+                  "    pm.expect(spot).to.have.property('bay');",
+                  "    pm.expect(spot).to.have.property('spot');",
+                  "    pm.expect(spot).to.have.property('type');",
+                  "    pm.expect(spot).to.have.property('isOccupied');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Spots with Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots?floor={{testFloor}}&status=available&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots"],
+              "query": [
+                {
+                  "key": "floor",
+                  "value": "{{testFloor}}"
+                },
+                {
+                  "key": "status",
+                  "value": "available"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Test spot filtering by floor and availability status"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Filtered spots returned correctly', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spots).to.be.an('array');",
+                  "    pm.expect(jsonData.spots.length).to.be.at.most(10);",
+                  "});",
+                  "",
+                  "pm.test('All returned spots match filters', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const expectedFloor = parseInt(pm.collectionVariables.get('testFloor'));",
+                  "    jsonData.spots.forEach(spot => {",
+                  "        pm.expect(spot.floor).to.equal(expectedFloor);",
+                  "        pm.expect(spot.isOccupied).to.be.false;",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Critical Path 3: Vehicle Check-in Flow",
+      "description": "Complete vehicle check-in process with spot assignment",
+      "item": [
+        {
+          "name": "Check Availability Before Check-in",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/checkin/availability/standard",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin", "availability", "standard"]
+            },
+            "description": "Verify availability for standard vehicle type before check-in"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Availability check successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.available).to.be.true;",
+                  "    pm.expect(jsonData.availableSpots).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('Store availability info for validation', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('preCheckinAvailable', jsonData.availableSpots);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Simulate Check-in (Preview)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"CRITICAL001\",\n  \"vehicleType\": \"standard\",\n  \"rateType\": \"hourly\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkin/simulate",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin", "simulate"]
+            },
+            "description": "Preview check-in operation without actually assigning a spot"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Simulation successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.wouldSucceed).to.be.true;",
+                  "    pm.expect(jsonData.assignedSpot).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('Simulation provides expected spot format', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.assignedSpot).to.match(/^F\\d+-B\\d+-S\\d{3}$/);",
+                  "    pm.expect(jsonData.estimatedRate).to.be.a('number');",
+                  "});",
+                  "",
+                  "pm.test('Store simulated spot for comparison', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('simulatedSpot', jsonData.assignedSpot);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actual Check-in Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"CRITICAL001\",\n  \"vehicleType\": \"standard\",\n  \"rateType\": \"hourly\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkin",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin"]
+            },
+            "description": "Perform actual vehicle check-in and spot assignment"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Check-in successful', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.spotId).to.be.a('string');",
+                  "    pm.expect(jsonData.checkInTime).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('Vehicle assigned to valid spot', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spotId).to.match(/^F\\d+-B\\d+-S\\d{3}$/);",
+                  "    pm.expect(jsonData.location).to.have.property('floor');",
+                  "    pm.expect(jsonData.location).to.have.property('bay');",
+                  "    pm.expect(jsonData.location).to.have.property('spot');",
+                  "});",
+                  "",
+                  "pm.test('Check-in time is recent', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const checkInTime = new Date(jsonData.checkInTime);",
+                  "    const now = new Date();",
+                  "    const timeDiff = Math.abs(now - checkInTime);",
+                  "    pm.expect(timeDiff).to.be.below(60000); // Within 1 minute",
+                  "});",
+                  "",
+                  "pm.test('Store check-in data for subsequent tests', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('checkedInLicense', 'CRITICAL001');",
+                  "    pm.collectionVariables.set('assignedSpotId', jsonData.spotId);",
+                  "    pm.collectionVariables.set('checkInTime', jsonData.checkInTime);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Spot is Now Occupied",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{assignedSpotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{assignedSpotId}}"]
+            },
+            "description": "Confirm the assigned spot is now marked as occupied"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Spot is now occupied', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spot.isOccupied).to.be.true;",
+                  "    pm.expect(jsonData.spot.currentVehicle).to.not.be.null;",
+                  "});",
+                  "",
+                  "pm.test('Current vehicle data is correct', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const vehicle = jsonData.spot.currentVehicle;",
+                  "    pm.expect(vehicle.licensePlate).to.equal('CRITICAL001');",
+                  "    pm.expect(vehicle.vehicleType).to.equal('standard');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Availability Decreased",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/checkin/availability/standard",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin", "availability", "standard"]
+            },
+            "description": "Confirm available spot count has decreased after check-in"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Available spots decreased by one', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    const preCheckin = parseInt(pm.collectionVariables.get('preCheckinAvailable'));",
+                  "    pm.expect(jsonData.availableSpots).to.equal(preCheckin - 1);",
+                  "});",
+                  "",
+                  "pm.test('Occupancy rate increased', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.occupancyRate).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Critical Path 4: Vehicle Check-out Flow",
+      "description": "Complete vehicle check-out process with billing",
+      "item": [
+        {
+          "name": "Simulate Checkout (Preview Billing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"CRITICAL001\",\n  \"applyGracePeriod\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkout/simulate",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkout", "simulate"]
+            },
+            "description": "Preview checkout billing without actually processing checkout"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Checkout simulation successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.wouldSucceed).to.be.true;",
+                  "    pm.expect(jsonData.billing).to.be.an('object');",
+                  "});",
+                  "",
+                  "pm.test('Billing calculation is reasonable', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const billing = jsonData.billing;",
+                  "    pm.expect(billing.baseRate).to.equal(5.00); // From rate update",
+                  "    pm.expect(billing.totalAmount).to.be.greaterThan(0);",
+                  "    pm.expect(billing.billableHours).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "pm.test('Store billing preview for comparison', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('previewTotal', jsonData.billing.totalAmount);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Vehicle Details Before Checkout",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/CRITICAL001",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "CRITICAL001"]
+            },
+            "description": "Retrieve vehicle parking details before checkout"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Vehicle found and parked', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.vehicle.status).to.equal('parked');",
+                  "    pm.expect(jsonData.vehicle.currentSpot).to.equal(pm.collectionVariables.get('assignedSpotId'));",
+                  "});",
+                  "",
+                  "pm.test('Parking duration is tracked', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const checkInTime = new Date(jsonData.vehicle.checkInTime);",
+                  "    const now = new Date();",
+                  "    const duration = (now - checkInTime) / 1000; // seconds",
+                  "    pm.expect(duration).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actual Checkout Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"CRITICAL001\",\n  \"paymentMethod\": \"credit_card\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkout"]
+            },
+            "description": "Perform actual vehicle checkout and payment processing"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Checkout successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.message).to.include('checked out successfully');",
+                  "});",
+                  "",
+                  "pm.test('Billing information complete', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const billing = jsonData.billing;",
+                  "    pm.expect(billing).to.have.property('checkInTime');",
+                  "    pm.expect(billing).to.have.property('checkOutTime');",
+                  "    pm.expect(billing).to.have.property('totalAmount');",
+                  "    pm.expect(billing).to.have.property('paymentMethod');",
+                  "    pm.expect(billing.paymentMethod).to.equal('credit_card');",
+                  "});",
+                  "",
+                  "pm.test('Parking session completed properly', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spotFreed).to.equal(pm.collectionVariables.get('assignedSpotId'));",
+                  "    pm.expect(jsonData.billing.totalAmount).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Spot is Now Available",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/{{assignedSpotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "{{assignedSpotId}}"]
+            },
+            "description": "Confirm the spot is now available after checkout"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Spot is now available', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.spot.isOccupied).to.be.false;",
+                  "    pm.expect(jsonData.spot.currentVehicle).to.be.null;",
+                  "});",
+                  "",
+                  "pm.test('Spot history updated', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.spot.history && jsonData.spot.history.length > 0) {",
+                  "        const lastSession = jsonData.spot.history[jsonData.spot.history.length - 1];",
+                  "        pm.expect(lastSession.licensePlate).to.equal('CRITICAL001');",
+                  "        pm.expect(lastSession.checkOutTime).to.not.be.null;",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Vehicle Status Updated",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/CRITICAL001",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles", "CRITICAL001"]
+            },
+            "description": "Confirm vehicle status is updated after checkout"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Vehicle status updated', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.vehicle.status).to.equal('checked_out');",
+                  "    pm.expect(jsonData.vehicle.currentSpot).to.be.null;",
+                  "    pm.expect(jsonData.vehicle.checkOutTime).to.not.be.null;",
+                  "});",
+                  "",
+                  "pm.test('Parking session recorded', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const sessions = jsonData.vehicle.parkingSessions;",
+                  "    pm.expect(sessions).to.be.an('array');",
+                  "    pm.expect(sessions.length).to.be.greaterThan(0);",
+                  "    ",
+                  "    const lastSession = sessions[sessions.length - 1];",
+                  "    pm.expect(lastSession.spotId).to.equal(pm.collectionVariables.get('assignedSpotId'));",
+                  "    pm.expect(lastSession.totalAmount).to.be.greaterThan(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Critical Path 5: End-to-End Scenarios",
+      "description": "Complete business workflow scenarios",
+      "item": [
+        {
+          "name": "Multi-Vehicle Check-in Scenario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"MULTI001\",\n  \"vehicleType\": \"compact\",\n  \"rateType\": \"hourly\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkin",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin"]
+            },
+            "description": "Check in first vehicle in multi-vehicle scenario"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('First multi-vehicle check-in successful', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.collectionVariables.set('multiSpot1', jsonData.spotId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Second Vehicle Check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"MULTI002\",\n  \"vehicleType\": \"standard\",\n  \"rateType\": \"hourly\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkin",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin"]
+            },
+            "description": "Check in second vehicle in multi-vehicle scenario"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Second multi-vehicle check-in successful', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.spotId).to.not.equal(pm.collectionVariables.get('multiSpot1'));",
+                  "    pm.collectionVariables.set('multiSpot2', jsonData.spotId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Current Occupancy Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stats/occupancy",
+              "host": ["{{baseUrl}}"],
+              "path": ["stats", "occupancy"]
+            },
+            "description": "Check current garage occupancy with multiple vehicles"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Occupancy stats reflect multiple vehicles', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.totalSpots).to.equal(20);",
+                  "    pm.expect(jsonData.occupiedSpots).to.equal(2);",
+                  "    pm.expect(jsonData.availableSpots).to.equal(18);",
+                  "    pm.expect(jsonData.occupancyRate).to.equal(0.1); // 2/20 = 10%",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk Vehicle List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles?status=parked",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicles"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "parked"
+                }
+              ]
+            },
+            "description": "List all currently parked vehicles"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Both vehicles shown as parked', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.total).to.equal(2);",
+                  "    ",
+                  "    const licensePlates = jsonData.vehicles.map(v => v.licensePlate);",
+                  "    pm.expect(licensePlates).to.include('MULTI001');",
+                  "    pm.expect(licensePlates).to.include('MULTI002');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout First Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"MULTI001\",\n  \"paymentMethod\": \"cash\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkout"]
+            },
+            "description": "Check out first vehicle from multi-vehicle scenario"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('First vehicle checkout successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.billing.paymentMethod).to.equal('cash');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Occupancy After First Checkout",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stats/occupancy",
+              "host": ["{{baseUrl}}"],
+              "path": ["stats", "occupancy"]
+            },
+            "description": "Check occupancy after first vehicle checkout"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Occupancy reduced after first checkout', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.occupiedSpots).to.equal(1);",
+                  "    pm.expect(jsonData.availableSpots).to.equal(19);",
+                  "    pm.expect(jsonData.occupancyRate).to.equal(0.05); // 1/20 = 5%",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Critical Path 6: Error Handling & Edge Cases",
+      "description": "Test common failure scenarios and edge cases",
+      "item": [
+        {
+          "name": "Duplicate Check-in Attempt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"MULTI002\",\n  \"vehicleType\": \"standard\",\n  \"rateType\": \"hourly\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkin",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin"]
+            },
+            "description": "Attempt to check in a vehicle that's already parked"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Duplicate check-in rejected', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.include('already parked');",
+                  "    pm.expect(jsonData.success).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid License Plate Check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"\",\n  \"vehicleType\": \"standard\",\n  \"rateType\": \"hourly\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkin",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin"]
+            },
+            "description": "Attempt check-in with empty license plate"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invalid license plate rejected', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.include('License plate');",
+                  "    pm.expect(jsonData.success).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout Non-existent Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"NONEXISTENT\",\n  \"paymentMethod\": \"credit_card\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkout"]
+            },
+            "description": "Attempt to check out a vehicle that was never checked in"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Non-existent vehicle checkout rejected', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.include('not found');",
+                  "    pm.expect(jsonData.success).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Non-existent Spot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/spots/INVALID-SPOT",
+              "host": ["{{baseUrl}}"],
+              "path": ["spots", "INVALID-SPOT"]
+            },
+            "description": "Attempt to get details for non-existent spot"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Non-existent spot returns 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.include('not found');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid Vehicle Type Check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"INVALID001\",\n  \"vehicleType\": \"invalid_type\",\n  \"rateType\": \"hourly\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkin",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin"]
+            },
+            "description": "Attempt check-in with invalid vehicle type"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invalid vehicle type rejected', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.include('vehicle type');",
+                  "    pm.expect(jsonData.success).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reset Test Environment",
+      "description": "Clean up test data and reset environment",
+      "item": [
+        {
+          "name": "Cleanup Remaining Vehicles",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"MULTI002\",\n  \"paymentMethod\": \"credit_card\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkout"]
+            },
+            "description": "Check out any remaining test vehicles"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Cleanup checkout successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify All Spots Available",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/checkin/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkin", "availability"]
+            },
+            "description": "Confirm all spots are available after cleanup"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('All spots available after cleanup', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.totalSpots).to.equal(20);",
+                  "    pm.expect(jsonData.availableSpots).to.equal(20);",
+                  "    pm.expect(jsonData.occupancyRate).to.equal(0);",
+                  "});",
+                  "",
+                  "pm.test('Test environment reset successfully', function () {",
+                  "    pm.test('✅ Critical Path Testing Complete', function () {});",
+                  "    console.log('🎉 All critical path tests completed successfully!');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set up test environment variables",
+          "if (!pm.collectionVariables.get('testStartTime')) {",
+          "    pm.collectionVariables.set('testStartTime', new Date().toISOString());",
+          "}",
+          "",
+          "// Generate unique identifiers for this test run",
+          "const timestamp = Date.now().toString().slice(-6);",
+          "pm.collectionVariables.set('testRunId', 'CP' + timestamp);",
+          "",
+          "// Initialize counters",
+          "if (!pm.collectionVariables.get('testCount')) {",
+          "    pm.collectionVariables.set('testCount', 0);",
+          "}",
+          "",
+          "// Increment test counter",
+          "const currentCount = parseInt(pm.collectionVariables.get('testCount')) + 1;",
+          "pm.collectionVariables.set('testCount', currentCount);",
+          "",
+          "console.log(`🧪 Executing Critical Path Test #${currentCount}`);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test result tracking",
+          "const testName = pm.info.requestName;",
+          "const status = pm.response.code >= 200 && pm.response.code < 300 ? 'PASS' : 'FAIL';",
+          "const responseTime = pm.response.responseTime;",
+          "",
+          "console.log(`${status === 'PASS' ? '✅' : '❌'} ${testName} - ${pm.response.code} (${responseTime}ms)`);",
+          "",
+          "// Track performance metrics",
+          "if (!pm.globals.has('criticalPathMetrics')) {",
+          "    pm.globals.set('criticalPathMetrics', JSON.stringify([]));",
+          "}",
+          "",
+          "const metrics = JSON.parse(pm.globals.get('criticalPathMetrics'));",
+          "metrics.push({",
+          "    test: testName,",
+          "    status: status,",
+          "    responseTime: responseTime,",
+          "    timestamp: new Date().toISOString()",
+          "});",
+          "",
+          "pm.globals.set('criticalPathMetrics', JSON.stringify(metrics));",
+          "",
+          "// Performance thresholds",
+          "pm.test('Response time acceptable (<2s)', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});",
+          "",
+          "pm.test('No server errors (5xx)', function () {",
+          "    pm.expect(pm.response.code).to.be.below(500);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "testRunId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testStartTime",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testCount",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "checkedInLicense",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assignedSpotId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "checkInTime",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testSpotId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testFloor",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testBay",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "preCheckinAvailable",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "simulatedSpot",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previewTotal",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "multiSpot1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "multiSpot2",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
