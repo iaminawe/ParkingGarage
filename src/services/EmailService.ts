@@ -11,7 +11,7 @@ import { SecurityAuditService } from './SecurityAuditService';
 
 export interface EmailOptions {
   to: string | string[];
-  subject: string;
+  subject?: string; // Optional when using templateName
   html?: string;
   text?: string;
   templateName?: string;
@@ -101,7 +101,7 @@ class EmailService {
         default:
           transportConfig = {
             host: env.SMTP_HOST,
-            port: parseInt(env.SMTP_PORT || '587'),
+            port: typeof env.SMTP_PORT === 'number' ? env.SMTP_PORT : parseInt(env.SMTP_PORT || '587', 10),
             secure: env.SMTP_SECURE === 'true', // true for 465, false for other ports
             auth: {
               user: env.EMAIL_USER,
@@ -152,6 +152,8 @@ class EmailService {
       // Process template if specified
       if (options.templateName) {
         emailContent = await this.processTemplate(options);
+      } else if (!options.subject) {
+        throw new Error('Subject is required when not using a template');
       }
 
       // Add to queue for processing
@@ -166,7 +168,7 @@ class EmailService {
         action: 'EMAIL_SENT',
         category: 'COMMUNICATION',
         severity: 'LOW',
-        description: `Email sent to ${options.to} with subject: ${options.subject}`,
+        description: `Email sent to ${options.to} with subject: ${emailContent.subject || 'Template subject'}`,
         metadata: {
           recipient: options.to,
           templateName: options.templateName,

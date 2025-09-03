@@ -333,7 +333,7 @@ class NotificationService {
       return {
         channel: 'SMS',
         success: !!messageId,
-        messageId,
+        messageId: messageId || undefined,
       };
     } catch (error) {
       return {

@@ -10,7 +10,7 @@ export interface SecurityEvent {
   userId?: string;
   sessionId?: string;
   action: string;
-  category: 'AUTH' | 'ACCOUNT' | 'SECURITY' | 'DATA_ACCESS' | 'COMMUNICATION' | 'SYSTEM';
+  category: 'AUTH' | 'ACCOUNT' | 'SECURITY' | 'DATA_ACCESS' | 'COMMUNICATION' | 'SYSTEM' | 'PAYMENT';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   description: string;
   ipAddress?: string;
@@ -689,6 +689,9 @@ export class SecurityAuditUtils {
     }
     if (eventType.includes('DATA')) {
       return 'DATA_ACCESS';
+    }
+    if (eventType.includes('PAYMENT')) {
+      return 'PAYMENT';
     }
     return 'SECURITY';
   }

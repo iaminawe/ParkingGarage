@@ -91,7 +91,7 @@ export interface Receipt {
 class PaymentService {
   private auditService: SecurityAuditService;
   private billingService: BillingService;
-  private stripeGateway: StripePaymentGateway;
+  private stripeGateway: StripePaymentGateway | null;
   private gatewayConfigs: Map<string, PaymentGatewayConfig>;
   private fraudThreshold = 0.7;
   private idempotencyKeys: Map<string, { result: any; timestamp: number }> = new Map();
@@ -100,7 +100,15 @@ class PaymentService {
   constructor() {
     this.auditService = new SecurityAuditService();
     this.billingService = new BillingService();
-    this.stripeGateway = new StripePaymentGateway();
+    
+    // Initialize Stripe only if configured
+    if (process.env.STRIPE_SECRET_KEY) {
+      this.stripeGateway = new StripePaymentGateway();
+    } else {
+      this.stripeGateway = null;
+      console.log('PaymentService: Stripe gateway not configured (STRIPE_SECRET_KEY missing)');
+    }
+    
     this.gatewayConfigs = new Map();
     this.idempotencyTTL = parseInt(process.env.PAYMENT_IDEMPOTENCY_TTL || '86400') * 1000; // Convert to milliseconds
     this.initializeGateways();
@@ -466,6 +474,11 @@ class PaymentService {
     request: PaymentRequest,
     fraudCheck: FraudCheckResult
   ): Promise<Omit<PaymentResult, 'paymentId'>> {
+    // Check if Stripe is configured
+    if (!this.stripeGateway || !this.stripeGateway.isStripeEnabled()) {
+      throw new Error('Stripe payment gateway is not configured');
+    }
+    
     try {
       // Generate idempotency key for this payment
       const idempotencyKey = this.generateIdempotencyKey(request);
@@ -480,7 +493,7 @@ class PaymentService {
       let customerId: string | undefined;
       if (request.customerData?.email) {
         try {
-          const customer = await this.stripeGateway.createCustomer({
+          const customer = await this.stripeGateway!.createCustomer({
             email: request.customerData.email,
             name: request.customerData.name,
             phone: request.customerData.phone,
@@ -498,7 +511,7 @@ class PaymentService {
       }
 
       // Create payment intent
-      const paymentIntent = await this.stripeGateway.createPaymentIntent({
+      const paymentIntent = await this.stripeGateway!.createPaymentIntent({
         amount: request.amount,
         currency: request.currency,
         customerId,
@@ -515,7 +528,7 @@ class PaymentService {
       }, idempotencyKey);
 
       // Calculate fees
-      const feeCalculation = this.stripeGateway.calculateProcessingFees(request.amount);
+      const feeCalculation = this.stripeGateway!.calculateProcessingFees(request.amount);
 
       let result: Omit<PaymentResult, 'paymentId'>;
 
@@ -601,7 +614,7 @@ class PaymentService {
       const idempotencyKey = `refund_${originalPayment.id}_${refundAmount}_${Date.now()}`;
 
       // Create refund through Stripe
-      const refund = await this.stripeGateway.createRefund({
+      const refund = await this.stripeGateway!.createRefund({
         paymentIntentId: originalPayment.transactionId,
         amount: refundAmount,
         reason: (reason as any) || 'requested_by_customer',
@@ -863,7 +876,7 @@ class PaymentService {
       let customerId: string | undefined;
       if (request.customerData?.email) {
         try {
-          const customer = await this.stripeGateway.createCustomer({
+          const customer = await this.stripeGateway!.createCustomer({
             email: request.customerData.email,
             name: request.customerData.name,
             phone: request.customerData.phone,
@@ -879,7 +892,7 @@ class PaymentService {
       }
 
       // Create payment intent
-      const paymentIntent = await this.stripeGateway.createPaymentIntent({
+      const paymentIntent = await this.stripeGateway!.createPaymentIntent({
         amount: request.amount,
         currency: request.currency,
         customerId,
@@ -948,7 +961,7 @@ class PaymentService {
   async confirmPaymentIntent(paymentIntentId: string, userId?: string): Promise<PaymentResult> {
     try {
       // Retrieve payment intent from Stripe
-      const paymentIntent = await this.stripeGateway.retrievePaymentIntent(paymentIntentId);
+      const paymentIntent = await this.stripeGateway!.retrievePaymentIntent(paymentIntentId);
 
       // Find corresponding payment record
       const payment = await prisma.payment.findFirst({
@@ -1063,7 +1076,7 @@ class PaymentService {
     message: string;
   }> {
     try {
-      const paymentMethod = await this.stripeGateway.attachPaymentMethod({
+      const paymentMethod = await this.stripeGateway!.attachPaymentMethod({
         paymentMethodId,
         customerId,
       });
@@ -1112,6 +1125,9 @@ class PaymentService {
    */
   async getCustomerPaymentMethods(customerId: string): Promise<any[]> {
     try {
+      if (!this.stripeGateway || !this.stripeGateway.isStripeEnabled()) {
+        throw new Error('Stripe payment gateway is not configured');
+      }
       return await this.stripeGateway.listCustomerPaymentMethods(customerId);
     } catch (error) {
       console.error('Failed to retrieve customer payment methods:', error);
@@ -1123,7 +1139,7 @@ class PaymentService {
    * Health check for payment gateway
    */
   async healthCheck(): Promise<{ stripe: boolean; overall: boolean }> {
-    const stripeHealthy = await this.stripeGateway.healthCheck();
+    const stripeHealthy = this.stripeGateway ? await this.stripeGateway.healthCheck() : false;
     
     return {
       stripe: stripeHealthy,

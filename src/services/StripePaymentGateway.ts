@@ -112,7 +112,7 @@ export interface CreateRefundRequest {
  * Production-ready Stripe payment gateway service
  */
 export class StripePaymentGateway {
-  private stripe: Stripe;
+  private stripe: Stripe | null;
   private logger: ILogger;
   private auditService: SecurityAuditService;
   private webhookSecret: string;
@@ -122,20 +122,23 @@ export class StripePaymentGateway {
   private readonly timeout: number;
   private readonly retryAttempts: number;
   private readonly idempotencyTTL: number;
+  private readonly isEnabled: boolean;
 
   constructor() {
     const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
-      throw new Error('STRIPE_SECRET_KEY environment variable is required');
+    this.isEnabled = !!secretKey;
+    
+    if (this.isEnabled && secretKey) {
+      this.stripe = new Stripe(secretKey, {
+        apiVersion: process.env.STRIPE_API_VERSION as any || '2024-12-18.acacia',
+        typescript: true,
+        timeout: parseInt(process.env.PAYMENT_TIMEOUT_SECONDS || '300') * 1000,
+        maxNetworkRetries: parseInt(process.env.PAYMENT_RETRY_ATTEMPTS || '3'),
+        telemetry: false, // Disable telemetry for privacy
+      });
+    } else {
+      this.stripe = null;
     }
-
-    this.stripe = new Stripe(secretKey, {
-      apiVersion: process.env.STRIPE_API_VERSION as any || '2024-12-18.acacia',
-      typescript: true,
-      timeout: parseInt(process.env.PAYMENT_TIMEOUT_SECONDS || '300') * 1000,
-      maxNetworkRetries: parseInt(process.env.PAYMENT_RETRY_ATTEMPTS || '3'),
-      telemetry: false, // Disable telemetry for privacy
-    });
 
     this.logger = createLogger('StripePaymentGateway');
     this.auditService = new SecurityAuditService();
@@ -146,12 +149,34 @@ export class StripePaymentGateway {
     this.timeout = parseInt(process.env.PAYMENT_TIMEOUT_SECONDS || '300');
     this.retryAttempts = parseInt(process.env.PAYMENT_RETRY_ATTEMPTS || '3');
     this.idempotencyTTL = parseInt(process.env.PAYMENT_IDEMPOTENCY_TTL || '86400');
+    
+    if (!this.isEnabled) {
+      this.logger.warn('Stripe is disabled - STRIPE_SECRET_KEY not configured');
+    }
+  }
+
+  /**
+   * Check if Stripe is enabled
+   */
+  public isStripeEnabled(): boolean {
+    return this.isEnabled;
+  }
+
+  /**
+   * Ensure Stripe is configured before making API calls
+   */
+  private ensureStripeConfigured(): void {
+    if (!this.stripe) {
+      throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+    }
   }
 
   /**
    * Create a payment intent
    */
   async createPaymentIntent(request: CreatePaymentIntentRequest, idempotencyKey?: string): Promise<StripePaymentIntent> {
+    this.ensureStripeConfigured();
+    
     try {
       const requestOptions: Stripe.RequestOptions = {};
       if (idempotencyKey) {
@@ -192,7 +217,7 @@ export class StripePaymentGateway {
         };
       }
 
-      const paymentIntent = await this.stripe.paymentIntents.create(
+      const paymentIntent = await this.stripe!.paymentIntents.create(
         paymentIntentParams,
         requestOptions
       );
@@ -250,6 +275,8 @@ export class StripePaymentGateway {
     paymentMethodId?: string,
     returnUrl?: string
   ): Promise<StripePaymentIntent> {
+    this.ensureStripeConfigured();
+    
     try {
       const params: Stripe.PaymentIntentConfirmParams = {};
       
@@ -261,7 +288,7 @@ export class StripePaymentGateway {
         params.return_url = returnUrl;
       }
 
-      const paymentIntent = await this.stripe.paymentIntents.confirm(paymentIntentId, params);
+      const paymentIntent = await this.stripe!.paymentIntents.confirm(paymentIntentId, params);
 
       await this.auditService.logSecurityEvent({
         action: 'PAYMENT_INTENT_CONFIRMED',
@@ -309,8 +336,10 @@ export class StripePaymentGateway {
    * Retrieve a payment intent
    */
   async retrievePaymentIntent(paymentIntentId: string): Promise<StripePaymentIntent> {
+    this.ensureStripeConfigured();
+    
     try {
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent = await this.stripe!.paymentIntents.retrieve(paymentIntentId);
 
       return {
         id: paymentIntent.id,
@@ -335,13 +364,15 @@ export class StripePaymentGateway {
     paymentIntentId: string,
     cancellationReason?: string
   ): Promise<StripePaymentIntent> {
+    this.ensureStripeConfigured();
+    
     try {
       const params: Stripe.PaymentIntentCancelParams = {};
       if (cancellationReason) {
         params.cancellation_reason = cancellationReason as any;
       }
 
-      const paymentIntent = await this.stripe.paymentIntents.cancel(paymentIntentId, params);
+      const paymentIntent = await this.stripe!.paymentIntents.cancel(paymentIntentId, params);
 
       await this.auditService.logSecurityEvent({
         action: 'PAYMENT_INTENT_CANCELLED',
@@ -379,6 +410,8 @@ export class StripePaymentGateway {
    * Create a customer
    */
   async createCustomer(request: CreateCustomerRequest, idempotencyKey?: string): Promise<StripeCustomer> {
+    this.ensureStripeConfigured();
+    
     try {
       const requestOptions: Stripe.RequestOptions = {};
       if (idempotencyKey) {
@@ -405,7 +438,7 @@ export class StripePaymentGateway {
         customerParams.invoice_settings = request.invoiceSettings;
       }
 
-      const customer = await this.stripe.customers.create(customerParams, requestOptions);
+      const customer = await this.stripe!.customers.create(customerParams, requestOptions);
 
       await this.auditService.logSecurityEvent({
         action: 'CUSTOMER_CREATED',
@@ -448,8 +481,10 @@ export class StripePaymentGateway {
    * Retrieve a customer
    */
   async retrieveCustomer(customerId: string): Promise<StripeCustomer> {
+    this.ensureStripeConfigured();
+    
     try {
-      const customer = await this.stripe.customers.retrieve(customerId);
+      const customer = await this.stripe!.customers.retrieve(customerId);
       
       if (customer.deleted) {
         throw new Error('Customer has been deleted');
@@ -472,8 +507,10 @@ export class StripePaymentGateway {
    * Attach payment method to customer
    */
   async attachPaymentMethod(request: AttachPaymentMethodRequest): Promise<StripePaymentMethod> {
+    this.ensureStripeConfigured();
+    
     try {
-      const paymentMethod = await this.stripe.paymentMethods.attach(request.paymentMethodId, {
+      const paymentMethod = await this.stripe!.paymentMethods.attach(request.paymentMethodId, {
         customer: request.customerId,
       });
 
@@ -514,8 +551,10 @@ export class StripePaymentGateway {
    * Detach payment method from customer
    */
   async detachPaymentMethod(paymentMethodId: string): Promise<StripePaymentMethod> {
+    this.ensureStripeConfigured();
+    
     try {
-      const paymentMethod = await this.stripe.paymentMethods.detach(paymentMethodId);
+      const paymentMethod = await this.stripe!.paymentMethods.detach(paymentMethodId);
 
       await this.auditService.logSecurityEvent({
         action: 'PAYMENT_METHOD_DETACHED',
@@ -547,13 +586,15 @@ export class StripePaymentGateway {
    * List customer payment methods
    */
   async listCustomerPaymentMethods(customerId: string, type?: string): Promise<StripePaymentMethod[]> {
+    this.ensureStripeConfigured();
+    
     try {
       const params: Stripe.PaymentMethodListParams = {
         customer: customerId,
         type: (type as any) || 'card',
       };
 
-      const paymentMethods = await this.stripe.paymentMethods.list(params);
+      const paymentMethods = await this.stripe!.paymentMethods.list(params);
 
       return paymentMethods.data.map(pm => ({
         id: pm.id,
@@ -576,6 +617,8 @@ export class StripePaymentGateway {
    * Create a refund
    */
   async createRefund(request: CreateRefundRequest, idempotencyKey?: string): Promise<StripeRefund> {
+    this.ensureStripeConfigured();
+    
     try {
       const requestOptions: Stripe.RequestOptions = {};
       if (idempotencyKey) {
@@ -598,7 +641,7 @@ export class StripePaymentGateway {
         refundParams.amount = Math.round(request.amount * 100); // Convert to cents
       }
 
-      const refund = await this.stripe.refunds.create(refundParams, requestOptions);
+      const refund = await this.stripe!.refunds.create(refundParams, requestOptions);
 
       await this.auditService.logSecurityEvent({
         action: 'REFUND_CREATED',
@@ -656,12 +699,14 @@ export class StripePaymentGateway {
    * Verify webhook signature
    */
   verifyWebhookSignature(payload: string, signature: string): StripeWebhookEvent {
+    this.ensureStripeConfigured();
+    
     try {
       if (!this.webhookSecret) {
         throw new Error('Webhook secret not configured');
       }
 
-      const event = this.stripe.webhooks.constructEvent(
+      const event = this.stripe!.webhooks.constructEvent(
         payload,
         signature,
         this.webhookSecret
@@ -720,8 +765,15 @@ export class StripePaymentGateway {
    * Health check - verify Stripe connection
    */
   async healthCheck(): Promise<boolean> {
+    if (!this.isEnabled) {
+      this.logger.info('Stripe is disabled - skipping health check');
+      return false;
+    }
+    
+    this.ensureStripeConfigured();
+    
     try {
-      await this.stripe.accounts.retrieve();
+      await this.stripe!.accounts.retrieve();
       return true;
     } catch (error) {
       this.logger.error('Stripe health check failed', error as Error);

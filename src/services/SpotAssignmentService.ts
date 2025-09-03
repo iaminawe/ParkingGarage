@@ -17,13 +17,18 @@ interface AvailabilityInfo {
   bySpotType?: Record<string, number>;
 }
 
-interface AssignmentResult {
+export interface AssignmentResult {
   success: boolean;
   assignedSpot?: any;
   spotLocation?: string;
   parkingSession?: ParkingSession;
   error?: string;
   reason?: string;
+  compatibility?: {
+    isExactMatch: boolean;
+    score: number;
+    reasons: string[];
+  };
 }
 
 interface SpotCompatibility {
@@ -467,6 +472,63 @@ export class SpotAssignmentService {
     }
 
     return Math.max(0, score);
+  }
+
+  /**
+   * Simulate spot assignment without actually assigning
+   */
+  async simulateAssignment(vehicleType: VehicleType, options: AssignmentOptions = {}): Promise<AssignmentResult> {
+    try {
+      // Find the best available spot
+      const bestSpot = await this.findBestAvailableSpot(vehicleType, options);
+      
+      if (!bestSpot) {
+        return {
+          success: false,
+          error: 'No available spots found',
+          reason: `No ${vehicleType} spots available matching criteria`
+        };
+      }
+
+      // Check vehicle compatibility
+      const compatibility = this.checkVehicleCompatibility(bestSpot, vehicleType);
+      if (!compatibility.isCompatible) {
+        return {
+          success: false,
+          error: 'Vehicle not compatible with available spots',
+          reason: compatibility.reasons.join(', ')
+        };
+      }
+
+      // Format spot location
+      const spotLocation = `Floor ${bestSpot.level}, Section ${bestSpot.section || 'N/A'}, Spot ${bestSpot.spotNumber}`;
+
+      return {
+        success: true,
+        assignedSpot: {
+          id: bestSpot.id,
+          spotNumber: bestSpot.spotNumber,
+          level: bestSpot.level,
+          section: bestSpot.section,
+          spotType: bestSpot.spotType,
+          status: bestSpot.status,
+          type: bestSpot.spotType
+        },
+        spotLocation,
+        compatibility: {
+          isExactMatch: bestSpot.spotType === this.mapVehicleTypeToSpotType(vehicleType),
+          score: compatibility.score,
+          reasons: compatibility.reasons
+        }
+      };
+    } catch (error) {
+      console.error('Error simulating assignment:', error);
+      return {
+        success: false,
+        error: 'Simulation failed',
+        reason: (error as Error).message
+      };
+    }
   }
 
   /**
