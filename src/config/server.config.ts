@@ -91,7 +91,7 @@ function parseCorsOrigins(value: string | undefined): string[] {
  * Create and validate server configuration
  */
 function createServerConfig(): ServerConfig {
-  const port = parseInteger(process.env.PORT, 3000, 'PORT');
+  const port = parseInteger(process.env.PORT, 8742, 'PORT');
   const host = process.env.HOST || '0.0.0.0';
   const environment = parseEnvironment(process.env.NODE_ENV);
   const shutdownTimeout = parseInteger(process.env.SHUTDOWN_TIMEOUT, 10000, 'SHUTDOWN_TIMEOUT');
