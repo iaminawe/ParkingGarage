@@ -884,12 +884,16 @@ class NotificationService {
    * Initialize SMS configuration
    */
   private initializeSMSConfig(): SMSConfig {
-    if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN) {
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+    const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+    
+    if (twilioSid && twilioToken) {
       return {
         provider: 'twilio',
-        accountSid: env.TWILIO_ACCOUNT_SID,
-        authToken: env.TWILIO_AUTH_TOKEN,
-        fromNumber: env.TWILIO_PHONE_NUMBER || '+1234567890',
+        accountSid: twilioSid,
+        authToken: twilioToken,
+        fromNumber: twilioPhone || '+1234567890',
       };
     }
 
@@ -955,7 +959,7 @@ class NotificationService {
               title: notification.subject,
               message: notification.content,
               data: notification.metadata ? JSON.parse(notification.metadata) : undefined,
-            };
+            } as any;
 
             // Send the notification
             const result = await this.sendNotification(request);
