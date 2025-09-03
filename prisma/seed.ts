@@ -21,7 +21,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 interface SeedOptions {
   env?: 'development' | 'staging' | 'production' | 'test';
