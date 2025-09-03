@@ -192,7 +192,7 @@ export class DatabaseConstraintsValidator {
       const overlappingReservation = await this.prisma.parkingSession.findFirst({
         where: {
           spotId,
-          status: 'RESERVED',
+          status: 'RESERVED' as any, // Cast to handle string type in schema
           AND: [
             {
               startTime: {
@@ -406,17 +406,29 @@ export class DatabaseConstraintsValidator {
     orphanedPayments = paymentsWithInvalidSession.length;
 
     // Find orphaned sessions (sessions with non-existent vehicles or spots)
-    const sessionsWithInvalidVehicle = await this.prisma.parkingSession.count({
-      where: {
-        vehicle: null,
-      },
+    // Note: With foreign key constraints, these should not exist, but check anyway
+    const allSessions = await this.prisma.parkingSession.findMany({
+      select: { id: true, vehicleId: true, spotId: true },
     });
-
-    const sessionsWithInvalidSpot = await this.prisma.parkingSession.count({
-      where: {
-        spot: null,
-      },
-    });
+    
+    let sessionsWithInvalidVehicle = 0;
+    let sessionsWithInvalidSpot = 0;
+    
+    for (const session of allSessions) {
+      const vehicleExists = await this.prisma.vehicle.count({
+        where: { id: session.vehicleId },
+      });
+      if (vehicleExists === 0) {
+        sessionsWithInvalidVehicle++;
+      }
+      
+      const spotExists = await this.prisma.parkingSpot.count({
+        where: { id: session.spotId },
+      });
+      if (spotExists === 0) {
+        sessionsWithInvalidSpot++;
+      }
+    }
     
     orphanedSessions = sessionsWithInvalidVehicle + sessionsWithInvalidSpot;
 
