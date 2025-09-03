@@ -227,6 +227,37 @@ class SpotService {
   }
 
   /**
+   * Find the best available spot for a given vehicle type
+   * Implements smart assignment algorithm considering spot type compatibility and location
+   * @param vehicleType - Type of vehicle (compact, standard, oversized)
+   * @returns Best available spot or null if none found
+   */
+  async findBestSpot(vehicleType: VehicleType): Promise<any | null> {
+    try {
+      // Get all available spots
+      const availableSpots = await this.findAvailableSpots();
+      
+      if (availableSpots.length === 0) {
+        return null;
+      }
+
+      // Filter for compatible spots based on vehicle type
+      const compatibleSpots = this._getCompatibleSpots(availableSpots, vehicleType);
+      
+      if (compatibleSpots.length === 0) {
+        return null;
+      }
+
+      // Apply assignment algorithm to find the best spot
+      const bestSpot = this._applyAssignmentAlgorithm(compatibleSpots, vehicleType);
+      
+      return bestSpot;
+    } catch (error) {
+      throw new Error(`Failed to find best spot for vehicle type ${vehicleType}: ${(error as Error).message}`);
+    }
+  }
+
+  /**
    * Update spot status with metadata
    * @param spotId - Spot ID to update
    * @param status - New status (available, occupied, maintenance)
@@ -449,6 +480,78 @@ class SpotService {
       uniqueBays: baySet.size,
       occupancyRate: total > 0 ? Math.round(((statusCounts.occupied || 0) / total) * 10000) / 100 : 0,
     };
+  }
+
+  /**
+   * Filter spots by vehicle type compatibility
+   * @private
+   * @param spots - Array of available spots
+   * @param vehicleType - Type of vehicle needing a spot
+   * @returns Array of compatible spots
+   */
+  private _getCompatibleSpots(spots: any[], vehicleType: VehicleType): any[] {
+    return spots.filter(spot => {
+      // Database uses 'spotType' field, normalize to lowercase for comparison
+      const spotType = (spot.spotType || spot.type || '').toLowerCase();
+      const vehicleTypeLower = vehicleType.toLowerCase();
+      
+      // Vehicle compatibility rules:
+      // - Compact vehicles can use compact, standard, oversized, or electric spots
+      // - Standard vehicles can use standard, oversized, or electric spots  
+      // - Oversized vehicles can use oversized or electric spots
+      switch (vehicleTypeLower) {
+        case 'compact':
+          return ['compact', 'standard', 'oversized', 'electric'].includes(spotType);
+        case 'standard':
+          return ['standard', 'oversized', 'electric'].includes(spotType);
+        case 'oversized':
+          return ['oversized', 'electric'].includes(spotType);
+        default:
+          return false;
+      }
+    });
+  }
+
+  /**
+   * Apply assignment algorithm to select the best spot from compatible options
+   * Prioritizes exact matches, then closest floor, then lowest bay number
+   * @private
+   * @param compatibleSpots - Array of compatible spots
+   * @param vehicleType - Type of vehicle needing a spot
+   * @returns Best spot from the compatible options
+   */
+  private _applyAssignmentAlgorithm(compatibleSpots: any[], vehicleType: VehicleType): any {
+    // Sort spots by preference:
+    // 1. Exact type match first (compact -> compact, standard -> standard, etc.)
+    // 2. Lower floor numbers (closer to entrance)
+    // 3. Lower bay numbers (easier navigation)
+    // 4. Lower spot numbers within bay
+    
+    const sortedSpots = compatibleSpots.sort((a, b) => {
+      // Priority 1: Exact type match
+      const aExactMatch = a.type === vehicleType ? 1 : 0;
+      const bExactMatch = b.type === vehicleType ? 1 : 0;
+      if (aExactMatch !== bExactMatch) {
+        return bExactMatch - aExactMatch; // Exact match first
+      }
+      
+      // Priority 2: Lower floor number (closer to entrance)
+      if (a.floor !== b.floor) {
+        return a.floor - b.floor;
+      }
+      
+      // Priority 3: Lower bay number
+      if (a.bay !== b.bay) {
+        return a.bay - b.bay;
+      }
+      
+      // Priority 4: Lower spot number
+      const aSpotNum = parseInt(a.spotNumber || a.id.split('-').pop() || '0');
+      const bSpotNum = parseInt(b.spotNumber || b.id.split('-').pop() || '0');
+      return aSpotNum - bSpotNum;
+    });
+
+    return sortedSpots[0];
   }
 
   /**

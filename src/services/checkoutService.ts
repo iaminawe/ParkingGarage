@@ -168,6 +168,58 @@ export class CheckoutService {
   }
 
   /**
+   * Simulate checkout without actually performing it
+   * Calculates what the checkout would cost and return without making changes
+   */
+  async simulateCheckout(licensePlate: any, options: { checkOutTime?: any } = {}): Promise<any> {
+    try {
+      // Find and validate vehicle (no changes made)
+      const vehicle = await this.findAndValidateVehicle(licensePlate);
+
+      // Find associated spot (no changes made)  
+      const spot = await this.findAssociatedSpot(vehicle.spotId);
+
+      // Find active parking session (no changes made)
+      const session = await this.findActiveParkingSession(licensePlate);
+
+      // Calculate what the duration and billing would be
+      const checkoutTime = options.checkOutTime ? new Date(options.checkOutTime) : new Date();
+      const checkinTime = new Date(vehicle.checkedInAt || session?.createdAt);
+      const durationMinutes = Math.floor(
+        (checkoutTime.getTime() - checkinTime.getTime()) / (1000 * 60)
+      );
+      const durationHours = Math.ceil(durationMinutes / 60);
+
+      // Calculate what billing would be (no charges made)
+      const billing = await this.calculateBilling(
+        vehicle.vehicleType as any,
+        durationMinutes,
+        vehicle.rateType,
+        { applyGracePeriod: false }
+      );
+
+      return {
+        success: true,
+        simulation: true,
+        licensePlate,
+        vehicleType: vehicle.vehicleType,
+        spotId: spot.id,
+        duration: {
+          minutes: durationMinutes,
+          hours: durationHours,
+          checkedIn: checkinTime.toISOString(),
+          wouldCheckOut: checkoutTime.toISOString(),
+        },
+        billing,
+        message: `Simulation: Vehicle ${licensePlate} would cost $${billing.totalCost.toFixed(2)} for ${durationHours} hour(s) parking`,
+      };
+    } catch (error) {
+      console.error('CheckoutService.simulateCheckout error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get checkout statistics
    */
   async getCheckoutStats(): Promise<any> {

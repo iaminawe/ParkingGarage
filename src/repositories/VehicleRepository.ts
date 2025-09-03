@@ -380,12 +380,12 @@ export class VehicleRepository extends PrismaAdapter<
       >`
         SELECT 
           SUM(ps.totalAmount) as totalRevenue,
-          AVG(ps.durationMinutes) as avgDuration
+          AVG(ps.duration) as avgDuration
         FROM parking_sessions ps
         JOIN vehicles v ON v.id = ps.vehicleId
         WHERE v.deletedAt IS NULL
-          AND ps.deletedAt IS NULL
           AND ps.isPaid = 1
+          AND ps.status = 'COMPLETED'
       `;
 
       // Build result

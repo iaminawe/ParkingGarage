@@ -1,0 +1,293 @@
+{
+  "timestamp": "2025-09-03T20:17:00.672Z",
+  "baseUrl": "http://localhost:8743/api",
+  "testResults": [
+    {
+      "name": "Health Check",
+      "method": "GET",
+      "endpoint": "/health",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "status": "PASS",
+      "responseTime": 12,
+      "responseBody": "{\"status\":\"healthy\",\"timestamp\":\"2025-09-03T20:17:00.682Z\",\"uptime\":86.405700946,\"environment\":\"development\",\"version\":\"1.0.0\",\"database\":{\"status\":\"connected\",\"responseTime\":1},\"security\":{\"monitoring\":{\"status\":\"normal\",\"activeThreats\":0,\"activeConnections\":0,\"requestsPerMinute\":0},\"circuitBreakers\":{\"totalBreakers\":0,\"healthyBreakers\":0,\"unhealthyBreakers\":0,\"overallHealthy\":true,\"services\":{}},\"lastCheck\":\"2025-09-03T20:17:00.682Z\"},\"monitoring\":{\"activeIPs\":0,\"requestsPerMinute\":0,\"suspiciousActivity\":\"none\"},\"circuitBreakers\":{\"status\":\"healthy\",\"healthy\":0,\"total\":0},\"memory\":{\"used\":39,\"total\":42}} "
+    },
+    {
+      "name": "Initialize Garage Layout",
+      "method": "POST",
+      "endpoint": "/garage/initialize",
+      "expectedStatus": 201,
+      "actualStatus": 409,
+      "status": "FAIL",
+      "responseTime": 12,
+      "responseBody": "{\"success\":false,\"message\":\"Garage already exists\",\"errors\":[\"Garage is already initialized. Use update endpoints to modify configuration.\"],\"timestamp\":\"2025-09-03T20:17:00.705Z\"} "
+    },
+    {
+      "name": "Verify Initial Availability",
+      "method": "GET",
+      "endpoint": "/checkin/availability",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "status": "PASS",
+      "responseTime": 21,
+      "responseBody": "{\"success\":true,\"message\":\"Current availability information\",\"data\":{\"overall\":{\"totalSpots\":2000,\"availableSpots\":1462,\"occupiedSpots\":370,\"occupancyRate\":22.35},\"byVehicleType\":{\"compact\":{\"totalCompatible\":100,\"available\":true,\"bySpotType\":{\"compact\":25}},\"standard\":{\"totalCompatible\":100,\"available\":true,\"bySpotType\":{\"standard\":25}},\"oversized\":{\"totalCompatible\":100,\"available\":true,\"bySpotType\":{\"oversized\":25}}}},\"timestamp\":\"2025-09-03T20:17:00.737Z\"} "
+    },
+    {
+      "name": "Get Garage Configuration",
+      "method": "GET",
+      "endpoint": "/garage?includeStats=true&includeSpots=true",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "status": "PASS",
+      "responseTime": 12,
+      "responseBody": "{\"success\":true,\"data\":{\"name\":\"Central Parking Garage\",\"totalFloors\":5,\"totalCapacity\":500,\"rates\":{\"standard\":5,\"compact\":4,\"oversized\":7},\"floorsConfiguration\":[{\"floor\":1,\"bays\":10,\"spotsPerBay\":10,\"capacity\":100},{\"floor\":2,\"bays\":10,\"spotsPerBay\":10,\"capacity\":100},{\"floor\":3,\"bays\":10,\"spotsPerBay\":10,\"capacity\":100},{\"floor\":4,\"bays\":10,\"spotsPerBay\":10,\"capacity\":100},{\"floor\":5,\"bays\":10,\"spotsPerBay\":10,\"capacity\":100}],\"initializedAt\":\"2025-09-03T20:15:35.165Z\",\"lastUpdated\":\"2025-09-03T20:15:35.165Z\"},\"timestamp\":\"2025-09-03T20:17:00.759Z\"} "
+    },
+    {
+      "name": "Update Garage Rates",
+      "method": "PUT",
+      "endpoint": "/garage/rates",
+      "expectedStatus": 200,
+      "actualStatus": 400,
+      "status": "FAIL",
+      "responseTime": 12,
+      "responseBody": "{\"error\":\"Invalid rate update data\",\"details\":[\"At least one rate type must be provided: standard, compact, oversized, ev_charging\"]} "
+    },
+    {
+      "name": "Get All Available Spots",
+      "method": "GET",
+      "endpoint": "/spots/available",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "status": "PASS",
+      "responseTime": 34,
+      "responseBody": "{\"success\":true,\"data\":[],\"timestamp\":\"2025-09-03T20:17:00.823Z\"} "
+    },
+    {
+      "name": "Get Available Spots by Vehicle Type",
+      "method": "GET",
+      "endpoint": "/spots/available?vehicleType=standard",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "status": "PASS",
+      "responseTime": 37,
+      "responseBody": "{\"success\":true,\"data\":[],\"timestamp\":\"2025-09-03T20:17:00.870Z\"} "
+    },
+    {
+      "name": "Get Specific Spot Details",
+      "method": "GET",
+      "endpoint": "/spots/F1-B1-S001",
+      "expectedStatus": 200,
+      "actualStatus": 404,
+      "status": "FAIL",
+      "responseTime": 12,
+      "responseBody": "{\"success\":false,\"message\":\"Spot with ID 'F1-B1-S001' not found\",\"timestamp\":\"2025-09-03T20:17:00.893Z\"} "
+    },
+    {
+      "name": "Get Spots with Filters",
+      "method": "GET",
+      "endpoint": "/spots?floor=1&status=available&limit=10",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "status": "PASS",
+      "responseTime": 31,
+      "responseBody": "{\"success\":true,\"data\":[],\"timestamp\":\"2025-09-03T20:17:00.933Z\"} "
+    },
+    {
+      "name": "Check Availability Before Check-in",
+      "method": "GET",
+      "endpoint": "/checkin/availability/standard",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "status": "PASS",
+      "responseTime": 11,
+      "responseBody": "{\"success\":true,\"data\":{\"vehicleType\":\"standard\",\"availability\":{\"totalCompatibleSpots\":100,\"hasAvailable\":true,\"bySpotType\":{\"standard\":25}},\"assignment\":{\"wouldAssignTo\":\"spot-1\",\"location\":\"Floor 1, Section A\",\"spotType\":\"standard\"},\"message\":\"Spots available for this vehicle type\"},\"timestamp\":\"2025-09-03T20:17:00.955Z\"} "
+    },
+    {
+      "name": "Simulate Check-in (Preview)",
+      "method": "POST",
+      "endpoint": "/checkin/simulate",
+      "expectedStatus": 200,
+      "actualStatus": 500,
+      "status": "FAIL",
+      "responseTime": 32,
+      "responseBody": "{\"success\":false,\"message\":\"Simulation failed\",\"errors\":[\"No available spots for vehicle type: standard\"],\"timestamp\":\"2025-09-03T20:17:00.998Z\"} "
+    },
+    {
+      "name": "Actual Check-in Vehicle",
+      "method": "POST",
+      "endpoint": "/checkin",
+      "expectedStatus": 201,
+      "actualStatus": 400,
+      "status": "FAIL",
+      "responseTime": 11,
+      "responseBody": "{\"success\":false,\"message\":\"Invalid check-in data\",\"errors\":[\"License plate must be between 2 and 10 characters\"],\"timestamp\":\"2025-09-03T20:17:01.019Z\"} "
+    },
+    {
+      "name": "Simulate Checkout (Preview Billing)",
+      "method": "POST",
+      "endpoint": "/checkout/simulate",
+      "expectedStatus": 200,
+      "actualStatus": 200,
+      "status": "PASS",
+      "responseTime": 12,
+      "responseBody": "{\"success\":true,\"timestamp\":\"2025-09-03T20:17:02.043Z\"} "
+    },
+    {
+      "name": "Get Vehicle Details Before Checkout",
+      "method": "GET",
+      "endpoint": "/vehicles/CRITICAL001",
+      "expectedStatus": 200,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Actual Checkout Vehicle",
+      "method": "POST",
+      "endpoint": "/checkout",
+      "expectedStatus": 200,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Multi-Vehicle Check-in Scenario (Vehicle 1)",
+      "method": "POST",
+      "endpoint": "/checkin",
+      "expectedStatus": 201,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 8,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Second Vehicle Check-in",
+      "method": "POST",
+      "endpoint": "/checkin",
+      "expectedStatus": 201,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Get Current Occupancy Status",
+      "method": "GET",
+      "endpoint": "/stats/occupancy",
+      "expectedStatus": 200,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Bulk Vehicle List",
+      "method": "GET",
+      "endpoint": "/vehicles?status=parked",
+      "expectedStatus": 200,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Checkout First Vehicle",
+      "method": "POST",
+      "endpoint": "/checkout",
+      "expectedStatus": 200,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Verify Occupancy After First Checkout",
+      "method": "GET",
+      "endpoint": "/stats/occupancy",
+      "expectedStatus": 200,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 10,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Duplicate Check-in Attempt",
+      "method": "POST",
+      "endpoint": "/checkin",
+      "expectedStatus": 400,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 8,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Invalid License Plate Check-in",
+      "method": "POST",
+      "endpoint": "/checkin",
+      "expectedStatus": 400,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 8,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Checkout Non-existent Vehicle",
+      "method": "POST",
+      "endpoint": "/checkout",
+      "expectedStatus": 404,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Get Non-existent Spot",
+      "method": "GET",
+      "endpoint": "/spots/INVALID-SPOT",
+      "expectedStatus": 404,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Invalid Vehicle Type Check-in",
+      "method": "POST",
+      "endpoint": "/checkin",
+      "expectedStatus": 400,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 10,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Cleanup Remaining Vehicles",
+      "method": "POST",
+      "endpoint": "/checkout",
+      "expectedStatus": 200,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 11,
+      "responseBody": " 000 "
+    },
+    {
+      "name": "Verify All Spots Available",
+      "method": "GET",
+      "endpoint": "/checkin/availability",
+      "expectedStatus": 200,
+      "actualStatus": 000,
+      "status": "FAIL",
+      "responseTime": 9,
+      "responseBody": " 000 "
+    }
+  ],
+  "summary": {
+    "totalTests": 28,
+    "passed": 8,
+    "failed": 20,
+    "successRate": %,
+    "endTimestamp": "2025-09-03T20:17:02.362Z"
+  }
+}

@@ -40,7 +40,7 @@ export class CheckinController {
     try {
       const { licensePlate, vehicleType, rateType = 'hourly' } = req.body;
 
-      const result = this.checkinService.checkInVehicle(licensePlate, vehicleType, rateType);
+      const result = await this.checkinService.checkInVehicle(licensePlate, vehicleType, rateType);
 
       res.status(201).json({
         success: true,
@@ -70,7 +70,7 @@ export class CheckinController {
         return;
       }
 
-      const simulation = this.checkinService.simulateCheckin(licensePlate, vehicleType);
+      const simulation = await this.checkinService.simulateCheckin(licensePlate, vehicleType);
 
       res.status(200).json({
         success: true,
@@ -164,16 +164,16 @@ export class CheckinController {
         };
       }
 
-      const stats = this.checkinService.getCheckinStats();
+      const stats = await this.checkinService.getCheckinStats();
 
       res.status(200).json({
         success: true,
         message: 'Current availability information',
         data: {
           overall: {
-            totalSpots: stats.spots.totalSpots,
-            availableSpots: stats.spots.availableSpots,
-            occupiedSpots: stats.spots.occupiedSpots,
+            totalSpots: stats.spots.total,
+            availableSpots: stats.spots.available,
+            occupiedSpots: stats.spots.occupied,
             occupancyRate: stats.spots.occupancyRate,
           },
           byVehicleType: availabilityByType,
@@ -197,7 +197,7 @@ export class CheckinController {
    */
   getCheckinStats = async (req: Request, res: Response): Promise<void> => {
     try {
-      const stats = this.checkinService.getCheckinStats();
+      const stats = await this.checkinService.getCheckinStats();
       const assignmentStats = this.spotAssignmentService.getAssignmentStats();
 
       res.status(200).json({
@@ -317,7 +317,7 @@ export class CheckinController {
    */
   healthCheck = async (req: Request, res: Response): Promise<void> => {
     try {
-      const stats = this.checkinService.getCheckinStats();
+      const stats = await this.checkinService.getCheckinStats();
 
       res.status(200).json({
         success: true,
@@ -325,8 +325,8 @@ export class CheckinController {
           service: 'checkin',
           status: 'operational',
           summary: {
-            totalSpots: stats.spots.totalSpots,
-            availableSpots: stats.spots.availableSpots,
+            totalSpots: stats.spots.total,
+            availableSpots: stats.spots.available,
             currentlyParked: stats.vehicles.totalParked,
           },
         },

@@ -59,9 +59,9 @@
               "raw": "{\n  \"name\": \"Critical Path Test Garage\",\n  \"floors\": [\n    {\n      \"number\": 1,\n      \"bays\": 2,\n      \"spotsPerBay\": 5\n    },\n    {\n      \"number\": 2,\n      \"bays\": 2,\n      \"spotsPerBay\": 5\n    }\n  ]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/garage",
+              "raw": "{{baseUrl}}/garage/initialize",
               "host": ["{{baseUrl}}"],
-              "path": ["garage"]
+              "path": ["garage", "initialize"]
             },
             "description": "Create a test garage with 2 floors, 2 bays each, 5 spots per bay (20 total spots)"
           },
@@ -197,7 +197,7 @@
         {
           "name": "Update Garage Rates",
           "request": {
-            "method": "PATCH",
+            "method": "PUT",
             "header": [
               {
                 "key": "Content-Type",
@@ -1462,7 +1462,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000/api",
+      "value": "http://localhost:8742/api",
       "type": "string"
     },
     {
