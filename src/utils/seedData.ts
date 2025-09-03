@@ -3,6 +3,7 @@
  * Automatically initializes the garage with sample data on startup
  */
 
+import { PrismaClient } from '@prisma/client';
 import type { GarageConfig, FloorConfig, RateType } from '../types/models';
 import type { VehicleType } from '@prisma/client';
 import type { GarageService } from '../services/garageService';
@@ -13,6 +14,11 @@ import type { VehicleRepository } from '../repositories/VehicleRepository';
 let GarageServiceClass: typeof GarageService | undefined;
 let SpotServiceClass: typeof SpotService | undefined;
 let VehicleRepositoryClass: typeof VehicleRepository | undefined;
+
+// Constants for seed tracking
+const SEED_STATUS_KEY = 'DATABASE_SEEDED';
+const SEED_VERSION_KEY = 'SEED_VERSION';
+const CURRENT_SEED_VERSION = '1.0.0';
 
 // Sample vehicle data interface
 interface SampleVehicleData {
@@ -49,10 +55,100 @@ export class SeedDataInitializer {
   private garageService: GarageService | undefined;
   private spotService: SpotService | undefined;
   private vehicleRepository: VehicleRepository | undefined;
+  private prisma: PrismaClient | undefined;
   private initialized: boolean;
 
   constructor() {
     this.initialized = false;
+  }
+
+  /**
+   * Check if the database has already been seeded
+   */
+  private async isDatabaseSeeded(): Promise<boolean> {
+    try {
+      if (!this.prisma) {
+        this.prisma = new PrismaClient();
+      }
+
+      // Check if the seed flag exists in the SecuritySettings table
+      const seedFlag = await this.prisma.securitySettings.findUnique({
+        where: { key: SEED_STATUS_KEY }
+      });
+
+      if (!seedFlag) {
+        return false;
+      }
+
+      // Check if the seed version matches
+      const seedVersion = await this.prisma.securitySettings.findUnique({
+        where: { key: SEED_VERSION_KEY }
+      });
+
+      if (seedVersion && seedVersion.value === CURRENT_SEED_VERSION) {
+        return true;
+      }
+
+      // Different version - we might want to re-seed or migrate
+      console.log(`🔄 Seed version mismatch. Current: ${CURRENT_SEED_VERSION}, Database: ${seedVersion?.value}`);
+      return false;
+    } catch (error) {
+      // If we can't check, assume not seeded
+      console.log('⚠️ Could not check seed status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mark the database as seeded
+   */
+  private async markDatabaseAsSeeded(): Promise<void> {
+    try {
+      if (!this.prisma) {
+        this.prisma = new PrismaClient();
+      }
+
+      // Set the seed flag
+      await this.prisma.securitySettings.upsert({
+        where: { key: SEED_STATUS_KEY },
+        update: { 
+          value: 'true',
+          updatedAt: new Date()
+        },
+        create: {
+          key: SEED_STATUS_KEY,
+          value: 'true',
+          dataType: 'BOOLEAN',
+          category: 'SYSTEM',
+          description: 'Indicates whether the database has been seeded with initial data',
+          isEditable: false,
+          environmentSpecific: false
+        }
+      });
+
+      // Set the seed version
+      await this.prisma.securitySettings.upsert({
+        where: { key: SEED_VERSION_KEY },
+        update: { 
+          value: CURRENT_SEED_VERSION,
+          updatedAt: new Date()
+        },
+        create: {
+          key: SEED_VERSION_KEY,
+          value: CURRENT_SEED_VERSION,
+          dataType: 'STRING',
+          category: 'SYSTEM',
+          description: 'Version of the seed data that was applied',
+          isEditable: false,
+          environmentSpecific: false
+        }
+      });
+
+      console.log('✅ Database marked as seeded with version:', CURRENT_SEED_VERSION);
+    } catch (error) {
+      console.error('❌ Failed to mark database as seeded:', error);
+      throw error;
+    }
   }
 
   /**
@@ -66,7 +162,15 @@ export class SeedDataInitializer {
     }
 
     try {
-      console.log('🌱 Initializing seed data...');
+      // Check if database has already been seeded
+      const isSeeded = await this.isDatabaseSeeded();
+      if (isSeeded) {
+        console.log('✅ Database already seeded. Skipping seed data initialization.');
+        this.initialized = true;
+        return;
+      }
+
+      console.log('🌱 First-time setup: Initializing seed data...');
       
       // Load services now that database is initialized
       if (!GarageServiceClass) {
@@ -92,6 +196,9 @@ export class SeedDataInitializer {
 
       // Step 3: Set some spots to maintenance
       await this.setMaintenanceSpots();
+
+      // Mark the database as seeded to prevent re-seeding on restart
+      await this.markDatabaseAsSeeded();
 
       this.initialized = true;
       console.log('✅ Seed data initialization complete!');
@@ -426,9 +533,59 @@ export class SeedDataInitializer {
     await this.garageService.resetGarage();
     await this.vehicleRepository.deleteMany({});
 
+    // Clear the seed flags to allow re-seeding
+    if (!this.prisma) {
+      this.prisma = new PrismaClient();
+    }
+
+    try {
+      await this.prisma.securitySettings.deleteMany({
+        where: {
+          key: {
+            in: [SEED_STATUS_KEY, SEED_VERSION_KEY]
+          }
+        }
+      });
+      console.log('✅ Seed flags cleared');
+    } catch (error) {
+      console.error('⚠️ Could not clear seed flags:', error);
+    }
+
     this.initialized = false;
 
     // Re-initialize
+    await this.initialize();
+  }
+
+  /**
+   * Force re-seed the database (useful for development)
+   * This will clear the seed flags and re-run the seeding process
+   */
+  async forceSeed(): Promise<void> {
+    console.log('⚠️ Force re-seeding database...');
+    
+    // Clear seed flags
+    if (!this.prisma) {
+      this.prisma = new PrismaClient();
+    }
+
+    try {
+      await this.prisma.securitySettings.deleteMany({
+        where: {
+          key: {
+            in: [SEED_STATUS_KEY, SEED_VERSION_KEY]
+          }
+        }
+      });
+      console.log('✅ Seed flags cleared');
+    } catch (error) {
+      console.error('⚠️ Could not clear seed flags:', error);
+    }
+
+    // Reset initialized flag
+    this.initialized = false;
+
+    // Re-run initialization
     await this.initialize();
   }
 
