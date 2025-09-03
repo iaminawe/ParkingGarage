@@ -78,7 +78,8 @@ async function setupApiMocks(page: Page, options: {
 } = {}) {
   const {
     sessions = mockSessions,
-    stats = mockStats,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    stats: _stats = mockStats,
     delay = 0,
     shouldFail = false
   } = options
