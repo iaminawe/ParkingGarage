@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '../config/database';
+import { randomUUID } from 'crypto';
 
 export interface EmailTemplateData {
   name: string;
@@ -306,7 +307,7 @@ export async function initializeEmailTemplates(): Promise<void> {
 
   for (const template of templates) {
     try {
-      await prisma.emailTemplate.upsert({
+      await prisma.email_templates.upsert({
         where: { name: template.name },
         update: {
           subject: template.subject,
@@ -317,6 +318,7 @@ export async function initializeEmailTemplates(): Promise<void> {
           language: template.language,
         },
         create: {
+          id: randomUUID(),
           name: template.name,
           subject: template.subject,
           htmlContent: template.htmlContent,
@@ -325,6 +327,8 @@ export async function initializeEmailTemplates(): Promise<void> {
           isActive: template.isActive,
           language: template.language,
           version: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       });
       
@@ -339,12 +343,12 @@ export async function initializeEmailTemplates(): Promise<void> {
  * Get all available email templates
  */
 export async function getEmailTemplates(): Promise<EmailTemplateData[]> {
-  const templates = await prisma.emailTemplate.findMany({
+  const templates = await prisma.email_templates.findMany({
     where: { isActive: true },
     orderBy: { name: 'asc' },
   });
 
-  return templates.map(template => ({
+  return templates.map((template: any) => ({
     name: template.name,
     subject: template.subject,
     htmlContent: template.htmlContent,

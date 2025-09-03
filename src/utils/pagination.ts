@@ -17,6 +17,7 @@ export interface PaginationQuery {
 export interface PaginationResult {
   limit: number;
   offset: number;
+  page: number; // Added for consistency with SpotService
   hasMore: boolean;
   currentPage: number;
   totalPages: number;
@@ -94,6 +95,7 @@ export function calculatePagination(query: any, totalCount: number): PaginationR
   return {
     limit,
     offset,
+    page: currentPage, // Added for consistency
     hasMore,
     currentPage,
     totalPages,
