@@ -19,16 +19,56 @@ export AUTH_HEADER="Authorization: Bearer $AUTH_TOKEN"
 
 ## Authentication Setup
 
+### Password Requirements
+
+Passwords must meet the following criteria:
+- 8-128 characters long
+- At least one uppercase letter (A-Z)
+- At least one lowercase letter (a-z)
+- At least one number (0-9)
+- At least one special character (!@#$%^&*(),.?":{}|<>)
+
+### Name Requirements
+
+- firstName and lastName can only contain letters, spaces, hyphens, and apostrophes
+- No numbers or special characters allowed in names
+- 1-50 characters long
+
 ### 1. User Registration
 
 ```bash
+# Basic registration
 curl -X POST "$BASE_URL/auth/signup" \
   -H "$CONTENT_TYPE" \
   -d '{
     "email": "test@example.com",
-    "password": "SecurePassword123!",
+    "password": "SecurePass123@",
     "firstName": "Test",
     "lastName": "User"
+  }'
+```
+
+#### Alternative Registration Examples
+
+```bash
+# Registration with different valid passwords
+curl -X POST "$BASE_URL/auth/signup" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "AdminSecret456#",
+    "firstName": "Admin",
+    "lastName": "Manager"
+  }'
+
+# Registration with hyphenated name
+curl -X POST "$BASE_URL/auth/signup" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "mary@example.com",
+    "password": "MyPassword789$",
+    "firstName": "Mary-Jane",
+    "lastName": "Smith-Johnson"
   }'
 ```
 
@@ -40,12 +80,66 @@ RESPONSE=$(curl -X POST "$BASE_URL/auth/login" \
   -H "$CONTENT_TYPE" \
   -d '{
     "email": "test@example.com",
-    "password": "SecurePassword123!"
+    "password": "SecurePass123@"
   }')
 
 # Extract token (requires jq)
 export AUTH_TOKEN=$(echo $RESPONSE | jq -r '.data.accessToken')
 export AUTH_HEADER="Authorization: Bearer $AUTH_TOKEN"
+```
+
+### 3. Handling Special Characters in Bash
+
+When using passwords with special characters in bash, you have several options:
+
+#### Option 1: Use single quotes (recommended)
+```bash
+# Single quotes preserve all characters literally
+curl -X POST "$BASE_URL/auth/login" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "user@example.com",
+    "password": "Complex!Pass@123#"
+  }'
+```
+
+#### Option 2: Escape special characters
+```bash
+# Escape exclamation marks in bash
+curl -X POST "$BASE_URL/auth/login" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePassword123\!"
+  }'
+```
+
+#### Option 3: Use environment variables
+```bash
+# Store password in environment variable
+export USER_PASSWORD="SecurePass123@"
+curl -X POST "$BASE_URL/auth/login" \
+  -H "$CONTENT_TYPE" \
+  -d "{
+    \"email\": \"user@example.com\",
+    \"password\": \"$USER_PASSWORD\"
+  }"
+```
+
+#### Option 4: Use JSON file
+```bash
+# Create JSON file with credentials
+cat > login.json << EOF
+{
+  "email": "user@example.com",
+  "password": "Complex!Pass@123#"
+}
+EOF
+
+# Use the JSON file
+curl -X POST "$BASE_URL/auth/login" \
+  -H "$CONTENT_TYPE" \
+  -d @login.json
 ```
 
 ## 1. Garage Layout Management
@@ -742,6 +836,72 @@ wait
 curl -X GET "$BASE_URL/spots/statistics" | jq '.data.occupied'
 ```
 
+## Authentication Error Testing
+
+### Test Invalid Authentication Requests
+
+```bash
+# Invalid password format (missing uppercase)
+curl -X POST "$BASE_URL/auth/signup" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "test@example.com",
+    "password": "weakpassword123",
+    "firstName": "Test",
+    "lastName": "User"
+  }'
+
+# Invalid password format (missing special character)
+curl -X POST "$BASE_URL/auth/signup" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "test@example.com",
+    "password": "WeakPassword123",
+    "firstName": "Test",
+    "lastName": "User"
+  }'
+
+# Invalid lastName (contains numbers)
+curl -X POST "$BASE_URL/auth/signup" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "test@example.com",
+    "password": "SecurePass123@",
+    "firstName": "Test",
+    "lastName": "User123"
+  }'
+
+# Invalid email format
+curl -X POST "$BASE_URL/auth/signup" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "invalid-email",
+    "password": "SecurePass123@",
+    "firstName": "Test",
+    "lastName": "User"
+  }'
+
+# Password too short
+curl -X POST "$BASE_URL/auth/signup" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "test@example.com",
+    "password": "Short1@",
+    "firstName": "Test",
+    "lastName": "User"
+  }'
+
+# Empty required fields
+curl -X POST "$BASE_URL/auth/signup" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "email": "",
+    "password": "",
+    "firstName": "",
+    "lastName": ""
+  }'
+```
+
 ## Error Testing
 
 ### Test Invalid Requests
@@ -814,6 +974,72 @@ Error responses include additional fields:
 }
 ```
 
+## Troubleshooting Common Issues
+
+### Authentication Issues
+
+**Problem**: `bash: !: event not found` error when using passwords with exclamation marks
+
+**Solution**: Use single quotes or escape the exclamation mark:
+```bash
+# Use single quotes
+-d '{"password": "SecurePass123!"}'
+
+# Or escape the exclamation mark
+-d '{"password": "SecurePass123\!"}'
+```
+
+**Problem**: Password validation fails with "Password must contain..."
+
+**Solution**: Ensure your password meets ALL requirements:
+- At least 8 characters
+- Contains uppercase letter (A-Z)
+- Contains lowercase letter (a-z) 
+- Contains number (0-9)
+- Contains special character (!@#$%^&*(),.?":{}|<>)
+
+**Problem**: Name validation fails with "can only contain letters, spaces, hyphens, and apostrophes"
+
+**Solution**: Remove numbers and special characters from firstName/lastName:
+```bash
+# ❌ Invalid
+"lastName": "User123"
+"firstName": "Test@User"
+
+# ✅ Valid
+"lastName": "User"
+"firstName": "Test-User"
+"lastName": "O'Connor"
+```
+
+### JSON Parsing Issues
+
+**Problem**: `Invalid JSON` errors
+
+**Solution**: Validate your JSON syntax:
+```bash
+# Use jq to validate JSON before sending
+echo '{"email":"test@example.com","password":"SecurePass123@"}' | jq .
+
+# Or use online JSON validators
+# Ensure proper escaping of quotes and special characters
+```
+
+### Bash Variable Issues
+
+**Problem**: Environment variables not expanding properly
+
+**Solution**: Check variable setup and usage:
+```bash
+# Verify variables are set
+echo "BASE_URL: $BASE_URL"
+echo "AUTH_TOKEN: $AUTH_TOKEN"
+
+# Re-export if needed
+export BASE_URL="http://localhost:8742/api"
+export AUTH_TOKEN="your-token-here"
+```
+
 ## Notes
 
 1. Replace placeholder values (`{spot-id}`, `{vehicle-id}`, etc.) with actual
@@ -824,6 +1050,9 @@ Error responses include additional fields:
 5. Always test error scenarios to ensure proper error handling
 6. Use JSON formatting tools like `jq` for readable responses
 7. Consider implementing rate limiting testing to verify API protection
+8. Always verify your JSON syntax before sending requests
+9. Use single quotes for JSON strings containing special characters
+10. Store complex passwords in environment variables or JSON files to avoid bash escaping issues
 
 This guide covers all critical path endpoints for comprehensive API testing of
 the Parking Garage Management System.
