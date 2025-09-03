@@ -346,6 +346,122 @@ export class SpotController {
   };
 
   /**
+   * PUT /api/v1/spots/:id/occupy
+   * Mark specific spot as occupied
+   */
+  occupySpot = async (
+    req: Request<{ id: string }, ApiResponse<SpotRecord>, { vehicleId?: string; licensePlate?: string; notes?: string }>,
+    res: Response<ApiResponse<SpotRecord>>
+  ): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { vehicleId, licensePlate, notes } = req.body;
+
+      const updatedSpot = await this.spotService.occupySpot(id, { vehicleId, licensePlate, notes });
+
+      if (!updatedSpot) {
+        res.status(404).json({
+          success: false,
+          message: `Spot with ID '${id}' not found`,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Spot marked as occupied successfully',
+        data: updatedSpot,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(`Error in occupySpot for ID ${req.params.id}:`, error);
+
+      // Handle business logic errors
+      if (
+        (error as Error).message.includes('already occupied') ||
+        (error as Error).message.includes('cannot occupy')
+      ) {
+        res.status(400).json({
+          success: false,
+          message: (error as Error).message,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while occupying spot',
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
+      });
+    }
+  };
+
+  /**
+   * PUT /api/v1/spots/:id/free
+   * Mark specific spot as available
+   */
+  freeSpot = async (
+    req: Request<{ id: string }, ApiResponse<SpotRecord>, { notes?: string }>,
+    res: Response<ApiResponse<SpotRecord>>
+  ): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+
+      const updatedSpot = await this.spotService.freeSpot(id, { notes });
+
+      if (!updatedSpot) {
+        res.status(404).json({
+          success: false,
+          message: `Spot with ID '${id}' not found`,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Spot marked as available successfully',
+        data: updatedSpot,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(`Error in freeSpot for ID ${req.params.id}:`, error);
+
+      // Handle business logic errors
+      if (
+        (error as Error).message.includes('already available') ||
+        (error as Error).message.includes('cannot free')
+      ) {
+        res.status(400).json({
+          success: false,
+          message: (error as Error).message,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error while freeing spot',
+        errors: [
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : 'Internal server error',
+        ],
+        timestamp: new Date().toISOString(),
+      });
+    }
+  };
+
+  /**
    * Parse search query into filters
    * @private
    */

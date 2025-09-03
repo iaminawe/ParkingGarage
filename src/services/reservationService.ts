@@ -125,10 +125,13 @@ export class ReservationService {
       const paginatedResult: PaginatedResult<ParkingSession> = {
         data: reservations,
         totalCount: totalItems,
+        totalItems, // For backward compatibility
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
+        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1, // For BaseAdapter compatibility
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved reservations list', {
@@ -543,10 +546,13 @@ export class ReservationService {
       const paginatedResult: PaginatedResult<ParkingSession> = {
         data: reservations,
         totalCount: totalItems,
+        totalItems, // For backward compatibility
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
+        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1, // For BaseAdapter compatibility
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved reservations by vehicle', {
@@ -603,10 +609,13 @@ export class ReservationService {
       const paginatedResult: PaginatedResult<ParkingSession> = {
         data: reservations.slice(0, limit), // Apply pagination
         totalCount: totalItems,
+        totalItems, // For backward compatibility
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
+        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1, // For BaseAdapter compatibility
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved reservations by license plate', {
@@ -706,10 +715,13 @@ export class ReservationService {
       const paginatedResult: PaginatedResult<ParkingSession> = {
         data: reservations,
         totalCount: totalItems,
+        totalItems, // For backward compatibility
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
+        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1, // For BaseAdapter compatibility
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Reservation search completed', {

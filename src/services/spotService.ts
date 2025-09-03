@@ -16,6 +16,7 @@ import {
   SpotFeature,
   ServiceResponse,
   PaginationOptions,
+  PaginatedResult,
 } from '../types/models';
 
 interface SpotFilters {
@@ -52,7 +53,15 @@ interface SpotMetadata {
 
 interface SpotResult {
   spots: any[];
-  pagination: any;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    offset: number;
+  };
   metadata: SpotMetadata;
 }
 
@@ -120,8 +129,16 @@ class SpotService {
       const processingTime = Number(endTime - startTime) / 1000000; // Convert to milliseconds
 
       return {
-        spots: paginatedSpots.map(spot => spot.toObject()),
-        pagination: paginationData,
+        spots: paginatedSpots,
+        pagination: {
+          page: paginationData.page,
+          limit: paginationData.limit,
+          offset: paginationData.offset,
+          total: filteredSpots.length,
+          totalPages: Math.ceil(filteredSpots.length / paginationData.limit),
+          hasNextPage: (paginationData.page * paginationData.limit) < filteredSpots.length,
+          hasPreviousPage: paginationData.page > 1,
+        },
         metadata: {
           ...metadata,
           processingTimeMs: Math.round(processingTime * 100) / 100,
@@ -426,14 +443,21 @@ class SpotService {
     const baySet = new Set<string>();
 
     filteredSpots.forEach(spot => {
-      statusCounts[spot.status]++;
-      typeCounts[spot.type]++;
+      if (spot.status && statusCounts[spot.status] !== undefined) {
+        statusCounts[spot.status] = (statusCounts[spot.status] || 0) + 1;
+      }
+      if (spot.type && typeCounts[spot.type] !== undefined) {
+        typeCounts[spot.type] = (typeCounts[spot.type] || 0) + 1;
+      }
 
-      spot.features.forEach((feature: SpotFeature) => {
-        if (featureCounts[feature] !== undefined) {
-          featureCounts[feature]++;
-        }
-      });
+      // Handle features array safely
+      if (spot.features && Array.isArray(spot.features)) {
+        spot.features.forEach((feature: SpotFeature) => {
+          if (featureCounts[feature] !== undefined) {
+            featureCounts[feature]++;
+          }
+        });
+      }
 
       floorSet.add(spot.floor);
       baySet.add(`F${spot.floor}-B${spot.bay}`);
@@ -449,7 +473,7 @@ class SpotService {
       featureCounts,
       floors: Array.from(floorSet).sort((a, b) => a - b),
       uniqueBays: baySet.size,
-      occupancyRate: total > 0 ? Math.round((statusCounts.occupied / total) * 10000) / 100 : 0,
+      occupancyRate: total > 0 ? Math.round(((statusCounts.occupied ?? 0) / total) * 10000) / 100 : 0,
     };
   }
 
@@ -493,12 +517,14 @@ class SpotService {
       typeStats[spot.type as VehicleType][spot.status]++;
 
       // Feature statistics
-      spot.features.forEach((feature: SpotFeature) => {
-        if (featureStats[feature]) {
-          featureStats[feature].total++;
-          featureStats[feature][spot.status]++;
-        }
-      });
+      if (spot.features && Array.isArray(spot.features)) {
+        spot.features.forEach((feature: SpotFeature) => {
+          if (featureStats[feature]) {
+            featureStats[feature].total++;
+            featureStats[feature][spot.status]++;
+          }
+        });
+      }
     });
 
     // Convert bay sets to counts
@@ -512,6 +538,91 @@ class SpotService {
       typeStats,
       featureStats,
     };
+  }
+
+  /**
+   * Mark a specific spot as occupied
+   * @param spotId - The ID of the spot to occupy
+   * @param options - Optional data about the occupying vehicle
+   */
+  async occupySpot(
+    spotId: string, 
+    options: { vehicleId?: string; licensePlate?: string; notes?: string } = {}
+  ): Promise<any | null> {
+    try {
+      // First check if spot exists and get current status
+      const existingSpot = await this.spotRepository.findById(spotId);
+      if (!existingSpot) {
+        return null;
+      }
+
+      // Check if spot is already occupied
+      if (existingSpot.status === 'OCCUPIED') {
+        throw new Error(`Spot ${spotId} is already occupied`);
+      }
+
+      // Check if spot is out of order or in maintenance
+      if (existingSpot.status === 'MAINTENANCE' || existingSpot.status === 'OUT_OF_ORDER') {
+        throw new Error(`Cannot occupy spot ${spotId}: spot is currently ${existingSpot.status.toLowerCase().replace('_', ' ')}`);
+      }
+
+      // Update spot status to occupied
+      const updates: any = {
+        status: 'OCCUPIED',
+        updatedAt: new Date(),
+      };
+
+      // Add optional metadata if provided
+      if (options.notes) {
+        updates.notes = options.notes;
+      }
+
+      const result = await this.spotRepository.update(spotId, updates);
+      return result;
+    } catch (error) {
+      console.error(`Error occupying spot ${spotId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark a specific spot as available (free)
+   * @param spotId - The ID of the spot to free
+   * @param options - Optional notes about freeing the spot
+   */
+  async freeSpot(
+    spotId: string, 
+    options: { notes?: string } = {}
+  ): Promise<any | null> {
+    try {
+      // First check if spot exists and get current status
+      const existingSpot = await this.spotRepository.findById(spotId);
+      if (!existingSpot) {
+        return null;
+      }
+
+      // Check if spot is already available
+      if (existingSpot.status === 'AVAILABLE') {
+        throw new Error(`Spot ${spotId} is already available`);
+      }
+
+      // Update spot status to available
+      const updates: any = {
+        status: 'AVAILABLE',
+        updatedAt: new Date(),
+      };
+
+      // Add optional notes if provided
+      if (options.notes) {
+        updates.notes = options.notes;
+      }
+
+      const result = await this.spotRepository.update(spotId, updates);
+      return result;
+    } catch (error) {
+      console.error(`Error freeing spot ${spotId}:`, error);
+      throw error;
+    }
   }
 }
 

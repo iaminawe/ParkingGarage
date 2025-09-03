@@ -13,9 +13,9 @@ import { SpotRepository } from '../repositories/SpotRepository';
 import { ParkingSession, PaginatedResponse, Vehicle, ParkingSpot } from '../types/api';
 
 export interface SessionFilters {
-  status: 'all' | 'active' | 'completed' | 'cancelled';
+  status: 'all' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   dateRange: 'all' | 'today' | 'week' | 'month' | 'year';
-  search: any;
+  search: string;
   limit: number;
   offset: number;
   sort: 'createdAt' | 'endTime' | 'duration' | 'totalAmount' | 'licensePlate';
@@ -61,14 +61,11 @@ export class SessionsService {
   /**
    * Get parking sessions with filtering and pagination
    */
-  async getSessions(filters: any): Promise<PaginatedResponse<ParkingSession[]>> {
+  async getSessions(filters: SessionFilters): Promise<PaginatedResponse<ParkingSession[]>> {
     try {
       // Get all sessions from repository
       const allSessionsResult = await this.sessionsRepository.findAll();
-      const allSessions = allSessionsResult.data.map(session => ({
-        ...session,
-        licensePlate: `LIC-${session.vehicleId.slice(-6)}` // Mock licensePlate from vehicleId
-      }));
+      const allSessions = allSessionsResult.data.map(session => this.mapPrismaSessionToApi(session));
 
       // Apply filters
       let filteredSessions = this.applyFilters(allSessions, filters);
@@ -78,15 +75,15 @@ export class SessionsService {
 
       // Calculate pagination
       const total = filteredSessions.length;
-      const totalPages = Math.ceil(total / (filters as any).limit);
-      const currentPage = Math.floor((filters as any).offset / (filters as any).limit) + 1;
+      const totalPages = Math.ceil(total / filters.limit);
+      const currentPage = Math.floor(filters.offset / filters.limit) + 1;
       const hasNextPage = currentPage < totalPages;
       const hasPreviousPage = currentPage > 1;
 
       // Apply pagination
       const paginatedSessions = filteredSessions.slice(
-        (filters as any).offset || 0,
-        ((filters as any).offset || 0) + ((filters as any).limit || 50)
+        filters.offset || 0,
+        (filters.offset || 0) + (filters.limit || 50)
       );
 
       // Enhance sessions with additional data
@@ -96,8 +93,8 @@ export class SessionsService {
         data: enhancedSessions,
         pagination: {
           total,
-          limit: (filters as any).limit,
-          offset: (filters as any).offset || 0,
+          limit: filters.limit,
+          offset: filters.offset || 0,
           page: currentPage,
           totalPages,
           hasNextPage,
@@ -118,10 +115,7 @@ export class SessionsService {
   ): Promise<SessionStats> {
     try {
       const allSessionsResult = await this.sessionsRepository.findAll();
-      const allSessions = allSessionsResult.data.map(session => ({
-        ...session,
-        licensePlate: `LIC-${session.vehicleId.slice(-6)}` // Mock licensePlate from vehicleId
-      }));
+      const allSessions = allSessionsResult.data.map(session => this.mapPrismaSessionToApi(session));
       const filteredSessions = this.filterSessionsByPeriod(allSessions, period);
 
       // Calculate basic stats
@@ -181,9 +175,9 @@ export class SessionsService {
 
       // Status breakdown
       const statusBreakdown: Record<string, number> = {
-        active: activeSessions,
-        completed: completedSessions,
-        cancelled: cancelledSessions,
+        ACTIVE: activeSessions,
+        COMPLETED: completedSessions,
+        CANCELLED: cancelledSessions,
       };
 
       return {
@@ -215,10 +209,7 @@ export class SessionsService {
   ): Promise<SessionAnalytics> {
     try {
       const allSessionsResult = await this.sessionsRepository.findAll();
-      const allSessions = allSessionsResult.data.map(session => ({
-        ...session,
-        licensePlate: `LIC-${session.vehicleId.slice(-6)}` // Mock licensePlate from vehicleId
-      }));
+      const allSessions = allSessionsResult.data.map(session => this.mapPrismaSessionToApi(session));
 
       switch (type) {
         case 'revenue':
@@ -241,16 +232,17 @@ export class SessionsService {
   /**
    * Get session by ID
    */
-  async getSessionById(sessionId: any): Promise<ParkingSession | null> {
+  async getSessionById(sessionId: string): Promise<ParkingSession | null> {
     try {
       const session = await this.sessionsRepository.findById(sessionId);
       if (!session) {
         return null;
       }
 
-      // Enhance with additional details
-      const [enhancedSession] = await this.enhanceSessionsWithDetails([session]);
-      return enhancedSession;
+      // Map to API format and enhance with additional details
+      const mappedSession = this.mapPrismaSessionToApi(session);
+      const [enhancedSession] = await this.enhanceSessionsWithDetails([mappedSession]);
+      return enhancedSession || null;
     } catch (error) {
       console.error('SessionsService.getSessionById error:', error);
       throw new Error('Failed to fetch session');
@@ -268,15 +260,15 @@ export class SessionsService {
         throw new Error(`Session with ID '${sessionId}' not found`);
       }
 
-      if (session.status !== 'active') {
+      if (session.status !== 'ACTIVE') {
         throw new Error(`Session is not active (current status: ${session.status})`);
       }
 
       const endTime = new Date();
-      if (!session.createdAt) {
-        throw new Error('Session missing created date - cannot calculate duration');
+      if (!session.startTime && !session.createdAt) {
+        throw new Error('Session missing start time - cannot calculate duration');
       }
-      const startTime = new Date(session.createdAt);
+      const startTime = session.startTime ? new Date(session.startTime) : new Date(session.createdAt);
       const durationMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60));
 
       // Calculate cost (simplified - in real app would use proper billing service)
@@ -286,16 +278,16 @@ export class SessionsService {
 
       // Update session
       const updatedSession = await this.sessionsRepository.update(sessionId, {
-        status: 'completed',
-        endTime: endTime.toISOString(),
+        status: 'COMPLETED',
+        endTime: endTime,
         duration: durationMinutes,
-        cost: Math.round(cost * 100) / 100, // Round to 2 decimal places
-        endReason: reason,
+        totalAmount: Math.round(cost * 100) / 100, // Round to 2 decimal places
+        notes: reason,
       });
 
       // Free up the parking spot
       if (session.spotId) {
-        await this.spotRepository.updateSpotStatus(session.spotId, 'available');
+        await this.spotRepository.update(session.spotId, { status: 'AVAILABLE' });
       }
 
       return {
@@ -323,15 +315,15 @@ export class SessionsService {
 
       // Update session
       const updatedSession = await this.sessionsRepository.update(sessionId, {
-        status: 'cancelled',
-        endTime: new Date().toISOString(),
-        endReason: reason,
-        cost: 0, // No charge for cancelled sessions
+        status: 'CANCELLED',
+        endTime: new Date(),
+        notes: reason,
+        totalAmount: 0, // No charge for cancelled sessions
       });
 
       // Free up the parking spot
       if (session.spotId) {
-        await this.spotRepository.updateSpotStatus(session.spotId, 'available');
+        await this.spotRepository.update(session.spotId, { status: 'AVAILABLE' });
       }
 
       return {
@@ -355,24 +347,18 @@ export class SessionsService {
         throw new Error(`Session with ID '${sessionId}' not found`);
       }
 
-      if (session.status !== 'active') {
+      if (session.status !== 'ACTIVE') {
         throw new Error(`Session is not active (current status: ${session.status})`);
       }
 
       // Calculate additional cost
-      const hourlyRate = this.getHourlyRateForVehicleType(session.vehicleType);
+      const hourlyRate = this.getHourlyRateForVehicleType(session.vehicle?.vehicleType || session.vehicles?.vehicleType);
       const additionalCost = additionalHours * hourlyRate;
 
-      // Update expected end time (if it was set)
-      const currentExpectedEnd = session.expectedEndTime && typeof session.expectedEndTime === 'string' 
-        ? new Date(session.expectedEndTime) 
-        : null;
-      const newExpectedEnd = currentExpectedEnd
-        ? new Date(currentExpectedEnd.getTime() + additionalHours * 60 * 60 * 1000)
-        : null;
+      // For extension, we don't need to update expected end time as it's not part of the schema
+      // Just add a note about the extension
 
       const updatedSession = await this.sessionsRepository.update(sessionId, {
-        expectedEndTime: newExpectedEnd?.toISOString(),
         notes: `Extended by ${additionalHours} hour(s). Additional cost: $${additionalCost.toFixed(2)}`,
       });
 
@@ -380,7 +366,6 @@ export class SessionsService {
         session: updatedSession,
         additionalHours,
         additionalCost: Math.round(additionalCost * 100) / 100,
-        newExpectedEndTime: newExpectedEnd?.toISOString(),
         message: `Session extended by ${additionalHours} hour(s)`,
       };
     } catch (error) {
@@ -394,7 +379,8 @@ export class SessionsService {
    */
   async exportSessionsCSV(filters: Partial<SessionFilters>): Promise<string> {
     try {
-      const allSessions = await this.sessionsRepository.findAll();
+      const allSessionsResult = await this.sessionsRepository.findAll();
+      const allSessions = allSessionsResult.data.map(session => this.mapPrismaSessionToApi(session));
       const filteredSessions = this.applyFilters(allSessions, {
         status: filters.status || 'all',
         dateRange: filters.dateRange || 'all',
@@ -420,31 +406,31 @@ export class SessionsService {
         'End Time',
         'Duration (minutes)',
         'Cost',
-        'End Reason',
+        'Notes',
       ];
 
       // CSV rows
       const rows = filteredSessions.map(session => [
-        session.id,
+        session.id || '',
         session.licensePlate || '',
         session.vehicleType || '',
         session.vehicleMake || '',
         session.vehicleModel || '',
         session.spotId || '',
-        session.floor || '',
+        session.floor?.toString() || '',
         session.bay || '',
-        session.status,
-        session.createdAt,
+        session.status || '',
+        session.startTime || session.createdAt || '',
         session.endTime || '',
         session.duration?.toString() || '',
         session.totalAmount?.toString() || '',
-        session.endReason || '',
+        session.notes || '',
       ]);
 
       // Combine headers and rows
       const csvContent = [headers, ...rows]
-        .map(row => row.map(field => `"${field}"`).join(','))
-        .join('\\n');
+        .map(row => row.map(field => `"${field || ''}"`).join(','))
+        .join('\n');
 
       return csvContent;
     } catch (error) {
@@ -454,6 +440,54 @@ export class SessionsService {
   }
 
   // Private helper methods
+
+  /**
+   * Map Prisma session data to API format
+   */
+  private mapPrismaSessionToApi(session: any): ParkingSession {
+    // Handle date conversion safely
+    const toISOString = (date: any): string | undefined => {
+      if (!date) return undefined;
+      if (typeof date === 'string') return date;
+      if (date instanceof Date) return date.toISOString();
+      if (typeof date === 'object' && typeof date.toISOString === 'function') {
+        return date.toISOString();
+      }
+      return undefined;
+    };
+
+    return {
+      id: session.id,
+      vehicleId: session.vehicleId,
+      licensePlate: session.vehicle?.licensePlate || session.vehicles?.licensePlate || `LIC-${session.vehicleId?.slice(-6) || 'UNKNOWN'}`,
+      vehicleType: session.vehicle?.vehicleType || session.vehicles?.vehicleType,
+      vehicleMake: session.vehicle?.make || session.vehicles?.make,
+      vehicleModel: session.vehicle?.model || session.vehicles?.model,
+      vehicleColor: session.vehicle?.color || session.vehicles?.color,
+      spotId: session.spotId,
+      floor: session.spot?.floor?.floorNumber || session.parking_spots?.floors?.floorNumber,
+      bay: session.spot?.section || session.parking_spots?.section,
+      spotNumber: session.spot?.spotNumber || session.parking_spots?.spotNumber,
+      garageId: session.spot?.floor?.garageId || session.parking_spots?.floors?.garageId,
+      status: session.status,
+      createdAt: toISOString(session.createdAt),
+      updatedAt: toISOString(session.updatedAt),
+      startTime: toISOString(session.startTime),
+      endTime: toISOString(session.endTime),
+      checkInTime: toISOString(session.startTime),
+      checkOutTime: toISOString(session.endTime),
+      expectedEndTime: toISOString(session.expectedEndTime),
+      duration: session.duration,
+      hourlyRate: session.hourlyRate,
+      isPaid: session.isPaid,
+      paymentMethod: session.paymentMethod,
+      paymentTime: toISOString(session.paymentTime),
+      cost: session.totalAmount,
+      totalAmount: session.totalAmount,
+      amountPaid: session.amountPaid,
+      notes: session.notes,
+    };
+  }
 
   private applyFilters(sessions: ParkingSession[], filters: any): ParkingSession[] {
     let filtered = [...sessions];
@@ -475,7 +509,7 @@ export class SessionsService {
           session.vehicleMake?.toLowerCase().includes(searchTerm) ||
           session.vehicleModel?.toLowerCase().includes(searchTerm) ||
           session.spotId?.toLowerCase().includes(searchTerm) ||
-          session.id.toLowerCase().includes(searchTerm)
+          session.id?.toLowerCase().includes(searchTerm)
       );
     }
 

@@ -11,7 +11,7 @@
 import { Request, Response } from 'express';
 import { CheckinService } from '../services/checkinService';
 import { SpotService } from '../services/spotService';
-import { SpotAssignmentService } from '../services/SpotAssignmentService';
+import { SpotAssignmentService, AssignmentResult } from '../services/SpotAssignmentService';
 import { CheckInRequest, CheckInResponse, ApiResponse } from '../types/api';
 import { VehicleType } from '../types/models';
 
@@ -108,10 +108,10 @@ export class CheckinController {
         return;
       }
 
-      const availability = this.spotAssignmentService.getAvailabilityByVehicleType(
+      const availability = await this.spotAssignmentService.getAvailabilityByVehicleType(
         vehicleType as VehicleType
       );
-      const simulation = this.spotAssignmentService.simulateAssignment(vehicleType as VehicleType);
+      const simulation = await this.spotAssignmentService.simulateAssignment(vehicleType as VehicleType);
 
       res.status(200).json({
         success: true,
@@ -127,7 +127,7 @@ export class CheckinController {
                 wouldAssignTo: simulation.assignedSpot.id,
                 location: simulation.spotLocation,
                 spotType: simulation.assignedSpot.type,
-                isExactMatch: simulation.compatibility.isExactMatch,
+                isExactMatch: simulation.compatibility?.isExactMatch || false,
               }
             : null,
           message: simulation.success
@@ -156,7 +156,7 @@ export class CheckinController {
       const vehicleTypes: VehicleType[] = ['compact', 'standard', 'oversized'];
 
       for (const vehicleType of vehicleTypes) {
-        const availability = this.spotAssignmentService.getAvailabilityByVehicleType(vehicleType);
+        const availability = await this.spotAssignmentService.getAvailabilityByVehicleType(vehicleType);
         availabilityByType[vehicleType] = {
           totalCompatible: availability.total,
           available: availability.hasAvailable,
@@ -164,17 +164,17 @@ export class CheckinController {
         };
       }
 
-      const stats = this.checkinService.getCheckinStats();
+      const stats = await this.checkinService.getCheckinStats();
 
       res.status(200).json({
         success: true,
         message: 'Current availability information',
         data: {
           overall: {
-            totalSpots: stats.spots.totalSpots,
-            availableSpots: stats.spots.availableSpots,
-            occupiedSpots: stats.spots.occupiedSpots,
-            occupancyRate: stats.spots.occupancyRate,
+            totalSpots: stats.totalSpots,
+            availableSpots: stats.availableSpots,
+            occupancyRate: stats.occupancyRate,
+            byVehicleType: stats.byVehicleType,
           },
           byVehicleType: availabilityByType,
           currentlyParked: stats.vehicles.totalParked,
@@ -197,8 +197,8 @@ export class CheckinController {
    */
   getCheckinStats = async (req: Request, res: Response): Promise<void> => {
     try {
-      const stats = this.checkinService.getCheckinStats();
-      const assignmentStats = this.spotAssignmentService.getAssignmentStats();
+      const stats = await this.checkinService.getCheckinStats();
+      const assignmentStats = await this.spotAssignmentService.getAssignmentStats();
 
       res.status(200).json({
         success: true,
@@ -317,7 +317,7 @@ export class CheckinController {
    */
   healthCheck = async (req: Request, res: Response): Promise<void> => {
     try {
-      const stats = this.checkinService.getCheckinStats();
+      const stats = await this.checkinService.getCheckinStats();
 
       res.status(200).json({
         success: true,
@@ -325,9 +325,9 @@ export class CheckinController {
           service: 'checkin',
           status: 'operational',
           summary: {
-            totalSpots: stats.spots.totalSpots,
-            availableSpots: stats.spots.availableSpots,
-            currentlyParked: stats.vehicles.totalParked,
+            totalSpots: stats.totalSpots,
+            availableSpots: stats.availableSpots,
+            currentlyParked: stats.activeAssignments,
           },
         },
         timestamp: new Date().toISOString(),
