@@ -18,9 +18,9 @@ export interface CacheConfig {
   password?: string;
   db?: number;
   keyPrefix?: string;
-  defaultTTL: number;
-  maxRetries: number;
-  retryDelayMs: number;
+  defaultTTL?: number;
+  maxRetries?: number;
+  retryDelayMs?: number;
   circuitBreakerThreshold?: number;
   circuitBreakerTimeout?: number;
   enableWriteThrough?: boolean;
@@ -109,17 +109,20 @@ export class EnhancedCacheService extends EventEmitter {
     super();
     
     this.config = {
-      keyPrefix: 'parking:',
-      defaultTTL: 3600, // 1 hour
-      maxRetries: 3,
-      retryDelayMs: 1000,
-      circuitBreakerThreshold: 10,
-      circuitBreakerTimeout: 60000, // 1 minute
-      enableWriteThrough: true,
-      enableWriteBehind: false,
-      writeBehindBatchSize: 100,
-      writeBehindFlushInterval: 5000, // 5 seconds
-      ...config,
+      host: config.host,
+      port: config.port,
+      password: config.password,
+      db: config.db,
+      keyPrefix: config.keyPrefix || 'parking:',
+      defaultTTL: config.defaultTTL || 3600, // 1 hour
+      maxRetries: config.maxRetries || 3,
+      retryDelayMs: config.retryDelayMs || 1000,
+      circuitBreakerThreshold: config.circuitBreakerThreshold || 10,
+      circuitBreakerTimeout: config.circuitBreakerTimeout || 60000, // 1 minute
+      enableWriteThrough: config.enableWriteThrough !== undefined ? config.enableWriteThrough : true,
+      enableWriteBehind: config.enableWriteBehind || false,
+      writeBehindBatchSize: config.writeBehindBatchSize || 100,
+      writeBehindFlushInterval: config.writeBehindFlushInterval || 5000, // 5 seconds
     };
 
     // Create Redis client with optimized configuration
@@ -128,10 +131,10 @@ export class EnhancedCacheService extends EventEmitter {
         host: this.config.host,
         port: this.config.port,
         reconnectStrategy: retries => {
-          if (retries > this.config.maxRetries) {
+          if (retries > (this.config.maxRetries || 3)) {
             return new Error('Max retries exceeded');
           }
-          return Math.min(retries * this.config.retryDelayMs, 3000);
+          return Math.min(retries * (this.config.retryDelayMs || 1000), 3000);
         },
       },
       password: this.config.password,
@@ -164,7 +167,7 @@ export class EnhancedCacheService extends EventEmitter {
       });
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Failed to connect to enhanced cache service', error);
+      logger.error('Failed to connect to enhanced cache service', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -182,7 +185,7 @@ export class EnhancedCacheService extends EventEmitter {
       this.isConnected = false;
       logger.info('Enhanced cache service disconnected');
     } catch (error) {
-      logger.error('Error disconnecting from enhanced cache service', error);
+      logger.error('Error disconnecting from enhanced cache service', error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -228,7 +231,7 @@ export class EnhancedCacheService extends EventEmitter {
     } catch (error) {
       this.recordFailure();
       this.metrics.errors++;
-      logger.error('Enhanced cache get error', { key, error });
+      logger.error('Enhanced cache get error', error instanceof Error ? error : new Error(String(error)), { key });
       return null;
     }
   }
@@ -244,7 +247,7 @@ export class EnhancedCacheService extends EventEmitter {
     const startTime = Date.now();
     const fullKey = this.getFullKey(key);
     const keyType = this.extractKeyType(key);
-    const effectiveStrategy = strategy || this.strategies.get(keyType) || { ttl: this.config.defaultTTL, priority: 'medium' };
+    const effectiveStrategy = strategy || this.strategies.get(keyType) || { ttl: this.config.defaultTTL || 3600, priority: 'medium' as const };
     const ttl = ttlSeconds || effectiveStrategy.ttl;
 
     try {
@@ -253,7 +256,7 @@ export class EnhancedCacheService extends EventEmitter {
         timestamp: Date.now(),
         ttl,
         hits: 0,
-        tags: effectiveStrategy.tags,
+        tags: effectiveStrategy.tags || [],
         priority: effectiveStrategy.priority,
       };
 
@@ -276,7 +279,7 @@ export class EnhancedCacheService extends EventEmitter {
     } catch (error) {
       this.recordFailure();
       this.metrics.errors++;
-      logger.error('Enhanced cache set error', { key, error });
+      logger.error('Enhanced cache set error', error instanceof Error ? error : new Error(String(error)), { key });
       return false;
     }
   }
@@ -299,7 +302,7 @@ export class EnhancedCacheService extends EventEmitter {
     } catch (error) {
       this.recordFailure();
       this.metrics.errors++;
-      logger.error('Enhanced cache delete error', { key, error });
+      logger.error('Enhanced cache delete error', error instanceof Error ? error : new Error(String(error)), { key });
       return false;
     }
   }
@@ -332,7 +335,7 @@ export class EnhancedCacheService extends EventEmitter {
             this.metrics.hits++;
           } catch (parseError) {
             this.metrics.errors++;
-            logger.error('Enhanced cache parse error', { key: keys[index], parseError });
+            logger.error('Enhanced cache parse error', parseError instanceof Error ? parseError : new Error(String(parseError)), { key: keys[index] });
           }
         } else {
           this.metrics.misses++;
@@ -347,7 +350,7 @@ export class EnhancedCacheService extends EventEmitter {
     } catch (error) {
       this.recordFailure();
       this.metrics.errors++;
-      logger.error('Enhanced cache getMany error', { keys, error });
+      logger.error('Enhanced cache getMany error', error instanceof Error ? error : new Error(String(error)), { keyCount: keys.length });
       return new Map();
     }
   }
@@ -365,7 +368,7 @@ export class EnhancedCacheService extends EventEmitter {
     }
 
     const startTime = Date.now();
-    const ttl = ttlSeconds || this.config.defaultTTL;
+    const ttl = ttlSeconds || this.config.defaultTTL || 3600;
     let successCount = 0;
 
     try {
@@ -397,7 +400,7 @@ export class EnhancedCacheService extends EventEmitter {
     } catch (error) {
       this.recordFailure();
       this.metrics.errors++;
-      logger.error('Enhanced cache setMany error', { itemCount: items.size, error });
+      logger.error('Enhanced cache setMany error', error instanceof Error ? error : new Error(String(error)), { itemCount: items.size });
       return successCount;
     }
   }
@@ -435,7 +438,7 @@ export class EnhancedCacheService extends EventEmitter {
           logger.debug('Enhanced cache key warmed successfully', { key: task.key });
         }
       } catch (error) {
-        logger.error('Enhanced cache warming error', { key: task.key, error });
+        logger.error('Enhanced cache warming error', error instanceof Error ? error : new Error(String(error)), { key: task.key });
       }
     }
 
@@ -491,7 +494,7 @@ export class EnhancedCacheService extends EventEmitter {
     } catch (error) {
       this.recordFailure();
       this.metrics.errors++;
-      logger.error('Enhanced cache pattern invalidation error', { pattern, error });
+      logger.error('Enhanced cache pattern invalidation error', error instanceof Error ? error : new Error(String(error)), { pattern });
       return 0;
     }
   }
@@ -534,7 +537,7 @@ export class EnhancedCacheService extends EventEmitter {
     } catch (error) {
       this.recordFailure();
       this.metrics.errors++;
-      logger.error('Enhanced cache tag invalidation error', { tags, error });
+      logger.error('Enhanced cache tag invalidation error', error instanceof Error ? error : new Error(String(error)), { tagCount: tags.length });
       return 0;
     }
   }
@@ -554,7 +557,8 @@ export class EnhancedCacheService extends EventEmitter {
             if (result) {
               const item = JSON.parse(result) as CacheItem<any>;
               if (this.shouldRefreshAhead(item)) {
-                const originalKey = key.replace(this.config.keyPrefix || 'parking:', '');
+                const keyPrefix = this.config.keyPrefix || 'parking:';
+                const originalKey = key.replace(new RegExp(`^${keyPrefix}`), '');
                 this.emit('backgroundRefresh', originalKey, item.data);
               }
             }
@@ -563,7 +567,7 @@ export class EnhancedCacheService extends EventEmitter {
           }
         }
       } catch (error) {
-        logger.error('Enhanced cache background refresh error', error);
+        logger.error('Enhanced cache background refresh error', error instanceof Error ? error : new Error(String(error)));
       }
     }, intervalMs);
   }
@@ -606,7 +610,8 @@ export class EnhancedCacheService extends EventEmitter {
           if (result) {
             stats.totalMemory += result.length;
             const item = JSON.parse(result) as CacheItem<any>;
-            const keyType = this.extractKeyType(key.replace(this.config.keyPrefix || 'parking:', ''));
+            const keyPrefix = this.config.keyPrefix || 'parking:';
+            const keyType = this.extractKeyType(key.replace(keyPrefix, ''));
             
             if (!stats.hitRateByPattern.has(keyType)) {
               stats.hitRateByPattern.set(keyType, 0);
@@ -621,7 +626,7 @@ export class EnhancedCacheService extends EventEmitter {
 
       return stats;
     } catch (error) {
-      logger.error('Enhanced cache statistics error', error);
+      logger.error('Enhanced cache statistics error', error instanceof Error ? error : new Error(String(error)));
       return {
         totalKeys: 0,
         totalMemory: 0,
@@ -653,7 +658,7 @@ export class EnhancedCacheService extends EventEmitter {
       logger.info('Enhanced cache expired keys flushed', { flushedCount });
       return flushedCount;
     } catch (error) {
-      logger.error('Enhanced cache flush expired keys error', error);
+      logger.error('Enhanced cache flush expired keys error', error instanceof Error ? error : new Error(String(error)));
       return 0;
     }
   }
@@ -788,10 +793,9 @@ export class EnhancedCacheService extends EventEmitter {
         if (operation.retryCount < 3) {
           this.writeBehindQueue.push(operation); // Retry
         } else {
-          logger.error('Enhanced cache write-behind operation failed permanently', {
+          logger.error('Enhanced cache write-behind operation failed permanently', error instanceof Error ? error : new Error(String(error)), {
             key: operation.key,
             retryCount: operation.retryCount,
-            error,
           });
         }
       }
@@ -862,7 +866,7 @@ export class EnhancedCacheService extends EventEmitter {
   private setupEventHandlers(): void {
     this.client.on('error', error => {
       this.metrics.errors++;
-      logger.error('Enhanced cache Redis client error', error);
+      logger.error('Enhanced cache Redis client error', error instanceof Error ? error : new Error(String(error)));
     });
 
     this.client.on('connect', () => {
@@ -880,7 +884,7 @@ export class EnhancedCacheService extends EventEmitter {
   }
 
   private getFullKey(key: string): string {
-    return `${this.config.keyPrefix}${key}`;
+    return `${this.config.keyPrefix || 'parking:'}${key}`;
   }
 
   private updateResponseTime(responseTime: number): void {

@@ -44,11 +44,11 @@ export class CacheIntegrationService extends EventEmitter {
     this.cacheService = config.cacheService;
     this.databaseService = config.databaseService;
     this.config = {
-      enableFallback: true,
-      fallbackTimeout: 5000, // 5 seconds
-      writeThrough: true,
-      writeBehind: false,
       ...config,
+      enableFallback: config.enableFallback ?? true,
+      fallbackTimeout: config.fallbackTimeout ?? 5000,
+      writeThrough: config.writeThrough ?? true,
+      writeBehind: config.writeBehind ?? false,
     };
 
     this.setupCacheEventHandlers();
@@ -105,7 +105,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return data;
     } catch (error) {
-      logger.error('Error getting spot availability', error);
+      logger.error('Error getting spot availability', error as Error);
       
       if (this.config.enableFallback) {
         return this.databaseService.getSpotAvailability();
@@ -133,7 +133,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return data;
     } catch (error) {
-      logger.error(`Error getting spot ${spotId}`, error);
+      logger.error(`Error getting spot ${spotId}`, error as Error);
       
       if (this.config.enableFallback) {
         return this.databaseService.getSpotById(spotId);
@@ -163,7 +163,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return success;
     } catch (error) {
-      logger.error(`Error updating spot status ${spotId}`, error);
+      logger.error(`Error updating spot status ${spotId}`, error as Error);
       throw error;
     }
   }
@@ -187,7 +187,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return rate;
     } catch (error) {
-      logger.error(`Error getting pricing rate for ${type}:${duration}`, error);
+      logger.error(`Error getting pricing rate for ${type}:${duration}`, error as Error);
       
       if (this.config.enableFallback) {
         return this.calculatePricingRate(type, duration);
@@ -215,7 +215,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return rules;
     } catch (error) {
-      logger.error('Error getting pricing rules', error);
+      logger.error('Error getting pricing rules', error as Error);
       
       if (this.config.enableFallback) {
         return this.databaseService.getPricingRules();
@@ -241,7 +241,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return success;
     } catch (error) {
-      logger.error('Error updating pricing rules', error);
+      logger.error('Error updating pricing rules', error as Error);
       throw error;
     }
   }
@@ -265,7 +265,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return stats;
     } catch (error) {
-      logger.error('Error getting revenue stats', error);
+      logger.error('Error getting revenue stats', error as Error);
       
       if (this.config.enableFallback) {
         return this.databaseService.getAnalyticsData('revenue');
@@ -298,7 +298,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return stats;
     } catch (error) {
-      logger.error(`Error getting daily stats for ${date}`, error);
+      logger.error(`Error getting daily stats for ${date}`, error as Error);
       
       if (this.config.enableFallback) {
         return this.databaseService.getAnalyticsData('daily', date);
@@ -327,7 +327,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return profile;
     } catch (error) {
-      logger.error(`Error getting user profile ${userId}`, error);
+      logger.error(`Error getting user profile ${userId}`, error as Error);
       
       if (this.config.enableFallback) {
         return this.databaseService.getUserProfile(userId);
@@ -353,7 +353,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return success;
     } catch (error) {
-      logger.error(`Error updating user profile ${userId}`, error);
+      logger.error(`Error updating user profile ${userId}`, error as Error);
       throw error;
     }
   }
@@ -377,7 +377,7 @@ export class CacheIntegrationService extends EventEmitter {
       
       return config;
     } catch (error) {
-      logger.error('Error getting garage configuration', error);
+      logger.error('Error getting garage configuration', error as Error);
       
       if (this.config.enableFallback) {
         return this.databaseService.getGarageConfiguration();
@@ -426,7 +426,10 @@ export class CacheIntegrationService extends EventEmitter {
     const cached = await this.cacheService.getMany<any>(cacheKeys);
     
     // Find missing keys
-    const missingSpotIds = spotIds.filter((id, index) => !cached.has(cacheKeys[index]));
+    const missingSpotIds = spotIds.filter((id, index) => {
+      const key = cacheKeys[index];
+      return key && !cached.has(key);
+    });
     
     if (missingSpotIds.length > 0) {
       // Fetch missing data from database
@@ -438,7 +441,7 @@ export class CacheIntegrationService extends EventEmitter {
           missingData.set(CacheKeys.SPOT(spotId), data);
           cached.set(CacheKeys.SPOT(spotId), data);
         } catch (error) {
-          logger.error(`Error fetching spot ${spotId} in batch operation`, error);
+          logger.error(`Error fetching spot ${spotId} in batch operation`, error as Error);
         }
       }
       
@@ -460,14 +463,18 @@ export class CacheIntegrationService extends EventEmitter {
         case 'spots':
           if (key.includes(':') && key.split(':').length === 2) {
             const spotId = key.split(':')[1];
-            await this.databaseService.updateSpotStatus(spotId, data);
+            if (spotId) {
+              await this.databaseService.updateSpotStatus(spotId, data);
+            }
           }
           break;
         
         case 'user':
           if (key.includes('profile')) {
             const userId = key.split(':')[2];
-            await this.databaseService.updateUserProfile(userId, data);
+            if (userId) {
+              await this.databaseService.updateUserProfile(userId, data);
+            }
           }
           break;
         
@@ -479,7 +486,7 @@ export class CacheIntegrationService extends EventEmitter {
           logger.debug(`No write-through handler for key type: ${keyType}`);
       }
     } catch (error) {
-      logger.error(`Write-through error for key ${key}`, error);
+      logger.error(`Write-through error for key ${key}`, error as Error);
     }
   }
 
@@ -496,7 +503,7 @@ export class CacheIntegrationService extends EventEmitter {
         logger.debug(`Refresh-ahead completed for key: ${key}`);
       }
     } catch (error) {
-      logger.error(`Refresh-ahead error for key ${key}`, error);
+      logger.error(`Refresh-ahead error for key ${key}`, error as Error);
     }
   }
 
@@ -513,6 +520,9 @@ export class CacheIntegrationService extends EventEmitter {
           return this.databaseService.getSpotAvailability();
         } else {
           const spotId = key.split(':')[1];
+          if (!spotId) {
+            throw new Error(`Invalid spot key format: ${key}`);
+          }
           return this.databaseService.getSpotById(spotId);
         }
       

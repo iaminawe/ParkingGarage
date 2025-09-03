@@ -36,7 +36,13 @@ export class SessionManager {
   private isRedisAvailable = false;
 
   constructor() {
-    this.fallbackCache = new CacheService();
+    // Initialize CacheService with default config
+    this.fallbackCache = new CacheService({
+      host: 'localhost',
+      port: 6379,
+      keyPrefix: 'session:',
+      defaultTTL: 3600
+    });
     this.initializeRedis();
   }
 

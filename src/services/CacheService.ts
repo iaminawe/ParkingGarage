@@ -56,11 +56,11 @@ export class CacheService {
 
   constructor(config: CacheConfig) {
     this.config = {
-      keyPrefix: 'parking:',
-      defaultTTL: 3600, // 1 hour
-      maxRetries: 3,
-      retryDelayMs: 1000,
       ...config,
+      keyPrefix: config.keyPrefix ?? 'parking:',
+      defaultTTL: config.defaultTTL ?? 3600, // 1 hour
+      maxRetries: config.maxRetries ?? 3,
+      retryDelayMs: config.retryDelayMs ?? 1000,
     };
 
     // Create Redis client with optimized configuration
@@ -100,7 +100,7 @@ export class CacheService {
       });
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Failed to connect to cache service', error);
+      logger.error('Failed to connect to cache service', error as Error);
       throw error;
     }
   }
@@ -118,7 +118,7 @@ export class CacheService {
       this.isConnected = false;
       logger.info('Cache service disconnected');
     } catch (error) {
-      logger.error('Error disconnecting from cache service', error);
+      logger.error('Error disconnecting from cache service', error as Error);
     }
   }
 
@@ -151,7 +151,7 @@ export class CacheService {
       return parsed.data;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache get error', { key, error });
+      logger.error(`Cache get error for key ${key}`, error as Error);
       return null;
     }
   }
@@ -183,7 +183,7 @@ export class CacheService {
       return true;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache set error', { key, error });
+      logger.error(`Cache set error for key ${key}`, error as Error);
       return false;
     }
   }
@@ -200,7 +200,7 @@ export class CacheService {
       return result > 0;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache delete error', { key, error });
+      logger.error(`Cache delete error for key ${key}`, error as Error);
       return false;
     }
   }
@@ -224,11 +224,14 @@ export class CacheService {
         if (value !== null) {
           try {
             const parsed = JSON.parse(value) as CacheItem<T>;
-            results.set(keys[index], parsed.data);
+            const key = keys[index];
+            if (key) {
+              results.set(key, parsed.data);
+            }
             this.metrics.hits++;
           } catch (parseError) {
             this.metrics.errors++;
-            logger.error('Cache parse error', { key: keys[index], parseError });
+            logger.error(`Cache parse error for key ${keys[index] || 'unknown'}`, parseError as Error);
           }
         } else {
           this.metrics.misses++;
@@ -241,7 +244,7 @@ export class CacheService {
       return results;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache getMany error', { keys, error });
+      logger.error(`Cache getMany error for ${keys.length} keys`, error as Error);
       return new Map();
     }
   }
@@ -285,7 +288,7 @@ export class CacheService {
       return successCount;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache setMany error', { itemCount: items.size, error });
+      logger.error(`Cache setMany error for ${items.size} items`, error as Error);
       return successCount;
     }
   }
@@ -322,7 +325,7 @@ export class CacheService {
           logger.debug('Cache key warmed successfully', { key: task.key });
         }
       } catch (error) {
-        logger.error('Cache warming error', { key: task.key, error });
+        logger.error(`Cache warming error for key ${task.key}`, error as Error);
       }
     }
 
@@ -357,7 +360,7 @@ export class CacheService {
       return deletedCount;
     } catch (error) {
       this.metrics.errors++;
-      logger.error('Cache pattern invalidation error', { pattern, error });
+      logger.error(`Cache pattern invalidation error for pattern ${pattern}`, error as Error);
       return 0;
     }
   }
@@ -425,7 +428,7 @@ export class CacheService {
   private setupEventHandlers(): void {
     this.client.on('error', error => {
       this.metrics.errors++;
-      logger.error('Redis client error', error);
+      logger.error('Redis client error', error as Error);
     });
 
     this.client.on('connect', () => {
