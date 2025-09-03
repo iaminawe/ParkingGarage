@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react'
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react'
 import { cn } from '@/utils/cn'
 
 interface PopoverContextValue {
@@ -26,13 +26,13 @@ export const Popover: React.FC<PopoverProps> = ({
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : internalOpen
   
-  const setOpen = (newOpen: boolean) => {
+  const setOpen = useCallback((newOpen: boolean) => {
     if (isControlled) {
       onOpenChange?.(newOpen)
     } else {
       setInternalOpen(newOpen)
     }
-  }
+  }, [isControlled, onOpenChange])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -85,7 +85,7 @@ export const PopoverTrigger: React.FC<PopoverTriggerProps> = ({
       onClick: handleClick,
       'aria-expanded': open,
       'aria-haspopup': 'dialog'
-    } as any)
+    } as React.HTMLAttributes<HTMLElement>)
   }
 
   return (
@@ -186,7 +186,7 @@ export const PopoverContent: React.FC<PopoverContentProps> = ({
 
       setPosition({ top, left })
     }
-  }, [open, side, align, sideOffset, alignOffset])
+  }, [open, side, align, sideOffset, alignOffset, triggerRef])
 
   if (!open) return null
 

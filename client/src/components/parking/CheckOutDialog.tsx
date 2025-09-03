@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Car, 
   MapPin, 
@@ -88,7 +88,7 @@ export function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
     }
   }, [open])
 
-  const searchVehicle = async () => {
+  const searchVehicle = useCallback(async () => {
     if (!licensePlate.trim()) return
 
     try {
@@ -103,7 +103,7 @@ export function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
         setError('Failed to load vehicle information. Please try again.')
       }
     }
-  }
+  }, [licensePlate])
 
   // Search for vehicle when license plate changes
   useEffect(() => {
@@ -113,7 +113,7 @@ export function CheckOutDialog({ open, onOpenChange }: CheckOutDialogProps) {
       setEstimateData(null)
       setError(null)
     }
-  }, [licensePlate])
+  }, [licensePlate, searchVehicle])
 
   const validateLicensePlate = (plate: string): boolean => {
     const trimmed = plate.trim()

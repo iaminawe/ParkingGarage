@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Card, 
   CardContent, 
@@ -150,7 +150,7 @@ export function GarageConfiguration({ initialGarageId }: GarageConfigurationProp
     }
   })
 
-  const fetchGarages = async () => {
+  const fetchGarages = useCallback(async () => {
     try {
       setLoading(true)
       const response = await apiService.getGarages()
@@ -198,11 +198,11 @@ export function GarageConfiguration({ initialGarageId }: GarageConfigurationProp
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchGarages()
-  }, [])
+  }, [fetchGarages])
 
   // Set initial garage selection if provided
   useEffect(() => {

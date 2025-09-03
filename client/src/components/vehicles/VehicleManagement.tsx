@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Card, 
   CardContent, 
@@ -72,7 +72,7 @@ export function VehicleManagement() {
     fetchVehicles()
     fetchSessions()
     fetchGarages()
-  }, []) // These are stable functions that don't need dependencies
+  }, [fetchGarages])
 
   const fetchVehicles = async () => {
     try {
@@ -102,7 +102,7 @@ export function VehicleManagement() {
     }
   }
 
-  const fetchGarages = async () => {
+  const fetchGarages = useCallback(async () => {
     try {
       const response = await apiService.getGarages()
       if (response.success) {
@@ -119,7 +119,7 @@ export function VehicleManagement() {
         description: 'Failed to load available garages'
       })
     }
-  }
+  }, [selectedGarageId])
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
