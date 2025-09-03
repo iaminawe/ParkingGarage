@@ -82,6 +82,14 @@ web_modules/
 .env.production.local
 .env.local
 
+# Production environment files (NEVER COMMIT)
+.env.production
+.env.staging
+
+# Security configuration backups
+config/backups/
+scripts/security/backups/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
