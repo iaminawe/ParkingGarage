@@ -213,7 +213,7 @@ export class EnhancedCacheService extends EventEmitter {
       }
 
       this.metrics.hits++;
-      const parsed = JSON.parse(result) as CacheItem<T>;
+      const parsed = JSON.parse(typeof result === 'string' ? result : JSON.stringify(result)) as CacheItem<T>;
 
       // Check for refresh-ahead
       const strategy = this.strategies.get(this.extractKeyType(key));
@@ -330,8 +330,11 @@ export class EnhancedCacheService extends EventEmitter {
       values.forEach((value, index) => {
         if (value !== null) {
           try {
-            const parsed = JSON.parse(value) as CacheItem<T>;
-            results.set(keys[index], parsed.data);
+            const parsed = JSON.parse(typeof value === 'string' ? value : JSON.stringify(value)) as CacheItem<T>;
+            const key = keys[index];
+            if (key) {
+              results.set(key, parsed.data);
+            }
             this.metrics.hits++;
           } catch (parseError) {
             this.metrics.errors++;
@@ -512,22 +515,25 @@ export class EnhancedCacheService extends EventEmitter {
       const scanPattern = this.getFullKey('*');
       const iterator = this.client.scanIterator({ MATCH: scanPattern, COUNT: 100 });
 
-      for await (const key of iterator) {
-        try {
-          const result = await this.client.get(key);
-          if (result) {
-            const item = JSON.parse(result) as CacheItem<any>;
-            if (item.tags && item.tags.some(tag => tags.includes(tag))) {
-              const deleted = await this.client.del(key);
-              if (deleted > 0) {
-                totalDeleted++;
-                this.metrics.deletes++;
+      for await (const keyBatch of iterator) {
+        const keys = Array.isArray(keyBatch) ? keyBatch : [keyBatch];
+        for (const key of keys) {
+          try {
+            const result = await this.client.get(key);
+            if (result) {
+              const item = JSON.parse(typeof result === 'string' ? result : JSON.stringify(result)) as CacheItem<any>;
+              if (item.tags && item.tags.some(tag => tags.includes(tag))) {
+                const deleted = await this.client.del(key);
+                if (deleted > 0) {
+                  totalDeleted++;
+                  this.metrics.deletes++;
+                }
               }
             }
+          } catch (parseError) {
+            // Skip malformed entries
+            continue;
           }
-        } catch (parseError) {
-          // Skip malformed entries
-          continue;
         }
       }
 
@@ -551,19 +557,22 @@ export class EnhancedCacheService extends EventEmitter {
         const scanPattern = this.getFullKey('*');
         const iterator = this.client.scanIterator({ MATCH: scanPattern, COUNT: 50 });
 
-        for await (const key of iterator) {
-          try {
-            const result = await this.client.get(key);
-            if (result) {
-              const item = JSON.parse(result) as CacheItem<any>;
-              if (this.shouldRefreshAhead(item)) {
-                const keyPrefix = this.config.keyPrefix || 'parking:';
-                const originalKey = key.replace(new RegExp(`^${keyPrefix}`), '');
-                this.emit('backgroundRefresh', originalKey, item.data);
+        for await (const keyBatch of iterator) {
+          const keys = Array.isArray(keyBatch) ? keyBatch : [keyBatch];
+          for (const key of keys) {
+            try {
+              const result = await this.client.get(key);
+              if (result) {
+                const item = JSON.parse(typeof result === 'string' ? result : JSON.stringify(result)) as CacheItem<any>;
+                if (this.shouldRefreshAhead(item)) {
+                  const keyPrefix = this.config.keyPrefix || 'parking:';
+                  const originalKey = key.replace(new RegExp(`^${keyPrefix}`), '');
+                  this.emit('backgroundRefresh', originalKey, item.data);
+                }
               }
+            } catch (error) {
+              continue; // Skip malformed entries
             }
-          } catch (error) {
-            continue; // Skip malformed entries
           }
         }
       } catch (error) {
@@ -600,27 +609,31 @@ export class EnhancedCacheService extends EventEmitter {
       const scanPattern = pattern ? this.getFullKey(pattern) : this.getFullKey('*');
       const iterator = this.client.scanIterator({ MATCH: scanPattern, COUNT: 100 });
 
-      for await (const key of iterator) {
-        stats.totalKeys++;
-        
-        try {
-          const result = await this.client.get(key);
-          const ttl = await this.client.ttl(key);
+      for await (const keyBatch of iterator) {
+        const keys = Array.isArray(keyBatch) ? keyBatch : [keyBatch];
+        for (const key of keys) {
+          stats.totalKeys++;
           
-          if (result) {
-            stats.totalMemory += result.length;
-            const item = JSON.parse(result) as CacheItem<any>;
-            const keyPrefix = this.config.keyPrefix || 'parking:';
-            const keyType = this.extractKeyType(key.replace(keyPrefix, ''));
+          try {
+            const result = await this.client.get(key);
+            const ttl = await this.client.ttl(key);
             
-            if (!stats.hitRateByPattern.has(keyType)) {
-              stats.hitRateByPattern.set(keyType, 0);
+            if (result) {
+              const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
+              stats.totalMemory += resultStr.length;
+              const item = JSON.parse(resultStr) as CacheItem<any>;
+              const keyPrefix = this.config.keyPrefix || 'parking:';
+              const keyType = this.extractKeyType(key.replace(keyPrefix, ''));
+              
+              if (!stats.hitRateByPattern.has(keyType)) {
+                stats.hitRateByPattern.set(keyType, 0);
+              }
+              
+              stats.expirationTimes.set(key, ttl);
             }
-            
-            stats.expirationTimes.set(key, ttl);
+          } catch (error) {
+            continue;
           }
-        } catch (error) {
-          continue;
         }
       }
 
@@ -645,12 +658,15 @@ export class EnhancedCacheService extends EventEmitter {
       const scanPattern = this.getFullKey('*');
       const iterator = this.client.scanIterator({ MATCH: scanPattern, COUNT: 100 });
 
-      for await (const key of iterator) {
-        const ttl = await this.client.ttl(key);
-        if (ttl === -2) { // Key has expired but not yet removed
-          const deleted = await this.client.del(key);
-          if (deleted > 0) {
-            flushedCount++;
+      for await (const keyBatch of iterator) {
+        const keys = Array.isArray(keyBatch) ? keyBatch : [keyBatch];
+        for (const key of keys) {
+          const ttl = await this.client.ttl(key);
+          if (ttl === -2) { // Key has expired but not yet removed
+            const deleted = await this.client.del(key);
+            if (deleted > 0) {
+              flushedCount++;
+            }
           }
         }
       }
