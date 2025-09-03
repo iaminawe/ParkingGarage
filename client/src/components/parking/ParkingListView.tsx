@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/loading'
-import { Search, Filter, SortAsc, SortDesc, MapPin, Clock, Zap, Users } from 'lucide-react'
+import { Search, SortAsc, SortDesc, MapPin, Clock, Zap, Users } from 'lucide-react'
 import { apiService } from '@/services/api'
 import type { ParkingSpot } from '@/types/api'
 
@@ -293,7 +293,7 @@ export const ParkingListView: React.FC<ParkingListViewProps> = ({
                       <div>
                         <div className="font-medium">{spot.currentVehicle.licensePlate}</div>
                         <div className="text-sm text-muted-foreground">
-                          {spot.currentVehicle.make} {spot.currentVehicle.model}
+                          {spot.currentVehicle.vehicleType}
                         </div>
                       </div>
                     ) : (

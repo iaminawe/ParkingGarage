@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/loading'
 import {
@@ -29,10 +28,10 @@ import {
   Clock,
   TrendingUp,
   FileSpreadsheet,
-  Printer,
   Mail,
   Settings,
-  Eye
+  Eye,
+  Plus
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/utils/cn'
@@ -72,11 +71,11 @@ interface ScheduledReport {
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
   garageId,
-  sharedState,
+  sharedState: _sharedState,
   className = ''
 }) => {
   const [loading, setLoading] = useState(false)
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
     to: new Date()
   })
@@ -181,9 +180,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     console.log(`Scheduling report: ${templateId}`)
   }
 
-  const handleDownload = (templateId: string, format: string) => {
-    console.log(`Downloading ${templateId} in ${format} format`)
-  }
 
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'PPP')
@@ -256,12 +252,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
-                        initialFocus
                         mode="range"
-                        defaultMonth={dateRange.from}
-                        selected={{ from: dateRange.from, to: dateRange.to }}
-                        onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-                        numberOfMonths={2}
+                        selected={dateRange}
+                        onSelect={setDateRange}
                       />
                     </PopoverContent>
                   </Popover>

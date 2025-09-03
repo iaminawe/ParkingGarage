@@ -36,7 +36,6 @@ import {
   Clock, 
   Plus, 
   Search,
-  Filter,
   Calendar,
   User,
   MapPin
