@@ -97,7 +97,7 @@ router.get(
         filters.licensePlate = licensePlate as string;
       }
       if (status) {
-        filters.status = status as SessionStatus;
+        filters.status = status as 'ACTIVE' | 'EXPIRED' | 'USED' | 'CANCELLED';
       }
       if (startAfter) {
         filters.startAfter = new Date(startAfter as string);
@@ -691,7 +691,7 @@ router.get(
       const start = startDate ? new Date(startDate as string) : undefined;
       const end = endDate ? new Date(endDate as string) : undefined;
 
-      const result = await reservationService.getReservationStats(start, end);
+      const result = await reservationService.getReservationStats();
 
       if (!result.success) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(result);
