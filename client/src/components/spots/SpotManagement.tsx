@@ -331,7 +331,7 @@ export function SpotManagement() {
                 <SelectContent>
                   <SelectItem value="all">All Floors</SelectItem>
                   {floors.map(floor => (
-                    <SelectItem key={floor} value={floor}>Floor {floor}</SelectItem>
+                    <SelectItem key={floor} value={floor.toString()}>Floor {floor}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -346,7 +346,7 @@ export function SpotManagement() {
                 <SelectContent>
                   <SelectItem value="all">All Bays</SelectItem>
                   {bays.map(bay => (
-                    <SelectItem key={bay} value={bay}>Bay {bay}</SelectItem>
+                    <SelectItem key={bay} value={bay || ''}>Bay {bay}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -105,11 +105,15 @@ export function VehicleManagement() {
   const fetchGarages = async () => {
     try {
       const response = await apiService.getGarages()
-      if (response.success) {
-        setGarages(response.data)
+      if (response.success && response.data) {
+        // Handle single garage object - wrap it in an array
+        const garagesArray = Array.isArray(response.data) 
+          ? response.data 
+          : [response.data]
+        setGarages(garagesArray)
         // Set default garage if none selected
-        if (!selectedGarageId && response.data.length > 0) {
-          setSelectedGarageId(response.data[0].id)
+        if (!selectedGarageId && garagesArray.length > 0) {
+          setSelectedGarageId(garagesArray[0].id)
         }
       }
     } catch (error) {
@@ -118,6 +122,8 @@ export function VehicleManagement() {
         title: 'Warning',
         description: 'Failed to load available garages'
       })
+      // Set empty array to prevent map error
+      setGarages([])
     }
   }
 
@@ -316,11 +322,11 @@ export function VehicleManagement() {
                   <SelectValue placeholder="Select garage" />
                 </SelectTrigger>
                 <SelectContent>
-                  {garages.map(garage => (
+                  {(garages || []).map(garage => (
                     <SelectItem key={garage.id} value={garage.id}>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
-                        {garage.name} ({garage.availableSpots}/{garage.totalSpots} available)
+                        {garage.name} ({garage.availableSpots || 0}/{garage.totalSpots || 0} available)
                       </div>
                     </SelectItem>
                   ))}
