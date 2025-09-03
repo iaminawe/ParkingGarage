@@ -1,12 +1,15 @@
 #!/bin/bash
+# ==============================================================================
+# Database Backup Script for ParkingGarage Application
+# ==============================================================================
 
-set -e
+set -euo pipefail
 
 # Configuration
-BACKUP_DIR="/opt/parkinggarage/backups"
-SOURCE_DB="/opt/parkinggarage/data/parkinggarage.db"
-SOURCE_LOGS="/opt/parkinggarage/logs"
-SOURCE_CONFIG="/opt/parkinggarage/.env"
+BACKUP_DIR="/app/backups"
+SOURCE_DB="/app/data/parkinggarage.db"
+SOURCE_LOGS="/app/logs"
+SOURCE_CONFIG="/app/.env"
 RETENTION_DAYS=30
 MAX_BACKUPS=100
 REMOTE_BACKUP_ENABLED=false

@@ -1,0 +1,180 @@
+# ==============================================================================
+# Development Docker Compose Override for ParkingGarage Application
+# ==============================================================================
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # Development Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: parkinggarage-app-dev
+    
+    # Development port mapping with debugger
+    ports:
+      - "${DEV_PORT:-3000}:3000"
+      - "${DEBUG_PORT:-9229}:9229"  # Node.js debugger port
+    
+    # Development environment variables
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOST=0.0.0.0
+      - LOG_LEVEL=debug
+      - DEBUG=parkinggarage:*
+      
+      # Development database
+      - DATABASE_URL=file:/app/data/parkinggarage-dev.db
+      
+      # Development secrets (insecure, for dev only)
+      - JWT_SECRET=development-jwt-secret-not-for-production
+      - SESSION_SECRET=development-session-secret-not-for-production
+      - BCRYPT_ROUNDS=4  # Faster for development
+      
+      # Development features
+      - ENABLE_SWAGGER=true
+      - ENABLE_STATUS_MONITOR=true
+      - ENABLE_CORS=true
+      - CORS_ORIGIN=*
+      
+      # Hot reload settings
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    
+    # Development volume mounts for hot reload
+    volumes:
+      - .:/app:cached
+      - /app/node_modules  # Prevent overwriting node_modules
+      - dev_data:/app/data
+      - dev_logs:/app/logs
+      - dev_backups:/app/backups
+      - dev_uploads:/app/uploads
+    
+    # Override health check for development
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s  # Longer for development
+    
+    # Development command
+    command: npm run dev:watch
+    
+    # Remove resource limits for development
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 2G
+
+  # Development database viewer
+  sqlite-web:
+    image: coleifer/sqlite-web:latest
+    container_name: parkinggarage-sqlite-web
+    restart: unless-stopped
+    
+    ports:
+      - "${SQLITE_WEB_PORT:-8080}:8080"
+    
+    volumes:
+      - dev_data:/data:ro
+    
+    command: sqlite_web -H 0.0.0.0 -p 8080 -r /data/parkinggarage-dev.db
+    
+    depends_on:
+      app:
+        condition: service_healthy
+    
+    networks:
+      - parkinggarage-network
+
+  # Development Redis (optional)
+  redis:
+    ports:
+      - "${REDIS_DEV_PORT:-6379}:6379"
+    
+    # Remove password requirement for development
+    environment:
+      - REDIS_PASSWORD=dev-password
+    
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass dev-password
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+
+  # Development mail catcher
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: parkinggarage-mailhog
+    restart: unless-stopped
+    
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_WEB_PORT:-8025}:8025"
+    
+    networks:
+      - parkinggarage-network
+
+  # Development nginx (simplified)
+  nginx:
+    ports:
+      - "${DEV_HTTP_PORT:-80}:80"
+    
+    # Mount development nginx config
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - nginx_dev_logs:/var/log/nginx
+    
+    # Remove SSL requirements for development
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+
+  # Remove production services for development
+  backup: 
+    profiles: ["production"]
+  
+  monitoring:
+    profiles: ["production"]
+    
+  healthcheck:
+    profiles: ["production"]
+
+# Development volumes
+volumes:
+  dev_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/data-dev
+      o: bind,rw
+
+  dev_logs:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/logs-dev
+      o: bind,rw
+
+  dev_backups:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/backups-dev
+      o: bind,rw
+
+  dev_uploads:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/uploads-dev
+      o: bind,rw
+
+  nginx_dev_logs:
+    driver: local
