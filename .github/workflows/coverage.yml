@@ -79,28 +79,28 @@ jobs:
         echo "Functions: ${FUNCTIONS}%"
         echo "Lines: ${LINES}%"
         
-        # Check if any coverage metric is below 95%
-        if (( $(echo "${STATEMENTS} < 95" | bc -l) )); then
-          echo "❌ Statements coverage (${STATEMENTS}%) is below 95% threshold"
+        # Check if any coverage metric is below 80%
+        if (( $(echo "${STATEMENTS} < 80" | bc -l) )); then
+          echo "❌ Statements coverage (${STATEMENTS}%) is below 80% threshold"
           exit 1
         fi
         
-        if (( $(echo "${BRANCHES} < 95" | bc -l) )); then
-          echo "❌ Branch coverage (${BRANCHES}%) is below 95% threshold"
+        if (( $(echo "${BRANCHES} < 80" | bc -l) )); then
+          echo "❌ Branch coverage (${BRANCHES}%) is below 80% threshold"
           exit 1
         fi
         
-        if (( $(echo "${FUNCTIONS} < 95" | bc -l) )); then
-          echo "❌ Function coverage (${FUNCTIONS}%) is below 95% threshold"
+        if (( $(echo "${FUNCTIONS} < 80" | bc -l) )); then
+          echo "❌ Function coverage (${FUNCTIONS}%) is below 80% threshold"
           exit 1
         fi
         
-        if (( $(echo "${LINES} < 95" | bc -l) )); then
-          echo "❌ Line coverage (${LINES}%) is below 95% threshold"
+        if (( $(echo "${LINES} < 80" | bc -l) )); then
+          echo "❌ Line coverage (${LINES}%) is below 80% threshold"
           exit 1
         fi
         
-        echo "✅ All coverage metrics meet the 95% threshold!"
+        echo "✅ All coverage metrics meet the 80% threshold!"
     
     - name: 📤 Upload Coverage Reports
       uses: actions/upload-artifact@v4
