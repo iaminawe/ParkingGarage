@@ -8,30 +8,26 @@ import EmailService from './EmailService';
 import { SecurityAuditService } from './SecurityAuditService';
 import { env } from '../config/environment';
 
-export type NotificationType =
-  | 'RESERVATION_CONFIRMED'
-  | 'RESERVATION_REMINDER'
-  | 'RESERVATION_CANCELLED'
-  | 'PAYMENT_SUCCESSFUL'
-  | 'PAYMENT_FAILED'
-  | 'SPOT_AVAILABLE'
-  | 'OVERTIME_WARNING'
-  | 'CHECKOUT_REMINDER'
-  | 'SECURITY_ALERT'
-  | 'MAINTENANCE_NOTICE'
-  | 'PROMOTION_OFFER';
+import type { 
+  NotificationType as PrismaNotificationType,
+  NotificationChannel as PrismaNotificationChannel,
+  NotificationStatus as PrismaNotificationStatus,
+  NotificationPriority as PrismaNotificationPriority,
+  NotificationFrequency as PrismaNotificationFrequency
+} from '@prisma/client';
 
-export type NotificationChannel = 'EMAIL' | 'SMS' | 'IN_APP' | 'PUSH';
+export type NotificationType = PrismaNotificationType;
+export type NotificationChannel = PrismaNotificationChannel;
 
 export interface NotificationRequest {
   userId: string;
   type: NotificationType;
   channels: NotificationChannel[];
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  title: string;
-  message: string;
-  data?: Record<string, any>;
-  scheduledFor?: Date;
+  priority: PrismaNotificationPriority;
+  subject: string;
+  content: string;
+  metadata?: Record<string, any>;
+  scheduleAt?: Date;
   expiresAt?: Date;
   templateVariables?: Record<string, any>;
 }
@@ -50,15 +46,17 @@ export interface NotificationResult {
 
 export interface NotificationPreferences {
   userId: string;
-  emailEnabled: boolean;
-  smsEnabled: boolean;
-  inAppEnabled: boolean;
-  pushEnabled: boolean;
+  channels: {
+    [key in NotificationChannel]: {
+      enabled: boolean;
+      frequency: PrismaNotificationFrequency;
+    };
+  };
   quietHoursStart?: string; // HH:MM format
   quietHoursEnd?: string;
-  enabledTypes: NotificationType[];
-  frequency: 'IMMEDIATE' | 'DAILY_DIGEST' | 'WEEKLY_DIGEST';
-  language: string;
+  timezone: string;
+  categories?: NotificationType[];
+  doNotDisturbUntil?: Date;
 }
 
 export interface SMSConfig {
@@ -73,13 +71,16 @@ export interface InAppNotification {
   id: string;
   userId: string;
   type: NotificationType;
-  title: string;
-  message: string;
-  data?: Record<string, any>;
-  isRead: boolean;
-  isArchived: boolean;
-  createdAt: Date;
+  channel: NotificationChannel;
+  status: PrismaNotificationStatus;
+  priority: PrismaNotificationPriority;
+  subject: string;
+  content: string;
+  metadata?: Record<string, any>;
   readAt?: Date;
+  sentAt?: Date;
+  deliveredAt?: Date;
+  createdAt: Date;
   expiresAt?: Date;
 }
 
@@ -130,10 +131,14 @@ class NotificationService {
 
       // Check quiet hours
       if (this.isInQuietHours(preferences) && request.priority !== 'URGENT') {
-        // Schedule for later or add to digest
-        if (preferences.frequency === 'IMMEDIATE') {
+        // Check if any channel is set to immediate frequency
+        const hasImmediateChannel = Object.values(preferences.channels).some(
+          channel => channel.frequency === 'IMMEDIATE'
+        );
+        
+        if (hasImmediateChannel) {
           const scheduledTime = this.getNextAllowedTime(preferences);
-          return await this.scheduleNotification({ ...request, scheduledFor: scheduledTime });
+          return await this.scheduleNotification({ ...request, scheduleAt: scheduledTime });
         }
         // Add to digest queue (would be implemented)
         return {
@@ -265,9 +270,9 @@ class NotificationService {
       const success = await EmailService.sendEmail(
         {
           to: user.email,
-          subject: processedContent.subject || request.title,
+          subject: processedContent.subject || request.subject,
           html: processedContent.body,
-          text: request.message,
+          text: request.content,
           priority: this.mapPriorityToEmail(request.priority),
         },
         request.userId
@@ -417,50 +422,117 @@ class NotificationService {
    * Create in-app notification
    */
   private async createInAppNotification(request: NotificationRequest): Promise<string> {
-    // This would create a record in a notifications table
-    // For now, simulate with a mock ID
-    const notificationId = `in_app_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    try {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: request.userId,
+          type: request.type,
+          channel: 'IN_APP',
+          status: 'SENT',
+          priority: request.priority,
+          subject: request.subject,
+          content: request.content,
+          metadata: request.metadata ? JSON.stringify(request.metadata) : null,
+          scheduleAt: request.scheduleAt,
+          expiresAt: request.expiresAt,
+          sentAt: new Date(),
+          deliveredAt: new Date(),
+        },
+      });
 
-    // In production, this would be:
-    // await prisma.notification.create({
-    //   data: {
-    //     userId: request.userId,
-    //     type: request.type,
-    //     title: request.title,
-    //     message: request.message,
-    //     data: request.data ? JSON.stringify(request.data) : null,
-    //     expiresAt: request.expiresAt
-    //   }
-    // });
+      // Create log entry
+      await prisma.notificationLog.create({
+        data: {
+          notificationId: notification.id,
+          status: 'SENT',
+          details: JSON.stringify({ channel: 'IN_APP', action: 'created' }),
+        },
+      });
 
-    return notificationId;
+      return notification.id;
+    } catch (error) {
+      console.error('Failed to create in-app notification:', error);
+      throw error;
+    }
   }
 
   /**
    * Get user notification preferences
    */
   async getUserPreferences(userId: string): Promise<NotificationPreferences> {
-    // In production, this would query a user preferences table
-    // For now, return default preferences
-    return {
-      userId,
-      emailEnabled: true,
-      smsEnabled: true,
-      inAppEnabled: true,
-      pushEnabled: true,
-      quietHoursStart: '22:00',
-      quietHoursEnd: '08:00',
-      enabledTypes: [
-        'RESERVATION_CONFIRMED',
-        'RESERVATION_REMINDER',
-        'PAYMENT_SUCCESSFUL',
-        'SPOT_AVAILABLE',
-        'OVERTIME_WARNING',
-        'SECURITY_ALERT',
-      ],
-      frequency: 'IMMEDIATE',
-      language: 'en',
-    };
+    try {
+      const preferences = await prisma.notificationPreference.findMany({
+        where: { userId },
+      });
+
+      // Create default preferences if none exist
+      if (preferences.length === 0) {
+        const defaultChannels: NotificationChannel[] = ['EMAIL', 'SMS', 'IN_APP', 'PUSH'];
+        
+        await prisma.$transaction(
+          defaultChannels.map(channel => 
+            prisma.notificationPreference.create({
+              data: {
+                userId,
+                channel,
+                enabled: true,
+                frequency: 'IMMEDIATE',
+                timezone: 'UTC',
+              },
+            })
+          )
+        );
+
+        // Return default preferences
+        return {
+          userId,
+          channels: {
+            EMAIL: { enabled: true, frequency: 'IMMEDIATE' },
+            SMS: { enabled: true, frequency: 'IMMEDIATE' },
+            IN_APP: { enabled: true, frequency: 'IMMEDIATE' },
+            PUSH: { enabled: true, frequency: 'IMMEDIATE' },
+          },
+          quietHoursStart: '22:00',
+          quietHoursEnd: '08:00',
+          timezone: 'UTC',
+        };
+      }
+
+      // Convert database preferences to interface
+      const channelPrefs = preferences.reduce((acc, pref) => {
+        acc[pref.channel] = {
+          enabled: pref.enabled,
+          frequency: pref.frequency,
+        };
+        return acc;
+      }, {} as NotificationPreferences['channels']);
+
+      const firstPref = preferences[0];
+      return {
+        userId,
+        channels: channelPrefs,
+        quietHoursStart: firstPref.quietHoursStart || undefined,
+        quietHoursEnd: firstPref.quietHoursEnd || undefined,
+        timezone: firstPref.timezone,
+        categories: firstPref.categories ? JSON.parse(firstPref.categories) : undefined,
+        doNotDisturbUntil: firstPref.doNotDisturbUntil || undefined,
+      };
+    } catch (error) {
+      console.error('Failed to get user preferences:', error);
+      // Return default preferences on error
+      return {
+        userId,
+        channels: {
+          EMAIL: { enabled: true, frequency: 'IMMEDIATE' },
+          SMS: { enabled: true, frequency: 'IMMEDIATE' },
+          IN_APP: { enabled: true, frequency: 'IMMEDIATE' },
+          PUSH: { enabled: true, frequency: 'IMMEDIATE' },
+        },
+        quietHoursStart: '22:00',
+        quietHoursEnd: '08:00',
+        timezone: 'UTC',
+      };
+    }
   }
 
   /**
@@ -471,8 +543,58 @@ class NotificationService {
     preferences: Partial<NotificationPreferences>
   ): Promise<boolean> {
     try {
-      // In production, this would update the user preferences table
-      console.log(`Updating notification preferences for user ${userId}:`, preferences);
+      const updates: any[] = [];
+
+      // Update channel preferences
+      if (preferences.channels) {
+        for (const [channel, settings] of Object.entries(preferences.channels)) {
+          updates.push(
+            prisma.notificationPreference.upsert({
+              where: {
+                userId_channel: { userId, channel: channel as NotificationChannel },
+              },
+              create: {
+                userId,
+                channel: channel as NotificationChannel,
+                enabled: settings.enabled,
+                frequency: settings.frequency,
+                quietHoursStart: preferences.quietHoursStart,
+                quietHoursEnd: preferences.quietHoursEnd,
+                timezone: preferences.timezone || 'UTC',
+                categories: preferences.categories ? JSON.stringify(preferences.categories) : null,
+                doNotDisturbUntil: preferences.doNotDisturbUntil,
+              },
+              update: {
+                enabled: settings.enabled,
+                frequency: settings.frequency,
+                quietHoursStart: preferences.quietHoursStart,
+                quietHoursEnd: preferences.quietHoursEnd,
+                timezone: preferences.timezone || 'UTC',
+                categories: preferences.categories ? JSON.stringify(preferences.categories) : null,
+                doNotDisturbUntil: preferences.doNotDisturbUntil,
+              },
+            })
+          );
+        }
+      }
+
+      // Update global settings for all channels if no specific channel updates
+      if (!preferences.channels && (preferences.quietHoursStart || preferences.quietHoursEnd || preferences.timezone)) {
+        updates.push(
+          prisma.notificationPreference.updateMany({
+            where: { userId },
+            data: {
+              quietHoursStart: preferences.quietHoursStart,
+              quietHoursEnd: preferences.quietHoursEnd,
+              timezone: preferences.timezone,
+              categories: preferences.categories ? JSON.stringify(preferences.categories) : undefined,
+              doNotDisturbUntil: preferences.doNotDisturbUntil,
+            },
+          })
+        );
+      }
+
+      await prisma.$transaction(updates);
 
       await this.auditService.logSecurityEvent({
         userId,
@@ -498,24 +620,59 @@ class NotificationService {
     channel: NotificationChannel,
     language = 'en'
   ): Promise<NotificationTemplate> {
-    // Mock templates - in production, these would be stored in database
-    const mockTemplates: Record<string, NotificationTemplate> = {
-      [`${type}_${channel}_${language}`]: {
-        id: `template_${type}_${channel}`,
-        type,
-        channel,
-        language,
-        subject: this.getDefaultSubject(type),
-        title: this.getDefaultTitle(type),
-        body: this.getDefaultBody(type, channel),
-        variables: ['userName', 'spotNumber', 'amount', 'time'],
-        isActive: true,
-        version: 1,
-      },
-    };
+    try {
+      // Try to find existing template
+      const template = await prisma.notificationTemplate.findFirst({
+        where: {
+          type,
+          channel,
+          language,
+          isActive: true,
+        },
+        orderBy: { version: 'desc' },
+      });
 
-    const templateKey = `${type}_${channel}_${language}`;
-    return mockTemplates[templateKey] || this.getDefaultTemplate(type, channel, language);
+      if (template) {
+        return {
+          id: template.id,
+          type: template.type,
+          channel: template.channel,
+          language: template.language,
+          subject: template.subject,
+          title: template.subject, // Use subject as title for consistency
+          body: template.body,
+          variables: template.variables ? JSON.parse(template.variables) : [],
+          isActive: template.isActive,
+          version: template.version,
+        };
+      }
+
+      // Create default template if none exists
+      const defaultTemplate = this.getDefaultTemplate(type, channel, language);
+      
+      const createdTemplate = await prisma.notificationTemplate.create({
+        data: {
+          name: `${type}_${channel}_${language}`,
+          type,
+          channel,
+          subject: defaultTemplate.subject || defaultTemplate.title,
+          body: defaultTemplate.body,
+          variables: JSON.stringify(defaultTemplate.variables),
+          isActive: true,
+          language,
+          version: 1,
+          description: `Auto-generated template for ${type} notifications via ${channel}`,
+        },
+      });
+
+      return {
+        ...defaultTemplate,
+        id: createdTemplate.id,
+      };
+    } catch (error) {
+      console.error('Failed to get notification template:', error);
+      return this.getDefaultTemplate(type, channel, language);
+    }
   }
 
   /**
@@ -551,18 +708,8 @@ class NotificationService {
     preferences: NotificationPreferences
   ): NotificationChannel[] {
     return requestedChannels.filter(channel => {
-      switch (channel) {
-        case 'EMAIL':
-          return preferences.emailEnabled;
-        case 'SMS':
-          return preferences.smsEnabled;
-        case 'IN_APP':
-          return preferences.inAppEnabled;
-        case 'PUSH':
-          return preferences.pushEnabled;
-        default:
-          return false;
-      }
+      const channelSettings = preferences.channels[channel];
+      return channelSettings?.enabled ?? false;
     });
   }
 
@@ -574,10 +721,18 @@ class NotificationService {
       return false;
     }
 
+    // Get current time in user's timezone
     const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const userTime = new Date(now.toLocaleString("en-US", { timeZone: preferences.timezone }));
+    const currentTime = `${userTime.getHours().toString().padStart(2, '0')}:${userTime.getMinutes().toString().padStart(2, '0')}`;
 
-    return currentTime >= preferences.quietHoursStart || currentTime <= preferences.quietHoursEnd;
+    // Handle overnight quiet hours (e.g., 22:00 to 08:00)
+    if (preferences.quietHoursStart > preferences.quietHoursEnd) {
+      return currentTime >= preferences.quietHoursStart || currentTime <= preferences.quietHoursEnd;
+    }
+    
+    // Handle same-day quiet hours (e.g., 12:00 to 14:00)
+    return currentTime >= preferences.quietHoursStart && currentTime <= preferences.quietHoursEnd;
   }
 
   /**
@@ -600,31 +755,129 @@ class NotificationService {
    * Schedule notification for later
    */
   async scheduleNotification(request: NotificationRequest): Promise<NotificationResult> {
-    // In production, this would store in a scheduled notifications table
-    console.log(`Scheduling notification for ${request.scheduledFor}:`, request);
+    try {
+      const scheduledNotifications = await Promise.all(
+        request.channels.map(async (channel) => {
+          const notification = await prisma.notification.create({
+            data: {
+              userId: request.userId,
+              type: request.type,
+              channel,
+              status: 'PENDING',
+              priority: request.priority,
+              subject: request.subject,
+              content: request.content,
+              metadata: request.metadata ? JSON.stringify(request.metadata) : null,
+              scheduleAt: request.scheduleAt,
+              expiresAt: request.expiresAt,
+            },
+          });
 
-    return {
-      success: true,
-      message: `Notification scheduled for ${request.scheduledFor?.toISOString()}`,
-      deliveryResults: [],
-    };
+          // Create log entry
+          await prisma.notificationLog.create({
+            data: {
+              notificationId: notification.id,
+              status: 'PENDING',
+              details: JSON.stringify({ 
+                channel,
+                action: 'scheduled',
+                scheduleAt: request.scheduleAt?.toISOString(),
+              }),
+            },
+          });
+
+          return notification.id;
+        })
+      );
+
+      return {
+        success: true,
+        notificationId: scheduledNotifications[0], // Return first notification ID
+        message: `${scheduledNotifications.length} notifications scheduled for ${request.scheduleAt?.toISOString()}`,
+        deliveryResults: [],
+      };
+    } catch (error) {
+      console.error('Failed to schedule notification:', error);
+      return {
+        success: false,
+        message: 'Failed to schedule notification',
+        deliveryResults: [],
+      };
+    }
   }
 
   /**
    * Get user's in-app notifications
    */
   async getInAppNotifications(userId: string, unreadOnly = false): Promise<InAppNotification[]> {
-    // Mock implementation - in production, would query notifications table
-    return [];
+    try {
+      const whereClause: any = {
+        userId,
+        channel: 'IN_APP',
+        ...(unreadOnly && { readAt: null }),
+      };
+
+      const notifications = await prisma.notification.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: 50, // Limit to last 50 notifications
+      });
+
+      return notifications.map(notification => ({
+        id: notification.id,
+        userId: notification.userId,
+        type: notification.type,
+        channel: notification.channel,
+        status: notification.status,
+        priority: notification.priority,
+        subject: notification.subject,
+        content: notification.content,
+        metadata: notification.metadata ? JSON.parse(notification.metadata) : undefined,
+        readAt: notification.readAt,
+        sentAt: notification.sentAt,
+        deliveredAt: notification.deliveredAt,
+        createdAt: notification.createdAt,
+        expiresAt: notification.expiresAt,
+      }));
+    } catch (error) {
+      console.error('Failed to get in-app notifications:', error);
+      return [];
+    }
   }
 
   /**
    * Mark notification as read
    */
   async markAsRead(notificationId: string, userId: string): Promise<boolean> {
-    // In production, would update notification record
-    console.log(`Marking notification ${notificationId} as read for user ${userId}`);
-    return true;
+    try {
+      const updatedNotification = await prisma.notification.update({
+        where: { 
+          id: notificationId,
+          userId, // Ensure user can only mark their own notifications as read
+        },
+        data: {
+          readAt: new Date(),
+          status: 'READ',
+        },
+      });
+
+      // Create log entry
+      await prisma.notificationLog.create({
+        data: {
+          notificationId: notificationId,
+          status: 'READ',
+          details: JSON.stringify({ 
+            action: 'marked_as_read',
+            readAt: updatedNotification.readAt?.toISOString(),
+          }),
+        },
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+      return false;
+    }
   }
 
   /**
@@ -672,9 +925,89 @@ class NotificationService {
    */
   private startScheduledNotificationProcessor(): void {
     setInterval(async () => {
-      // In production, this would query scheduled notifications table
-      // and send notifications that are due
-      console.log('Processing scheduled notifications...');
+      try {
+        // Query scheduled notifications that are due
+        const dueNotifications = await prisma.notification.findMany({
+          where: {
+            status: 'PENDING',
+            scheduleAt: {
+              lte: new Date(),
+            },
+          },
+          take: 50, // Process 50 at a time
+        });
+
+        if (dueNotifications.length === 0) {
+          return;
+        }
+
+        console.log(`Processing ${dueNotifications.length} scheduled notifications...`);
+
+        // Process each scheduled notification
+        for (const notification of dueNotifications) {
+          try {
+            // Convert database notification back to NotificationRequest
+            const request: NotificationRequest = {
+              userId: notification.userId,
+              type: notification.type,
+              channels: [notification.channel],
+              priority: notification.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
+              title: notification.subject,
+              message: notification.content,
+              data: notification.metadata ? JSON.parse(notification.metadata) : undefined,
+            };
+
+            // Send the notification
+            const result = await this.sendNotification(request);
+
+            // Update notification status
+            await prisma.notification.update({
+              where: { id: notification.id },
+              data: {
+                status: result.success ? 'SENT' : 'FAILED',
+                sentAt: result.success ? new Date() : undefined,
+                errorMessage: result.success ? undefined : result.message,
+              },
+            });
+
+            // Log the processing
+            await prisma.notificationLog.create({
+              data: {
+                notificationId: notification.id,
+                status: result.success ? 'SENT' : 'FAILED',
+                details: JSON.stringify({
+                  action: 'scheduled_processing',
+                  result: result.message,
+                }),
+                error: result.success ? undefined : result.message,
+              },
+            });
+          } catch (error) {
+            console.error(`Failed to process scheduled notification ${notification.id}:`, error);
+
+            // Mark as failed
+            await prisma.notification.update({
+              where: { id: notification.id },
+              data: {
+                status: 'FAILED',
+                errorMessage: (error as Error).message,
+              },
+            });
+
+            // Log the error
+            await prisma.notificationLog.create({
+              data: {
+                notificationId: notification.id,
+                status: 'FAILED',
+                details: JSON.stringify({ action: 'scheduled_processing_error' }),
+                error: (error as Error).message,
+              },
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Scheduled notification processing error:', error);
+      }
     }, 60000); // Check every minute
   }
 
