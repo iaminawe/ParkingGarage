@@ -15,6 +15,7 @@
 ### 🛠️ **Development**
 - **[Development Guide](Development-Guide)**
 - **[Testing Strategy](Testing-Strategy)**
+- **[API Testing Guide](API-Testing-Guide)**
 - **[TypeScript Migration](TypeScript-Migration)**
 - **[AI Agent Usage](AI-Agent-Usage)**
 

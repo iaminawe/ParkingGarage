@@ -99,6 +99,314 @@ The API now includes the following persistent data models:
 
 # API Endpoints
 
+## Floor Management
+
+### List All Floors
+- **URL**: `/api/floors`
+- **Method**: `GET`
+- **Description**: Retrieve list of floors with filtering and pagination
+- **Authentication**: None
+
+**Query Parameters:**
+- `garageId` (string, optional): Filter by garage ID
+- `floorNumber` (integer, optional): Filter by floor number
+- `isActive` (boolean, optional): Filter by active status
+- `hasAvailableSpots` (boolean, optional): Filter floors with available spots
+- `limit` (integer, optional): Items per page (1-100, default: 20)
+- `offset` (integer, optional): Skip items (default: 0)
+- `sort` (string, optional): Sort field (floorNumber, totalSpots, createdAt)
+- `order` (string, optional): Sort order (asc, desc)
+
+**Response Example:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "cmf45jwvy00024oipsn2sxozy",
+      "garageId": "garage123",
+      "floorNumber": 1,
+      "description": "Ground Floor",
+      "totalSpots": 600,
+      "isActive": true,
+      "createdAt": "2024-09-02T12:00:00.000Z",
+      "updatedAt": "2024-09-02T12:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "hasMore": true
+  },
+  "metadata": {
+    "total": 5,
+    "filtered": 5,
+    "activeFloors": 5
+  },
+  "timestamp": "2024-09-02T12:00:00.000Z"
+}
+```
+
+**curl Example:**
+```bash
+curl -X GET "http://localhost:8742/api/floors?hasAvailableSpots=true&limit=10"
+```
+
+### Get Floor by ID
+- **URL**: `/api/floors/{id}`
+- **Method**: `GET`
+- **Description**: Get individual floor details with spots information
+- **Authentication**: None
+
+**Path Parameters:**
+- `id` (string): Floor ID (UUID format)
+
+**Response Example:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "cmf45jwvy00024oipsn2sxozy",
+    "floorNumber": 1,
+    "description": "Ground Floor",
+    "totalSpots": 600,
+    "spots": [
+      {
+        "id": "spot123",
+        "spotNumber": "1A01-2p4r",
+        "status": "AVAILABLE",
+        "spotType": "STANDARD",
+        "level": 1,
+        "section": "A"
+      }
+    ],
+    "garage": {
+      "id": "garage123",
+      "name": "Downtown Parking Garage"
+    }
+  },
+  "timestamp": "2024-09-02T12:00:00.000Z"
+}
+```
+
+**curl Example:**
+```bash
+curl -X GET http://localhost:8742/api/floors/cmf45jwvy00024oipsn2sxozy
+```
+
+### Get Floor Statistics
+- **URL**: `/api/floors/statistics`
+- **Method**: `GET`
+- **Description**: Get comprehensive floor statistics and occupancy data
+- **Authentication**: None
+
+**Query Parameters:**
+- `garageId` (string, optional): Filter statistics by garage ID
+
+**Response Example:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalFloors": 5,
+    "totalSpots": 2500,
+    "activeFloors": 5,
+    "occupancyRate": 68.4,
+    "averageSpotsPerFloor": 500,
+    "floorBreakdown": [
+      {
+        "floorNumber": 1,
+        "totalSpots": 600,
+        "availableSpots": 425,
+        "occupiedSpots": 175,
+        "occupancyRate": 29.2
+      }
+    ]
+  },
+  "timestamp": "2024-09-02T12:00:00.000Z"
+}
+```
+
+**curl Example:**
+```bash
+curl -X GET http://localhost:8742/api/floors/statistics
+```
+
+### Bay Management
+
+#### Get Floor Bays
+- **URL**: `/api/floors/{id}/bays`
+- **Method**: `GET`
+- **Description**: Get bay information for a specific floor organized by section
+- **Authentication**: None
+
+**Path Parameters:**
+- `id` (string): Floor ID (UUID format)
+
+**Query Parameters:**
+- `includeSpots` (boolean, optional): Include spots in each bay (default: false)
+- `status` (string, optional): Filter bays by spot status (available/occupied/all, default: all)
+
+**Response Example:**
+```json
+{
+  "success": true,
+  "data": {
+    "floorId": "cmf45jwvy00024oipsn2sxozy",
+    "floorNumber": 1,
+    "totalBays": 4,
+    "bays": [
+      {
+        "bayNumber": "A",
+        "totalSpots": 375,
+        "availableSpots": 350,
+        "occupiedSpots": 25,
+        "spots": []
+      },
+      {
+        "bayNumber": "B",
+        "totalSpots": 75,
+        "availableSpots": 75,
+        "occupiedSpots": 0,
+        "spots": []
+      },
+      {
+        "bayNumber": "C",
+        "totalSpots": 75,
+        "availableSpots": 75,
+        "occupiedSpots": 0,
+        "spots": []
+      },
+      {
+        "bayNumber": "D",
+        "totalSpots": 75,
+        "availableSpots": 75,
+        "occupiedSpots": 0,
+        "spots": []
+      }
+    ]
+  },
+  "timestamp": "2024-09-02T12:00:00.000Z"
+}
+```
+
+**curl Example:**
+```bash
+curl -X GET "http://localhost:8742/api/floors/cmf45jwvy00024oipsn2sxozy/bays?includeSpots=true"
+```
+
+#### Get Specific Bay Details
+- **URL**: `/api/floors/{id}/bays/{bayNumber}`
+- **Method**: `GET`
+- **Description**: Get detailed information for a specific bay with spot listings
+- **Authentication**: None
+
+**Path Parameters:**
+- `id` (string): Floor ID (UUID format)
+- `bayNumber` (string): Bay identifier (section letter like A, B, C, D)
+
+**Query Parameters:**
+- `includeSpots` (boolean, optional): Include spot details (default: true)
+- `status` (string, optional): Filter spots by status (available/occupied/all, default: all)
+
+**Response Example:**
+```json
+{
+  "success": true,
+  "data": {
+    "floorId": "cmf45jwvy00024oipsn2sxozy",
+    "floorNumber": 1,
+    "bayNumber": "A",
+    "totalSpots": 100,
+    "availableSpots": 75,
+    "occupiedSpots": 25,
+    "maintenanceSpots": 0,
+    "occupancyRate": 25.0,
+    "spots": [
+      {
+        "id": "spot123",
+        "spotNumber": "1A01-2p4r",
+        "status": "AVAILABLE",
+        "spotType": "HANDICAP",
+        "level": 1,
+        "section": "A",
+        "isActive": true
+      },
+      {
+        "id": "spot124",
+        "spotNumber": "1A02-3x5y",
+        "status": "OCCUPIED",
+        "spotType": "ELECTRIC",
+        "level": 1,
+        "section": "A",
+        "isActive": true
+      }
+    ]
+  },
+  "timestamp": "2024-09-02T12:00:00.000Z"
+}
+```
+
+**curl Example:**
+```bash
+curl -X GET "http://localhost:8742/api/floors/cmf45jwvy00024oipsn2sxozy/bays/A?includeSpots=true&status=available"
+```
+
+### Create Floor
+- **URL**: `/api/floors`
+- **Method**: `POST`
+- **Description**: Create a new floor
+- **Authentication**: Admin required in production
+
+**Request Body:**
+```json
+{
+  "garageId": "garage123",
+  "floorNumber": 2,
+  "description": "Second Floor",
+  "totalSpots": 500,
+  "isActive": true
+}
+```
+
+**Response Example:**
+```json
+{
+  "success": true,
+  "message": "Floor created successfully",
+  "data": {
+    "id": "new-floor-id",
+    "garageId": "garage123",
+    "floorNumber": 2,
+    "description": "Second Floor",
+    "totalSpots": 500,
+    "isActive": true,
+    "createdAt": "2024-09-02T12:00:00.000Z"
+  },
+  "timestamp": "2024-09-02T12:00:00.000Z"
+}
+```
+
+### Update Floor
+- **URL**: `/api/floors/{id}`
+- **Method**: `PUT`
+- **Description**: Update floor information
+- **Authentication**: Admin required in production
+
+### Delete Floor
+- **URL**: `/api/floors/{id}`
+- **Method**: `DELETE`
+- **Description**: Delete a floor (soft delete)
+- **Authentication**: Admin required in production
+
+### Update Floor Spot Count
+- **URL**: `/api/floors/{id}/update-spot-count`
+- **Method**: `PUT`
+- **Description**: Recalculate and update the totalSpots field based on active parking spots
+- **Authentication**: Admin required in production
+
+---
+
 ## Health Check
 
 ### Check API Health

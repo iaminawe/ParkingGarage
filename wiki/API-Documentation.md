@@ -8,7 +8,7 @@ The Parking Garage Management API provides comprehensive functionality for manag
 
 ## Base URL
 
-- **Development**: `http://localhost:3000/api`
+- **Development**: `http://localhost:8742/api`
 - **Production**: `https://yourdomain.com/api`
 
 ## API Versioning
@@ -120,7 +120,7 @@ The API now includes the following persistent data models:
 
 **curl Example:**
 ```bash
-curl -X GET http://localhost:3000/health
+curl -X GET http://localhost:8742/health
 ```
 
 ---
@@ -161,11 +161,15 @@ curl -X GET http://localhost:3000/health
 
 For complete API endpoint documentation including Vehicle Operations, Check-in/Check-out, Statistics, and more advanced features, please refer to the detailed sections in the [main API documentation](https://github.com/yourusername/ParkingGarage/blob/main/docs/API.md).
 
+## Testing the API
+
+For comprehensive testing instructions with cURL commands covering all critical endpoints, see the **[API Testing Guide](API-Testing-Guide)**.
+
 ## Interactive Documentation
 
-- **Swagger UI**: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+- **Swagger UI**: [http://localhost:8742/api-docs](http://localhost:8742/api-docs)
 - **Enhanced API Interface**: [http://127.0.0.1:9000/api-test.html](http://127.0.0.1:9000/api-test.html)
-- **OpenAPI Specification**: [http://localhost:3000/api-docs/swagger.json](http://localhost:3000/api-docs/swagger.json)
+- **OpenAPI Specification**: [http://localhost:8742/api-docs/swagger.json](http://localhost:8742/api-docs/swagger.json)
 
 ## Production Status
 
@@ -194,6 +198,7 @@ For complete API endpoint documentation including Vehicle Operations, Check-in/C
 
 ## Related Documentation
 
+- **[API Testing Guide](API-Testing-Guide)** - Comprehensive cURL testing commands for all endpoints
 - **[Database Schema](Database-Schema.md)** - Database structure and relationships
 - **[State Management](State-Management.md)** - Multi-layered state architecture  
 - **[Performance](Performance-Load-Testing.md)** - Performance benchmarks and optimization

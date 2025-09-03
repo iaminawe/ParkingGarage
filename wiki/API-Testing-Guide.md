@@ -310,6 +310,83 @@ curl -X PATCH "$BASE_URL/spots/1-A-001" \
 curl -X GET "$BASE_URL/spots/statistics"
 ```
 
+### Occupy/Free Specific Spots (Direct Management)
+
+#### Mark Spot as Occupied
+
+```bash
+# Basic occupy - just mark spot as occupied
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{}'
+
+# Occupy with vehicle information
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "vehicleId": "vehicle-123",
+    "licensePlate": "ABC123",
+    "notes": "Reserved for VIP customer"
+  }'
+
+# Occupy with only license plate
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "licensePlate": "XYZ789",
+    "notes": "Temporary parking"
+  }'
+
+# Occupy with only notes
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "notes": "Maintenance vehicle"
+  }'
+```
+
+#### Mark Spot as Available (Free)
+
+```bash
+# Basic free - just mark spot as available
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/free" \
+  -H "$CONTENT_TYPE" \
+  -d '{}'
+
+# Free with notes
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/free" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "notes": "Spot cleaned and ready"
+  }'
+
+# Free with maintenance notes
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/free" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "notes": "Maintenance completed, spot operational"
+  }'
+```
+
+#### Different Spot ID Examples
+
+```bash
+# Floor 1, Bay A, Spot 1
+curl -X PUT "$BASE_URL/spots/F1-BA-S001/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{"licensePlate": "TEST123"}'
+
+# Floor 2, Bay B, Spot 15
+curl -X PUT "$BASE_URL/spots/F2-BB-S015/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{"vehicleId": "truck-456", "notes": "Oversized vehicle"}'
+
+# Floor 3, Bay C, Spot 25
+curl -X PUT "$BASE_URL/spots/F3-BC-S025/free" \
+  -H "$CONTENT_TYPE" \
+  -d '{"notes": "Customer checked out"}'
+```
+
 ### Advanced Spot Search
 
 ```bash
@@ -821,6 +898,43 @@ echo -e "\n5. Verify spot is available again"
 curl -s -X GET "$BASE_URL/spots/$SPOT_ID" | jq '.data.status'
 ```
 
+### Direct Spot Management Flow Test
+
+```bash
+#!/bin/bash
+# Direct spot management test script
+
+echo "=== Testing Direct Spot Management Flow ==="
+
+SPOT_ID="F1-B1-S001"
+
+echo "1. Check initial spot status"
+curl -s -X GET "$BASE_URL/spots/$SPOT_ID" | jq '.data.status'
+
+echo -e "\n2. Occupy spot with vehicle info"
+OCCUPY_RESPONSE=$(curl -s -X PUT "$BASE_URL/spots/$SPOT_ID/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "licensePlate": "DIRECT123",
+    "notes": "Direct management test"
+  }')
+echo $OCCUPY_RESPONSE | jq '.'
+
+echo -e "\n3. Verify spot is now occupied"
+curl -s -X GET "$BASE_URL/spots/$SPOT_ID" | jq '.data.status'
+
+echo -e "\n4. Free the spot"
+FREE_RESPONSE=$(curl -s -X PUT "$BASE_URL/spots/$SPOT_ID/free" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "notes": "Test completed, spot freed"
+  }')
+echo $FREE_RESPONSE | jq '.'
+
+echo -e "\n5. Verify spot is available again"
+curl -s -X GET "$BASE_URL/spots/$SPOT_ID" | jq '.data.status'
+```
+
 ### Load Testing Commands
 
 ```bash
@@ -834,6 +948,17 @@ wait
 
 # Check results
 curl -X GET "$BASE_URL/spots/statistics" | jq '.data.occupied'
+
+# Direct spot occupy load test
+for i in {1..5}; do
+  curl -X PUT "$BASE_URL/spots/F1-B1-S00$i/occupy" \
+    -H "$CONTENT_TYPE" \
+    -d "{\"licensePlate\":\"LOAD$i\",\"notes\":\"Load test vehicle $i\"}" &
+done
+wait
+
+# Check occupied spots
+curl -X GET "$BASE_URL/spots/occupied" | jq '.data | length'
 ```
 
 ## Authentication Error Testing
@@ -945,6 +1070,41 @@ curl -X POST "$BASE_URL/checkout/" \
   -d '{
     "licensePlate": "NONEXISTENT"
   }'
+
+# Try to occupy already occupied spot
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "licensePlate": "FIRST123"
+  }'
+
+# Try again with same spot (should fail)
+curl -X PUT "$BASE_URL/spots/F1-B1-S001/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "licensePlate": "SECOND456"
+  }'
+
+# Try to free already available spot
+curl -X PUT "$BASE_URL/spots/F1-B1-S002/free" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "notes": "Should fail - already free"
+  }'
+
+# Invalid spot ID format
+curl -X PUT "$BASE_URL/spots/INVALID-SPOT/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "licensePlate": "ERROR123"
+  }'
+
+# Non-existent spot ID
+curl -X PUT "$BASE_URL/spots/F99-B99-S999/occupy" \
+  -H "$CONTENT_TYPE" \
+  -d '{
+    "licensePlate": "NOTFOUND"
+  }'
 ```
 
 ## Response Format
@@ -981,6 +1141,7 @@ Error responses include additional fields:
 **Problem**: `bash: !: event not found` error when using passwords with exclamation marks
 
 **Solution**: Use single quotes or escape the exclamation mark:
+
 ```bash
 # Use single quotes
 -d '{"password": "SecurePass123!"}'
@@ -992,15 +1153,17 @@ Error responses include additional fields:
 **Problem**: Password validation fails with "Password must contain..."
 
 **Solution**: Ensure your password meets ALL requirements:
+
 - At least 8 characters
 - Contains uppercase letter (A-Z)
-- Contains lowercase letter (a-z) 
+- Contains lowercase letter (a-z)
 - Contains number (0-9)
 - Contains special character (!@#$%^&*(),.?":{}|<>)
 
 **Problem**: Name validation fails with "can only contain letters, spaces, hyphens, and apostrophes"
 
 **Solution**: Remove numbers and special characters from firstName/lastName:
+
 ```bash
 # ❌ Invalid
 "lastName": "User123"
@@ -1017,6 +1180,7 @@ Error responses include additional fields:
 **Problem**: `Invalid JSON` errors
 
 **Solution**: Validate your JSON syntax:
+
 ```bash
 # Use jq to validate JSON before sending
 echo '{"email":"test@example.com","password":"SecurePass123@"}' | jq .
@@ -1030,6 +1194,7 @@ echo '{"email":"test@example.com","password":"SecurePass123@"}' | jq .
 **Problem**: Environment variables not expanding properly
 
 **Solution**: Check variable setup and usage:
+
 ```bash
 # Verify variables are set
 echo "BASE_URL: $BASE_URL"
