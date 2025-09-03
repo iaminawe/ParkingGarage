@@ -18,7 +18,7 @@ export interface SessionFilters {
   search: any;
   limit: number;
   offset: number;
-  sort: 'createdAt' | 'endTime' | 'duration' | 'cost' | 'licensePlate';
+  sort: 'createdAt' | 'endTime' | 'duration' | 'totalAmount' | 'licensePlate';
   order: 'asc' | 'desc';
 }
 
@@ -64,7 +64,11 @@ export class SessionsService {
   async getSessions(filters: any): Promise<PaginatedResponse<ParkingSession[]>> {
     try {
       // Get all sessions from repository
-      const allSessions = await this.sessionsRepository.findAll();
+      const allSessionsResult = await this.sessionsRepository.findAll();
+      const allSessions = allSessionsResult.data.map(session => ({
+        ...session,
+        licensePlate: `LIC-${session.vehicleId.slice(-6)}` // Mock licensePlate from vehicleId
+      }));
 
       // Apply filters
       let filteredSessions = this.applyFilters(allSessions, filters);
@@ -113,21 +117,25 @@ export class SessionsService {
     period: 'today' | 'week' | 'month' | 'year' | 'all'
   ): Promise<SessionStats> {
     try {
-      const allSessions = await this.sessionsRepository.findAll();
+      const allSessionsResult = await this.sessionsRepository.findAll();
+      const allSessions = allSessionsResult.data.map(session => ({
+        ...session,
+        licensePlate: `LIC-${session.vehicleId.slice(-6)}` // Mock licensePlate from vehicleId
+      }));
       const filteredSessions = this.filterSessionsByPeriod(allSessions, period);
 
       // Calculate basic stats
       const totalSessions = filteredSessions.length;
-      const activeSessions = filteredSessions.filter(s => s.status === 'active').length;
-      const completedSessions = filteredSessions.filter(s => s.status === 'completed').length;
-      const cancelledSessions = filteredSessions.filter(s => s.status === 'cancelled').length;
+      const activeSessions = filteredSessions.filter(s => s.status === 'ACTIVE').length;
+      const completedSessions = filteredSessions.filter(s => s.status === 'COMPLETED').length;
+      const cancelledSessions = filteredSessions.filter(s => s.status === 'CANCELLED').length;
 
       const totalRevenue = filteredSessions
-        .filter(s => s.status === 'completed')
-        .reduce((sum, s) => sum + (s.cost || 0), 0);
+        .filter(s => s.status === 'COMPLETED')
+        .reduce((sum, s) => sum + (s.totalAmount || 0), 0);
 
       const completedWithDuration = filteredSessions.filter(
-        s => s.status === 'completed' && s.duration
+        s => s.status === 'COMPLETED' && s.duration
       );
       const averageDuration =
         completedWithDuration.length > 0
@@ -141,17 +149,19 @@ export class SessionsService {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todaySessions = allSessions.filter(s => {
+        if (!s.createdAt) return false;
         const sessionDate = new Date(s.createdAt);
         return sessionDate >= today;
       });
 
       const todayRevenue = todaySessions
-        .filter(s => s.status === 'completed')
-        .reduce((sum, s) => sum + (s.cost || 0), 0);
+        .filter(s => s.status === 'COMPLETED')
+        .reduce((sum, s) => sum + (s.totalAmount || 0), 0);
 
       // Peak hour calculation
       const hourCounts: Record<number, number> = {};
       filteredSessions.forEach(session => {
+        if (!session.createdAt) return;
         const hour = new Date(session.createdAt).getHours();
         hourCounts[hour] = (hourCounts[hour] || 0) + 1;
       });
@@ -204,7 +214,11 @@ export class SessionsService {
     period: 'day' | 'week' | 'month' | 'year'
   ): Promise<SessionAnalytics> {
     try {
-      const allSessions = await this.sessionsRepository.findAll();
+      const allSessionsResult = await this.sessionsRepository.findAll();
+      const allSessions = allSessionsResult.data.map(session => ({
+        ...session,
+        licensePlate: `LIC-${session.vehicleId.slice(-6)}` // Mock licensePlate from vehicleId
+      }));
 
       switch (type) {
         case 'revenue':
@@ -259,6 +273,9 @@ export class SessionsService {
       }
 
       const endTime = new Date();
+      if (!session.createdAt) {
+        throw new Error('Session missing created date - cannot calculate duration');
+      }
       const startTime = new Date(session.createdAt);
       const durationMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60));
 
@@ -347,7 +364,9 @@ export class SessionsService {
       const additionalCost = additionalHours * hourlyRate;
 
       // Update expected end time (if it was set)
-      const currentExpectedEnd = session.expectedEndTime ? new Date(session.expectedEndTime) : null;
+      const currentExpectedEnd = session.expectedEndTime && typeof session.expectedEndTime === 'string' 
+        ? new Date(session.expectedEndTime) 
+        : null;
       const newExpectedEnd = currentExpectedEnd
         ? new Date(currentExpectedEnd.getTime() + additionalHours * 60 * 60 * 1000)
         : null;
@@ -418,7 +437,7 @@ export class SessionsService {
         session.createdAt,
         session.endTime || '',
         session.duration?.toString() || '',
-        session.cost?.toString() || '',
+        session.totalAmount?.toString() || '',
         session.endReason || '',
       ]);
 
@@ -493,6 +512,7 @@ export class SessionsService {
     }
 
     return sessions.filter(session => {
+      if (!session.createdAt) return false;
       const sessionDate = new Date(session.createdAt);
       return sessionDate >= startDate;
     });
@@ -508,8 +528,8 @@ export class SessionsService {
 
       switch (sort) {
         case 'createdAt':
-          aVal = new Date(a.createdAt).getTime();
-          bVal = new Date(b.createdAt).getTime();
+          aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           break;
         case 'endTime':
           aVal = a.endTime ? new Date(a.endTime).getTime() : 0;
@@ -519,17 +539,17 @@ export class SessionsService {
           aVal = a.duration || 0;
           bVal = b.duration || 0;
           break;
-        case 'cost':
-          aVal = a.cost || 0;
-          bVal = b.cost || 0;
+        case 'totalAmount':
+          aVal = a.totalAmount || 0;
+          bVal = b.totalAmount || 0;
           break;
         case 'licensePlate':
           aVal = (a.licensePlate || '').toLowerCase();
           bVal = (b.licensePlate || '').toLowerCase();
           break;
         default:
-          aVal = new Date(a.createdAt).getTime();
-          bVal = new Date(b.createdAt).getTime();
+          aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       }
 
       if (order === 'desc') {
@@ -564,10 +584,10 @@ export class SessionsService {
   // Analytics helper methods
   private getRevenueAnalytics(sessions: ParkingSession[], period: any): SessionAnalytics {
     // Implement revenue analytics logic
-    const completedSessions = sessions.filter(s => s.status === 'completed');
+    const completedSessions = sessions.filter(s => s.status === 'COMPLETED');
     const data: any[] = [];
     const summary = {
-      totalRevenue: completedSessions.reduce((sum, s) => sum + (s.cost || 0), 0),
+      totalRevenue: completedSessions.reduce((sum, s) => sum + (s.totalAmount || 0), 0),
       averageRevenue: 0,
       totalSessions: completedSessions.length,
     };
@@ -580,7 +600,7 @@ export class SessionsService {
 
   private getDurationAnalytics(sessions: ParkingSession[], period: any): SessionAnalytics {
     // Implement duration analytics logic
-    const completedSessions = sessions.filter(s => s.status === 'completed' && s.duration);
+    const completedSessions = sessions.filter(s => s.status === 'COMPLETED' && s.duration);
     const data: any[] = [];
     const summary = {
       averageDuration: 0,
@@ -603,6 +623,7 @@ export class SessionsService {
     // Implement peak hours analytics logic
     const hourCounts: Record<number, number> = {};
     sessions.forEach(session => {
+      if (!session.createdAt) return;
       const hour = new Date(session.createdAt).getHours();
       hourCounts[hour] = (hourCounts[hour] || 0) + 1;
     });
