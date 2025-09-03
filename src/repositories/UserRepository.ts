@@ -644,6 +644,56 @@ export class UserRepository extends PrismaAdapter<User, CreateUserData, UpdateUs
       return result;
     }, 'find locked users');
   }
+
+  /**
+   * Get user statistics by role
+   * @param role - User role to filter by
+   * @returns Role-specific user statistics
+   */
+  async getStatsByRole(role: string): Promise<UserStats> {
+    return this.executeWithRetry(async () => {
+      const totalCount = await this.count({ role });
+      const activeCount = await this.count({ role, isActive: true });
+      const inactiveCount = totalCount - activeCount;
+      const verifiedCount = await this.count({ role, isEmailVerified: true });
+      const unverifiedCount = totalCount - verifiedCount;
+      const withTwoFactorCount = await this.count({ role, isTwoFactorEnabled: true });
+
+      // Count locked accounts for this role
+      const lockedCount = await this.count({
+        role,
+        lockoutUntil: {
+          gt: new Date(),
+        },
+      });
+
+      // Count recent logins (last 30 days) for this role
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentLoginsCount = await this.count({
+        role,
+        lastLoginAt: {
+          gte: thirtyDaysAgo,
+        },
+      });
+
+      const stats: UserStats = {
+        total: totalCount,
+        active: activeCount,
+        inactive: inactiveCount,
+        verified: verifiedCount,
+        unverified: unverifiedCount,
+        byRole: { [role]: totalCount },
+        withTwoFactor: withTwoFactorCount,
+        locked: lockedCount,
+        recentLogins: recentLoginsCount,
+      };
+
+      this.logger.debug('User statistics by role calculated', { role, stats } as any);
+
+      return stats;
+    }, `get user statistics for role: ${role}`);
+  }
 }
 
 export default UserRepository;

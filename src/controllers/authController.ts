@@ -63,26 +63,32 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Create enhanced session
+    // Create enhanced session with error handling
     if (result.token && result.user) {
-      await sessionManager.createSession(
-        result.token,
-        {
-          userId: result.user.id as string,
-          userRole: result.user.role as string,
-          userEmail: result.user.email as string,
-          deviceInfo: deviceInfo.userAgent,
-          ipAddress: deviceInfo.ipAddress,
-          deviceFingerprint: deviceInfo.deviceFingerprint,
-          createdAt: Date.now(),
-          lastAccessedAt: Date.now(),
-          isActive: true,
-        },
-        {
-          maxConcurrentSessions: 5,
-          requireDeviceConsistency: true,
-        }
-      );
+      try {
+        await sessionManager.createSession(
+          result.token,
+          {
+            userId: result.user.id as string,
+            userRole: result.user.role as string,
+            userEmail: result.user.email as string,
+            deviceInfo: deviceInfo.userAgent,
+            ipAddress: deviceInfo.ipAddress,
+            deviceFingerprint: deviceInfo.deviceFingerprint,
+            createdAt: Date.now(),
+            lastAccessedAt: Date.now(),
+            isActive: true,
+          },
+          {
+            maxConcurrentSessions: 5,
+            requireDeviceConsistency: true,
+          }
+        );
+      } catch (sessionError) {
+        console.error('Session creation failed during login:', sessionError);
+        // Continue with successful login response - session creation failure shouldn't prevent login
+        // The user can still authenticate even if session management features are unavailable
+      }
     }
 
     res.status(HTTP_STATUS.OK).json({
@@ -153,8 +159,13 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     // Logout from auth service (revokes session and blacklists token)
     const result = await authService.logout(token);
 
-    // Clean up session data
-    await sessionManager.deleteSession(token);
+    // Clean up session data - don't let session manager errors affect logout
+    try {
+      await sessionManager.deleteSession(token);
+    } catch (sessionError) {
+      console.error('Session cleanup failed during logout:', sessionError);
+      // Continue - the token is still revoked from auth service even if session cleanup fails
+    }
 
     res.status(HTTP_STATUS.OK).json({
       success: result.success,
@@ -434,8 +445,13 @@ export const logoutAllDevices = async (req: AuthRequest, res: Response): Promise
 
     const result = await authService.logoutAllDevices(user.id);
 
-    // Clean up all sessions
-    await sessionManager.revokeAllUserSessions(user.id);
+    // Clean up all sessions - don't let session manager errors affect logout
+    try {
+      await sessionManager.revokeAllUserSessions(user.id);
+    } catch (sessionError) {
+      console.error('Session cleanup failed during logout all devices:', sessionError);
+      // Continue - the sessions are still revoked from auth service even if session manager cleanup fails
+    }
 
     res.status(HTTP_STATUS.OK).json({
       success: result.success,

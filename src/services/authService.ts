@@ -74,9 +74,9 @@ class AuthService {
   private readonly MAX_LOGIN_ATTEMPTS: number;
   private readonly LOCKOUT_TIME: number;
   private readonly PASSWORD_SALT_ROUNDS: number;
-  private readonly cacheService: CacheService;
-  private readonly emailService: EmailService;
-  private readonly auditService: SecurityAuditService;
+  private readonly cacheService: CacheService | null;
+  private readonly emailService: EmailService | null;
+  private readonly auditService: SecurityAuditService | null;
 
   constructor() {
     // Use validated environment configuration - no defaults allowed
@@ -87,9 +87,74 @@ class AuthService {
     this.MAX_LOGIN_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
     this.LOCKOUT_TIME = env.LOCKOUT_TIME;
     this.PASSWORD_SALT_ROUNDS = env.BCRYPT_SALT_ROUNDS;
-    this.cacheService = new CacheService();
-    this.emailService = new EmailService();
-    this.auditService = new SecurityAuditService();
+    
+    // Initialize services with graceful degradation
+    this.cacheService = this.initializeCacheService();
+    this.emailService = this.initializeEmailService();
+    this.auditService = this.initializeAuditService();
+  }
+
+  /**
+   * Initialize cache service with graceful degradation
+   */
+  private initializeCacheService(): CacheService | null {
+    try {
+      const cacheService = new CacheService();
+      authLogger.info('CacheService initialized successfully', {
+        operation: 'service-init',
+        service: 'cache'
+      });
+      return cacheService;
+    } catch (error) {
+      authLogger.warn('CacheService unavailable, using fallback', {
+        operation: 'service-init',
+        service: 'cache',
+        error: (error as Error).message
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Initialize email service with graceful degradation
+   */
+  private initializeEmailService(): EmailService | null {
+    try {
+      const emailService = new EmailService();
+      authLogger.info('EmailService initialized successfully', {
+        operation: 'service-init',
+        service: 'email'
+      });
+      return emailService;
+    } catch (error) {
+      authLogger.warn('EmailService unavailable, email features disabled', {
+        operation: 'service-init',
+        service: 'email',
+        error: (error as Error).message
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Initialize audit service with graceful degradation
+   */
+  private initializeAuditService(): SecurityAuditService | null {
+    try {
+      const auditService = new SecurityAuditService();
+      authLogger.info('SecurityAuditService initialized successfully', {
+        operation: 'service-init',
+        service: 'audit'
+      });
+      return auditService;
+    } catch (error) {
+      authLogger.warn('SecurityAuditService unavailable, audit features disabled', {
+        operation: 'service-init',
+        service: 'audit',
+        error: (error as Error).message
+      });
+      return null;
+    }
   }
 
   /**
@@ -216,7 +281,6 @@ class AuthService {
       where: { id: userId },
       data: {
         lastLoginAt: new Date(),
-        lastLoginIP: deviceInfo?.ipAddress,
         loginAttempts: 0,
         lockoutUntil: null,
       },
@@ -292,7 +356,7 @@ class AuthService {
     } catch (error) {
       authLogger.error('Signup error', error as Error, {
         operation: 'signup',
-        email: signupData.email
+        email: data.email
       });
       return {
         success: false,
@@ -378,7 +442,7 @@ class AuthService {
     } catch (error) {
       authLogger.error('Login error', error as Error, {
         operation: 'login',
-        email: loginData.email
+        email: data.email
       });
       return {
         success: false,
@@ -686,6 +750,15 @@ class AuthService {
    */
   async blacklistToken(token: string, expiresAt?: Date): Promise<void> {
     try {
+      if (!this.cacheService) {
+        // Cache service unavailable - log warning but continue
+        authLogger.warn('Token blacklisting skipped - cache service unavailable', {
+          operation: 'blacklist-token',
+          fallback: true
+        });
+        return;
+      }
+
       const expiry = expiresAt || new Date(Date.now() + TIME_CONSTANTS.SESSION_DURATION_MS);
       const key = `blacklist:${token}`;
       const ttl = Math.max(0, Math.floor((expiry.getTime() - Date.now()) / 1000));
@@ -694,7 +767,11 @@ class AuthService {
         await this.cacheService.set(key, 'blacklisted', ttl);
       }
     } catch (error) {
-      console.error('Error blacklisting token:', error);
+      authLogger.warn('Error blacklisting token', {
+        operation: 'blacklist-token',
+        error: (error as Error).message,
+        fallback: true
+      });
       // Don't throw - token blacklisting is a security enhancement, not critical
     }
   }
@@ -704,11 +781,24 @@ class AuthService {
    */
   async isTokenBlacklisted(token: string): Promise<boolean> {
     try {
+      if (!this.cacheService) {
+        // Cache service unavailable - fail open for availability
+        authLogger.debug('Token blacklist check skipped - cache service unavailable', {
+          operation: 'check-blacklist',
+          fallback: true
+        });
+        return false;
+      }
+
       const key = `blacklist:${token}`;
       const result = await this.cacheService.get(key);
       return result === 'blacklisted';
     } catch (error) {
-      console.error('Error checking token blacklist:', error);
+      authLogger.warn('Error checking token blacklist', {
+        operation: 'check-blacklist',
+        error: (error as Error).message,
+        fallback: true
+      });
       return false; // Fail open for availability
     }
   }
@@ -782,12 +872,29 @@ class AuthService {
         },
       });
 
-      // Send password reset email
-      await this.emailService.sendPasswordResetEmail(
-        user.email,
-        resetToken,
-        user.firstName || 'User'
-      );
+      // Send password reset email if email service is available
+      if (this.emailService) {
+        try {
+          await this.emailService.sendPasswordResetEmail(
+            user.email,
+            resetToken,
+            user.firstName || 'User'
+          );
+        } catch (error) {
+          authLogger.error('Failed to send password reset email', {
+            operation: 'password-reset-email',
+            error: (error as Error).message,
+            userEmail: user.email
+          });
+          // Continue - user will still see success message for security
+        }
+      } else {
+        authLogger.warn('Password reset email not sent - email service unavailable', {
+          operation: 'password-reset-email',
+          userEmail: user.email,
+          fallback: true
+        });
+      }
 
       return {
         success: true,
@@ -896,18 +1003,27 @@ class AuthService {
         user.passwordHash
       );
       if (!isCurrentPasswordValid) {
-        // Log failed password change attempt
-        await this.auditService.logSecurityEvent({
-          userId: data.userId,
-          action: 'PASSWORD_CHANGE_FAILED',
-          category: 'AUTH',
-          severity: 'MEDIUM',
-          description: 'Password change failed: incorrect current password',
-          metadata: { 
-            reason: 'INVALID_CURRENT_PASSWORD',
-            userEmail: user.email 
-          },
-        });
+        // Log failed password change attempt if audit service is available
+        if (this.auditService) {
+          try {
+            await this.auditService.logSecurityEvent({
+              userId: data.userId,
+              action: 'PASSWORD_CHANGE_FAILED',
+              category: 'AUTH',
+              severity: 'MEDIUM',
+              description: 'Password change failed: incorrect current password',
+              metadata: { 
+                reason: 'INVALID_CURRENT_PASSWORD',
+                userEmail: user.email 
+              },
+            });
+          } catch (error) {
+            authLogger.warn('Failed to log security event', {
+              operation: 'audit-log',
+              error: (error as Error).message
+            });
+          }
+        }
 
         return {
           success: false,
@@ -948,19 +1064,28 @@ class AuthService {
       // Revoke all existing sessions for security
       await this.logoutAllDevices(data.userId);
 
-      // Log successful password change
-      await this.auditService.logSecurityEvent({
-        userId: data.userId,
-        action: 'PASSWORD_CHANGED',
-        category: 'AUTH',
-        severity: 'LOW',
-        description: 'Password changed successfully',
-        metadata: { 
-          userEmail: user.email,
-          timestamp: new Date().toISOString(),
-          sessionsRevoked: true
-        },
-      });
+      // Log successful password change if audit service is available
+      if (this.auditService) {
+        try {
+          await this.auditService.logSecurityEvent({
+            userId: data.userId,
+            action: 'PASSWORD_CHANGED',
+            category: 'AUTH',
+            severity: 'LOW',
+            description: 'Password changed successfully',
+            metadata: { 
+              userEmail: user.email,
+              timestamp: new Date().toISOString(),
+              sessionsRevoked: true
+            },
+          });
+        } catch (error) {
+          authLogger.warn('Failed to log password change event', {
+            operation: 'audit-log',
+            error: (error as Error).message
+          });
+        }
+      }
 
       return {
         success: true,

@@ -138,10 +138,13 @@ export class UserService {
       const paginatedResult: PaginatedResult<UserProfile> = {
         data: userProfiles,
         totalCount: totalItems,
+        totalItems, // For backward compatibility
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
+        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1, // For BaseAdapter compatibility
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved users list', {
@@ -442,10 +445,13 @@ export class UserService {
       const paginatedResult: PaginatedResult<UserProfile> = {
         data: userProfiles,
         totalCount: totalItems,
+        totalItems, // For backward compatibility
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
+        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1, // For BaseAdapter compatibility
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('Retrieved users by role', {
@@ -534,14 +540,20 @@ export class UserService {
     }>
   > {
     try {
-      const [total, active, inactive, verified, unverified, byRole] = await Promise.all([
-        this.userRepository.count(),
+      const [total, active, inactive, verified, unverified] = await Promise.all([
+        this.userRepository.count({}),
         this.userRepository.count({ isActive: true }),
         this.userRepository.count({ isActive: false }),
         this.userRepository.count({ isEmailVerified: true }),
         this.userRepository.count({ isEmailVerified: false }),
-        this.userRepository.getStatsByRole(),
       ]);
+
+      // Get role statistics separately since it requires different handling
+      const roles = ['user', 'admin', 'manager', 'operator'];
+      const byRole: Record<string, number> = {};
+      for (const role of roles) {
+        byRole[role] = await this.userRepository.count({ role });
+      }
 
       const stats = {
         total,
@@ -602,10 +614,13 @@ export class UserService {
       const paginatedResult: PaginatedResult<UserProfile> = {
         data: userProfiles,
         totalCount: totalItems,
+        totalItems, // For backward compatibility
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
+        hasPreviousPage: page > 1,
+        hasPrevPage: page > 1, // For BaseAdapter compatibility
         currentPage: page,
         totalPages,
+        itemsPerPage: limit,
       };
 
       this.logger.info('User search completed', {
