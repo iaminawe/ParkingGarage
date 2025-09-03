@@ -8,7 +8,7 @@ dotenv.config();
 const environmentSchema = z.object({
   // Server Configuration
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().transform(Number).pipe(z.number().min(1).max(65535)).default(3000),
+  PORT: z.string().optional().default('3000').transform((val) => Number(val)).refine((val) => val >= 1 && val <= 65535, 'PORT must be between 1 and 65535'),
   HOST: z.string().default('0.0.0.0'),
 
   // Database Configuration
@@ -65,9 +65,10 @@ const environmentSchema = z.object({
   // Security Configuration
   BCRYPT_SALT_ROUNDS: z
     .string()
+    .optional()
+    .default('12')
     .transform(Number)
     .pipe(z.number().min(10).max(15))
-    .default('12')
     .refine(
       (val) => {
         // In production, BCRYPT_SALT_ROUNDS should be at least 12
@@ -81,26 +82,37 @@ const environmentSchema = z.object({
   
   MAX_LOGIN_ATTEMPTS: z
     .string()
+    .optional()
+    .default('5')
     .transform(Number)
     .pipe(z.number().min(1).max(10))
-    .default('5')
     .refine(
-      (val, ctx) => {
-        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
-        return val <= 3;
+      (val) => {
+        // In production, MAX_LOGIN_ATTEMPTS should be at most 3
+        if (process.env.NODE_ENV === 'production') {
+          return val <= 3;
+        }
+        return true;
       },
       'MAX_LOGIN_ATTEMPTS should be 3 or less in production for enhanced security'
     ),
     
   LOCKOUT_TIME: z
     .string()
-    .transform(Number)
-    .pipe(z.number().min(5).max(120))
+    .optional()
     .default('15')
+    .transform((val) => Number(val))
     .refine(
-      (val, ctx) => {
-        if (ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
-        return val >= 30;
+      (val) => val >= 5 && val <= 120,
+      'LOCKOUT_TIME must be between 5 and 120 minutes'
+    )
+    .refine(
+      (val) => {
+        // In production, LOCKOUT_TIME should be at least 30 minutes
+        if (process.env.NODE_ENV === 'production') {
+          return val >= 30;
+        }
+        return true;
       },
       'LOCKOUT_TIME should be at least 30 minutes in production'
     ),
@@ -108,13 +120,13 @@ const environmentSchema = z.object({
   // Optional Configuration
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   CORS_ORIGIN: z.string().optional(),
-  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).pipe(z.number()).default(900000),
-  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).pipe(z.number()).default(100),
+  RATE_LIMIT_WINDOW_MS: z.string().optional().default('900000').transform((val) => Number(val)),
+  RATE_LIMIT_MAX_REQUESTS: z.string().optional().default('100').transform((val) => Number(val)),
 
   // Email Configuration (optional)
   EMAIL_PROVIDER: z.enum(['smtp', 'gmail', 'sendgrid']).default('smtp'),
   SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.string().transform(Number).pipe(z.number()).optional(),
+  SMTP_PORT: z.string().optional().transform((val) => val ? Number(val) : undefined),
   SMTP_SECURE: z.string().optional(),
   EMAIL_USER: z.string().optional(),
   EMAIL_PASSWORD: z.string().optional(),
@@ -139,8 +151,8 @@ const environmentSchema = z.object({
     .min(32, 'SESSION_SECRET must be at least 32 characters long')
     .optional()
     .refine(
-      (val, ctx) => {
-        if (!val || ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+      (val) => {
+        if (!val || process.env.NODE_ENV !== 'production') return true;
         return val.length >= 64;
       },
       'SESSION_SECRET must be at least 64 characters long in production'
@@ -151,8 +163,8 @@ const environmentSchema = z.object({
     .min(32, 'CSRF_SECRET must be at least 32 characters long')
     .optional()
     .refine(
-      (val, ctx) => {
-        if (!val || ctx.ctx === undefined || ctx.ctx.NODE_ENV !== 'production') return true;
+      (val) => {
+        if (!val || process.env.NODE_ENV !== 'production') return true;
         return val.length >= 64;
       },
       'CSRF_SECRET must be at least 64 characters long in production'
@@ -170,9 +182,22 @@ const environmentSchema = z.object({
       'DATABASE_ENCRYPTION_KEY must be a 64-character hexadecimal string (256-bit key)'
     ),
 
+  // Encryption key for secrets (alias for backward compatibility)
+  ENCRYPTION_KEY: z
+    .string()
+    .min(32, 'ENCRYPTION_KEY must be at least 32 characters long')
+    .optional()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        return /^[a-fA-F0-9]+$/.test(val) && val.length === 64;
+      },
+      'ENCRYPTION_KEY must be a 64-character hexadecimal string (256-bit key)'
+    ),
+
   // Rate Limiting
-  EMAIL_RATE_LIMIT_PER_HOUR: z.string().transform(Number).pipe(z.number()).default(100),
-  EMAIL_RATE_LIMIT_PER_RECIPIENT_HOUR: z.string().transform(Number).pipe(z.number()).default(5),
+  EMAIL_RATE_LIMIT_PER_HOUR: z.string().optional().default('100').transform((val) => Number(val)),
+  EMAIL_RATE_LIMIT_PER_RECIPIENT_HOUR: z.string().optional().default('5').transform((val) => Number(val)),
 
   // Logging Configuration
   LOG_FILE_DATE_PATTERN: z.string().default('YYYY-MM-DD-HH'),
@@ -195,7 +220,7 @@ const environmentSchema = z.object({
     .transform(Number)
     .pipe(z.number().min(0).max(1))
     .default(0.1),
-  HEALTH_CHECK_TIMEOUT: z.string().transform(Number).pipe(z.number()).default(30000),
+  HEALTH_CHECK_TIMEOUT: z.string().optional().default('30000').transform((val) => Number(val)),
   ENABLE_METRICS: z
     .string()
     .transform(val => val === 'true')
@@ -320,6 +345,7 @@ export class EnvironmentValidator {
       RATE_LIMIT_WINDOW_MS: 900000,
       RATE_LIMIT_MAX_REQUESTS: 100,
       EMAIL_PROVIDER: 'smtp',
+      SMTP_PORT: undefined,
       FRONTEND_URL: 'http://localhost:3000',
       API_URL: 'http://localhost:3001',
       EMAIL_RATE_LIMIT_PER_HOUR: 100,

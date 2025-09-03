@@ -11,7 +11,7 @@
  * @module SecretsConfig
  */
 
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { env } from './environment';
 import { systemLogger } from './logger.config';
 
