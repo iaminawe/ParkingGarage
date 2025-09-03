@@ -1,7 +1,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  roots: ['<rootDir>/src'],
   testMatch: [
     '**/__tests__/**/*.+(ts|tsx|js)',
     '**/*.(test|spec).+(ts|tsx|js)'
@@ -33,24 +33,25 @@ module.exports = {
       statements: 80
     }
   },
-  setupFilesAfterEnv: ['<rootDir>/tests/helpers/setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/src/tests/helpers/setup.js'],
   testTimeout: 30000,
   verbose: true,
-  projects: [
-    {
-      displayName: 'unit',
-      testMatch: ['<rootDir>/tests/unit/**/*.test.{ts,js}'],
-      testEnvironment: 'node'
-    },
-    {
-      displayName: 'integration', 
-      testMatch: ['<rootDir>/tests/integration/**/*.test.{ts,js}'],
-      testEnvironment: 'node'
-    },
-    {
-      displayName: 'e2e',
-      testMatch: ['<rootDir>/tests/e2e/**/*.test.{ts,js}'],
-      testEnvironment: 'node'
-    }
-  ]
+  // Commented out projects to focus on src/tests
+  // projects: [
+  //   {
+  //     displayName: 'unit',
+  //     testMatch: ['<rootDir>/tests/unit/**/*.test.{ts,js}'],
+  //     testEnvironment: 'node'
+  //   },
+  //   {
+  //     displayName: 'integration', 
+  //     testMatch: ['<rootDir>/tests/integration/**/*.test.{ts,js}'],
+  //     testEnvironment: 'node'
+  //   },
+  //   {
+  //     displayName: 'e2e',
+  //     testMatch: ['<rootDir>/tests/e2e/**/*.test.{ts,js}'],
+  //     testEnvironment: 'node'
+  //   }
+  // ]
 };

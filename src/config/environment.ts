@@ -151,7 +151,7 @@ const environmentSchema = z.object({
     .min(32, 'SESSION_SECRET must be at least 32 characters long')
     .optional()
     .refine(
-      (val) => {
+      (val: string | undefined) => {
         if (!val || process.env.NODE_ENV !== 'production') return true;
         return val.length >= 64;
       },
@@ -163,7 +163,7 @@ const environmentSchema = z.object({
     .min(32, 'CSRF_SECRET must be at least 32 characters long')
     .optional()
     .refine(
-      (val) => {
+      (val: string | undefined) => {
         if (!val || process.env.NODE_ENV !== 'production') return true;
         return val.length >= 64;
       },

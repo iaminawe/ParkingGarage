@@ -149,8 +149,8 @@ export class ProductionValidator {
         continue;
       }
 
-      // Check format requirements
-      if (requirements.format === 'hex' && !/^[a-fA-F0-9]+$/.test(secret.value)) {
+      // Check format requirements with proper type guard
+      if ('format' in requirements && requirements.format === 'hex' && !/^[a-fA-F0-9]+$/.test(secret.value)) {
         errors.push(`${secret.name} must be a valid hexadecimal string`);
         scoreDeduction += 10;
         continue;
@@ -159,7 +159,8 @@ export class ProductionValidator {
       // Analyze secret strength
       const strength = this.analyzeSecretStrength(secret.value);
       
-      if (requirements.minEntropy && strength.entropy < requirements.minEntropy) {
+      // Check minEntropy with proper type guard
+      if ('minEntropy' in requirements && requirements.minEntropy && strength.entropy < requirements.minEntropy) {
         warnings.push(`${secret.name} has low entropy (${strength.entropy.toFixed(2)}, recommended: ${requirements.minEntropy})`);
         scoreDeduction += 5;
       }
@@ -375,8 +376,8 @@ export class ProductionValidator {
     const match = timeString.match(/^(\d+)([smhd])$/);
     if (!match) return 0;
 
-    const value = parseInt(match[1]);
-    const unit = match[2];
+    const value = parseInt(match[1]!);
+    const unit = match[2]!;
 
     switch (unit) {
       case 's': return value / 60;
