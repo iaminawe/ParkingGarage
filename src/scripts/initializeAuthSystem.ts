@@ -3,8 +3,9 @@
  * Initializes email templates and security settings for production deployment
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, NotificationType, NotificationChannel } from '@prisma/client';
 import { initializeEmailTemplates } from '../utils/emailTemplates';
+import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -128,13 +129,16 @@ async function initializeSecuritySettings() {
 
   for (const setting of securitySettings) {
     try {
-      await prisma.securitySettings.upsert({
+      await prisma.security_settings.upsert({
         where: { key: setting.key },
         update: {
           value: setting.value,
           description: setting.description,
         },
-        create: setting,
+        create: {
+          ...setting,
+          id: randomUUID(),
+        },
       });
       console.log(`✓ Security setting '${setting.key}' initialized`);
     } catch (error) {
@@ -149,8 +153,8 @@ async function initializeNotificationTemplates() {
   const notificationTemplates = [
     {
       name: 'PASSWORD_CHANGED_NOTIFICATION',
-      type: 'PASSWORD_RESET',
-      channel: 'EMAIL',
+      type: NotificationType.PASSWORD_CHANGED,
+      channel: NotificationChannel.EMAIL,
       subject: 'Password Changed - Security Notification',
       body: `Your password has been successfully changed.
       
@@ -169,8 +173,8 @@ If you didn't make this change, please contact support immediately.`,
     },
     {
       name: 'SUSPICIOUS_LOGIN_ALERT',
-      type: 'LOGIN_SECURITY_ALERT',
-      channel: 'EMAIL',
+      type: NotificationType.SECURITY_ALERT,
+      channel: NotificationChannel.EMAIL,
       subject: 'Suspicious Login Attempt - Security Alert',
       body: `We detected a suspicious login attempt on your account.
 
@@ -192,8 +196,8 @@ If this was you, no action is needed. Otherwise, please secure your account imme
     },
     {
       name: 'ACCOUNT_LOCKED_NOTIFICATION',
-      type: 'ACCOUNT_CREATED', // Using existing enum value
-      channel: 'EMAIL',
+      type: NotificationType.ACCOUNT_LOCKED,
+      channel: NotificationChannel.EMAIL,
       subject: 'Account Temporarily Locked - Security Notice',
       body: `Your account has been temporarily locked due to multiple failed login attempts.
 
@@ -215,7 +219,7 @@ Your account will be automatically unlocked after the specified duration, or you
 
   for (const template of notificationTemplates) {
     try {
-      await prisma.notificationTemplate.upsert({
+      await prisma.notification_templates.upsert({
         where: { name: template.name },
         update: {
           subject: template.subject,
@@ -223,7 +227,10 @@ Your account will be automatically unlocked after the specified duration, or you
           variables: template.variables,
           isActive: template.isActive,
         },
-        create: template,
+        create: {
+          ...template,
+          id: randomUUID(),
+        },
       });
       console.log(`✓ Notification template '${template.name}' initialized`);
     } catch (error) {
@@ -237,9 +244,9 @@ async function validateDatabaseSchema() {
 
   try {
     // Check if required tables exist and have necessary fields
-    const userCount = await prisma.user.count();
-    const sessionCount = await prisma.userSession.count();
-    const auditLogCount = await prisma.securityAuditLog.count();
+    const userCount = await prisma.users.count();
+    const sessionCount = await prisma.user_sessions.count();
+    const auditLogCount = await prisma.security_audit_logs.count();
     
     console.log(`✓ Database validation passed:`);
     console.log(`  - Users table: ${userCount} records`);
@@ -248,9 +255,9 @@ async function validateDatabaseSchema() {
 
     // Check for required indexes (this is informational)
     console.log(`✓ Database indexes should be optimized for:`);
-    console.log(`  - User.email, User.passwordResetToken`);
-    console.log(`  - UserSession.token, UserSession.userId`);
-    console.log(`  - SecurityAuditLog.userId, SecurityAuditLog.createdAt`);
+    console.log(`  - users.email, users.passwordResetToken`);
+    console.log(`  - user_sessions.token, user_sessions.userId`);
+    console.log(`  - security_audit_logs.userId, security_audit_logs.createdAt`);
 
   } catch (error) {
     console.error('❌ Database schema validation failed:', error);
