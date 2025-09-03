@@ -121,12 +121,14 @@ export interface PaginationOptions {
 
 export interface PaginatedResult<T> {
   data: T[];
-  totalItems: number;
+  totalCount: number;
+  totalItems: number; // Kept for backward compatibility
   totalPages: number;
   currentPage: number;
   itemsPerPage: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
+  hasPrevPage: boolean; // Added for BaseAdapter compatibility
 }
 
 // Validation result interface
@@ -175,8 +177,15 @@ export interface ParkingSession {
   expectedEndTime?: string;
   checkInTime?: string;
   checkOutTime?: string;
+  startTime?: string;
   duration?: number;
+  hourlyRate?: number;
+  isPaid?: boolean;
+  paymentMethod?: string;
+  paymentTime?: string;
   cost?: number;
+  totalAmount?: number;
+  amountPaid?: number;
   amount?: number;
   rateType?: string;
   endReason?: string;

@@ -179,13 +179,13 @@ export interface GarageModelInterface {
 }
 
 // Validation Result Types (from validators)
-export interface ValidationResult {
+export interface JSValidationResult {
   isValid: boolean;
   errors: string[];
 }
 
 export interface ValidationFunction<T> {
-  (data: T): ValidationResult;
+  (data: T): JSValidationResult;
 }
 
 // Express Route Handler Types for JavaScript files
@@ -219,7 +219,7 @@ export interface ServerOptions {
   HOST: string;
 }
 
-export interface HealthCheckResponse {
+export interface JSHealthCheckResponse {
   status: string;
   timestamp: string;
   uptime: number;

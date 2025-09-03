@@ -8,6 +8,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ValidationResult } from './models';
 import { User } from '@prisma/client';
+import { RequestMetadata } from './api';
 
 // Extended Express Request Types
 export interface CustomRequest extends Request {
@@ -31,8 +32,9 @@ export interface CustomRequest extends Request {
     offset: number;
   };
   filters?: Record<string, any>;
-  metadata?: Record<string, any>;
+  metadata?: RequestMetadata; // Use consistent RequestMetadata type
 }
+
 
 // Middleware Function Types
 export type MiddlewareFunction = (

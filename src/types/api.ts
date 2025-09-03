@@ -22,8 +22,8 @@ import {
 } from './models';
 
 // Re-export commonly used types
-export { ParkingSession, VehicleRecord, SpotRecord, GarageRecord };
-export { VehicleRecord as Vehicle, SpotRecord as ParkingSpot };
+export type { ParkingSession, VehicleRecord, SpotRecord, GarageRecord };
+export type { VehicleRecord as Vehicle, SpotRecord as ParkingSpot };
 
 // Paginated response structure
 export interface PaginatedResponse<T = any> {
@@ -280,3 +280,10 @@ export type PaginatedApiResponse<T> = ApiResponse<PaginatedResult<T>>;
 export type VehicleServiceResponse<T = VehicleRecord> = ServiceResponse<T>;
 export type SpotServiceResponse<T = SpotRecord> = ServiceResponse<T>;
 export type GarageServiceResponse<T = GarageRecord> = ServiceResponse<T>;
+
+// Default export for namespace-style imports
+const ApiTypes = {
+  // Type placeholders for namespace organization
+} as const;
+
+export default ApiTypes;

@@ -389,8 +389,8 @@ export type SpotServiceResult<T = SpotRecord> = ServiceResponse<T>;
 export type GarageServiceResult<T = GarageRecord> = ServiceResponse<T>;
 export type AnalyticsServiceResult<T> = ServiceResponse<T>;
 
-// Repository interface types (for services that use repositories)
-export interface IRepository<T, K = string> {
+// Service-specific repository interface types (simplified for services)
+export interface IServiceRepository<T, K = string> {
   findAll(): T[];
   findById(id: K): T | null;
   create(data: Partial<T>): T;
@@ -398,19 +398,19 @@ export interface IRepository<T, K = string> {
   delete(id: K): boolean;
 }
 
-export interface ISpotRepository extends IRepository<SpotRecord> {
+export interface ISpotServiceRepository extends IServiceRepository<SpotRecord> {
   findAvailable(): SpotRecord[];
   findByFloor(floor: number): SpotRecord[];
   findByType(type: VehicleType): SpotRecord[];
   findByFeatures(features: SpotFeature[]): SpotRecord[];
 }
 
-export interface IVehicleRepository extends IRepository<VehicleRecord> {
+export interface IVehicleServiceRepository extends IServiceRepository<VehicleRecord> {
   findByLicensePlate(licensePlate: string): VehicleRecord | null;
   findParked(): VehicleRecord[];
   findByStatus(status: string): VehicleRecord[];
 }
 
-export interface IGarageRepository extends IRepository<GarageRecord> {
+export interface IGarageServiceRepository extends IServiceRepository<GarageRecord> {
   getDefault(): GarageRecord | null;
 }

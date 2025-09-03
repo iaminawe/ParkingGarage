@@ -222,8 +222,8 @@ export interface QueryBuilder<T> {
   count(): Promise<number>;
 }
 
-// Transaction Types
-export interface ITransactionContext {
+// Repository Transaction Types (simplified for repositories)
+export interface IRepositoryTransactionContext {
   id: string;
   startTime: Date;
   operations: string[];
@@ -232,9 +232,9 @@ export interface ITransactionContext {
   isActive(): boolean;
 }
 
-export interface ITransactionManager {
-  begin(): Promise<ITransactionContext>;
-  withTransaction<T>(operation: (context: ITransactionContext) => Promise<T>): Promise<T>;
+export interface IRepositoryTransactionManager {
+  begin(): Promise<IRepositoryTransactionContext>;
+  withTransaction<T>(operation: (context: IRepositoryTransactionContext) => Promise<T>): Promise<T>;
 }
 
 // Connection Management
