@@ -567,20 +567,21 @@ export class DatabaseSeeder {
    */
   private randomChoice<T>(items: T[], weights?: number[]): T {
     if (!weights) {
-      return items[Math.floor(Math.random() * items.length)];
+      const randomIndex = Math.floor(Math.random() * items.length);
+      return items[randomIndex]!; // We know items has at least one element
     }
 
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     let random = Math.random() * totalWeight;
 
     for (let i = 0; i < items.length; i++) {
-      random -= weights[i];
+      random -= weights[i]!; // We know weights has corresponding elements
       if (random <= 0) {
-        return items[i];
+        return items[i]!; // We know this index exists
       }
     }
 
-    return items[items.length - 1];
+    return items[items.length - 1]!; // Fallback to last item
   }
 }
 
