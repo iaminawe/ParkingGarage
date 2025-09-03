@@ -35,7 +35,7 @@ const Dashboard: React.FC = () => {
       setError(null)
       
       // Fetch each API endpoint independently and handle failures gracefully
-      const fetchWithFallback = async <T>(
+      const fetchWithFallback = async <T,>(
         apiCall: () => Promise<any>,
         fallbackValue: T,
         endpoint: string
