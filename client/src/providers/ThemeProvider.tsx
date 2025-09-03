@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useEffect, useState } from 'react'
 
 type Theme = 'dark' | 'light' | 'system'
 
@@ -23,7 +23,8 @@ const initialState: ThemeProviderState = {
   setTheme: () => null,
 }
 
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
+// eslint-disable-next-line react-refresh/only-export-components
+export const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,
@@ -79,7 +80,7 @@ export function ThemeProvider({
     }
     
     root.classList.add(actualTheme)
-  }, [actualTheme])
+  }, [theme, actualTheme])
 
   // Persist theme preference
   const setTheme = (newTheme: Theme) => {
@@ -130,82 +131,5 @@ export function ThemeProvider({
   )
 }
 
-export const useTheme = () => {
-  const context = useContext(ThemeProviderContext)
-
-  if (context === undefined)
-    throw new Error('useTheme must be used within a ThemeProvider')
-
-  return context
-}
-
-// Hook for detecting system theme changes
-export function useSystemTheme() {
-  const [systemTheme, setSystemTheme] = useState<'dark' | 'light'>('light')
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemTheme(e.matches ? 'dark' : 'light')
-    }
-
-    setSystemTheme(mediaQuery.matches ? 'dark' : 'light')
-    mediaQuery.addEventListener('change', handleChange)
-    
-    return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [])
-
-  return systemTheme
-}
-
-// Hook for theme-aware styling
-export function useThemeAware() {
-  const { actualTheme } = useTheme()
-  
-  const isDark = actualTheme === 'dark'
-  const isLight = actualTheme === 'light'
-  
-  return {
-    isDark,
-    isLight,
-    actualTheme,
-    themeClass: actualTheme,
-  }
-}
-
-// Theme toggle hook with persistence
-export function useThemeToggle() {
-  const { theme, setTheme } = useTheme()
-  
-  const toggleTheme = () => {
-    switch (theme) {
-      case 'light':
-        setTheme('dark')
-        break
-      case 'dark':
-        setTheme('system')
-        break
-      case 'system':
-        setTheme('light')
-        break
-      default:
-        setTheme('system')
-    }
-  }
-
-  const setLightTheme = () => setTheme('light')
-  const setDarkTheme = () => setTheme('dark')
-  const setSystemTheme = () => setTheme('system')
-
-  return {
-    theme,
-    toggleTheme,
-    setLightTheme,
-    setDarkTheme,
-    setSystemTheme,
-    setTheme,
-  }
-}
 
 export type { Theme, ThemeProviderProps, ThemeProviderState }

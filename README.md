@@ -57,6 +57,8 @@ curl -X GET "http://localhost:3000/api/spots?status=available&limit=10"
 
 ### **Additional Resources**
 - **[Database Documentation](./docs/DATABASE.md)** - SQLite/Prisma schema and operations guide
+- **[Enhanced Seed Data Guide](./docs/SEED_DATA_GUIDE.md)** - Comprehensive database seeding with 67K+ realistic records
+- **[Seed Quick Reference](./docs/SEED_QUICK_REFERENCE.md)** - Quick command reference for database seeding
 - **[Production Deployment Guide](./docs/DEPLOYMENT.md)** - Complete deployment instructions with automation
 - **[Migration Guide](./docs/MIGRATION.md)** - Database migration and upgrade procedures
 - **[Test Results Summary](./docs/TEST_RESULTS_SUMMARY.md)** - Test validation report
@@ -188,6 +190,25 @@ curl -X GET "http://localhost:3000/api/spots?status=available&limit=10"
 - ✅ **Advanced Features** - Connection pooling, retry logic, health monitoring
 - ✅ **Migration System** - Automated database seeding and comprehensive test data
 - **Status**: ✅ **Enterprise Ready** - Full persistence with advanced features
+
+### 🌱 Enhanced Database Seeding
+- ✅ **Comprehensive Test Data** - Generate up to 1.5M realistic records across all entities
+- ✅ **Realistic Patterns** - Time-based distributions, business hours bias, seasonal variations
+- ✅ **User Management Data** - 25-25K users with authentication, sessions, security audit trails
+- ✅ **Parking Operations** - Smart vehicle-spot matching, dynamic pricing, payment processing
+- ✅ **Analytics Ready** - Historical data with proper occupancy rates and business metrics
+- ✅ **Flexible Configuration** - 5 size options from development (728 records) to analytics (1.5M+)
+- **Status**: ✅ **Production Ready** - [See Enhanced Seed Guide](./docs/SEED_DATA_GUIDE.md)
+
+```bash
+# Quick examples
+npm run db:seed -- --size=small --clear           # Development (728 records)
+npm run db:seed -- --size=large --historical --clear  # Performance testing (67K records)
+npm run db:seed -- --size=analytics --clear       # Full analytics (1.5M+ records)
+
+# Inspect seeded data visually
+npm run db:studio                                  # Opens Prisma Studio at localhost:5555
+```
 
 ### 🧪 Testing Suite
 - ✅ **400+ Test Cases Passing** - Unit, Integration, API, Security, Edge Cases

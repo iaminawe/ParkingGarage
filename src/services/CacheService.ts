@@ -39,6 +39,7 @@ export interface CacheItem<T> {
 }
 
 export class CacheService {
+  private static instance: CacheService | null = null;
   private client: RedisClientType;
   private config: CacheConfig;
   private isConnected = false;
@@ -83,6 +84,40 @@ export class CacheService {
   }
 
   /**
+   * Get singleton instance of CacheService
+   */
+  static getInstance(config?: CacheConfig): CacheService | null {
+    if (!CacheService.instance) {
+      if (!config) {
+        // No configuration provided and no instance exists
+        logger.warn('CacheService.getInstance called without config and no existing instance');
+        return null;
+      }
+      try {
+        CacheService.instance = new CacheService(config);
+        // Don't auto-connect here to avoid race conditions
+        // Connection will be established lazily on first use
+      } catch (error) {
+        logger.error('Failed to create singleton cache service', error as Error);
+        return null;
+      }
+    }
+    return CacheService.instance;
+  }
+
+  /**
+   * Reset singleton instance (primarily for testing)
+   */
+  static resetInstance(): void {
+    if (CacheService.instance) {
+      CacheService.instance.disconnect().catch(error => {
+        logger.error('Error disconnecting cache service during reset', error as Error);
+      });
+    }
+    CacheService.instance = null;
+  }
+
+  /**
    * Initialize cache connection
    */
   async connect(): Promise<void> {
@@ -123,9 +158,32 @@ export class CacheService {
   }
 
   /**
+   * Ensure client is connected before operations
+   */
+  private async ensureConnected(): Promise<boolean> {
+    if (this.isConnected) {
+      return true;
+    }
+    
+    try {
+      await this.connect();
+      return true;
+    } catch (error) {
+      logger.warn('Failed to establish cache connection, operations will fail', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  /**
    * Get item from cache with performance tracking
    */
   async get<T>(key: string): Promise<T | null> {
+    // Ensure connection before attempting operation
+    if (!(await this.ensureConnected())) {
+      this.metrics.errors++;
+      return null;
+    }
+
     const startTime = Date.now();
     const fullKey = this.getFullKey(key);
 
@@ -160,6 +218,12 @@ export class CacheService {
    * Set item in cache with TTL
    */
   async set<T>(key: string, data: T, ttlSeconds?: number): Promise<boolean> {
+    // Ensure connection before attempting operation
+    if (!(await this.ensureConnected())) {
+      this.metrics.errors++;
+      return false;
+    }
+
     const startTime = Date.now();
     const fullKey = this.getFullKey(key);
     const ttl = ttlSeconds || this.config.defaultTTL;

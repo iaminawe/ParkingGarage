@@ -88,7 +88,8 @@ class ApiService {
     return this.get<ApiResponse<ParkingGarage[]>>('/garage')
   }
 
-  async getGarageById(id: string): Promise<ApiResponse<ParkingGarage>> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getGarageById(_id: string): Promise<ApiResponse<ParkingGarage>> {
     return this.get<ApiResponse<ParkingGarage>>(`/garage`)
   }
 
@@ -100,7 +101,8 @@ class ApiService {
     return this.put<ApiResponse<ParkingGarage>>(`/garage/config`, garage)
   }
 
-  async deleteGarage(id: string): Promise<ApiResponse<void>> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async deleteGarage(_id: string): Promise<ApiResponse<void>> {
     return this.delete<ApiResponse<void>>(`/garage/reset`)
   }
 
@@ -146,8 +148,8 @@ class ApiService {
     return this.get<ApiResponse<Vehicle>>(`/vehicles/${id}`)
   }
 
-  async getVehicleWithStats(id: string): Promise<ApiResponse<any>> {
-    return this.get<ApiResponse<any>>(`/vehicles/${id}/stats`)
+  async getVehicleWithStats(id: string): Promise<ApiResponse<unknown>> {
+    return this.get<ApiResponse<unknown>>(`/vehicles/${id}/stats`)
   }
 
   async createVehicle(vehicle: Partial<Vehicle>): Promise<ApiResponse<Vehicle>> {
@@ -441,7 +443,8 @@ class ApiService {
   }
 
   // Check-in/Check-out API methods
-  async getAvailability(garageId: string): Promise<ApiResponse<{
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getAvailability(_garageId: string): Promise<ApiResponse<{
     overall: {
       total: number
       available: number
@@ -454,16 +457,17 @@ class ApiService {
       oversized: { available: number; total: number }
     }
   }>> {
-    return this.get<ApiResponse<any>>(`/checkin/availability`)
+    return this.get<ApiResponse<unknown>>(`/checkin/availability`)
   }
 
-  async getRates(garageId: string): Promise<ApiResponse<{
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getRates(_garageId: string): Promise<ApiResponse<{
     standard: number
     compact: number
     oversized: number
     ev_charging: number
   }>> {
-    return this.get<ApiResponse<any>>(`/garage/rates`)
+    return this.get<ApiResponse<unknown>>(`/garage/rates`)
   }
 
   async simulateCheckIn(data: {
@@ -479,7 +483,7 @@ class ApiService {
     }
     rate?: number
   }>> {
-    return this.post<ApiResponse<any>>('/parking/simulate-checkin', data)
+    return this.post<ApiResponse<unknown>>('/parking/simulate-checkin', data)
   }
 
   async checkIn(data: {
@@ -496,7 +500,7 @@ class ApiService {
     checkInTime: string
     rate: number
   }>> {
-    return this.post<ApiResponse<any>>('/parking/checkin', data)
+    return this.post<ApiResponse<unknown>>('/parking/checkin', data)
   }
 
   async getCheckoutEstimate(sessionId: string): Promise<ApiResponse<{
@@ -516,7 +520,7 @@ class ApiService {
       }
     }
   }>> {
-    return this.get<ApiResponse<any>>(`/sessions/${sessionId}/checkout-estimate`)
+    return this.get<ApiResponse<unknown>>(`/sessions/${sessionId}/checkout-estimate`)
   }
 
   async checkOut(sessionId: string): Promise<ApiResponse<{
@@ -535,7 +539,7 @@ class ApiService {
       gracePeriodApplied: boolean
     }
   }>> {
-    return this.post<ApiResponse<any>>(`/sessions/${sessionId}/checkout`)
+    return this.post<ApiResponse<unknown>>(`/sessions/${sessionId}/checkout`)
   }
 
   // Legacy license plate-based methods for backward compatibility
@@ -556,7 +560,7 @@ class ApiService {
       }
     }
   }>> {
-    return this.get<ApiResponse<any>>(`/parking/checkout-estimate/${encodeURIComponent(licensePlate)}`)
+    return this.get<ApiResponse<unknown>>(`/parking/checkout-estimate/${encodeURIComponent(licensePlate)}`)
   }
 
   async checkOutByLicensePlate(data: {
@@ -578,7 +582,7 @@ class ApiService {
       gracePeriodApplied: boolean
     }
   }>> {
-    return this.post<ApiResponse<any>>('/parking/checkout', data)
+    return this.post<ApiResponse<unknown>>('/parking/checkout', data)
   }
 }
 

@@ -280,7 +280,7 @@ export const VehicleHistory: React.FC<VehicleHistoryProps> = ({
         
         setSessions(vehicleSessions)
       }
-    } catch (err) {
+    } catch {
       setError('Failed to refresh data')
     } finally {
       setLoading(false)

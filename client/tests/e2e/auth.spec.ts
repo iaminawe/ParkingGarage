@@ -8,12 +8,6 @@ const TEST_USER = {
   lastName: 'User'
 }
 
-const ADMIN_USER = {
-  email: 'admin@example.com',
-  password: 'AdminPassword123!',
-  username: 'admin'
-}
-
 test.describe('Authentication', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')

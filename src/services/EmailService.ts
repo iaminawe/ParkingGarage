@@ -71,6 +71,12 @@ class EmailService {
    */
   private async initializeTransporter(): Promise<void> {
     try {
+      // Check if email configuration is provided
+      if (!env.EMAIL_USER && !env.SENDGRID_API_KEY && env.NODE_ENV === 'development') {
+        console.log('📧 Email service disabled - no email configuration provided (development mode)');
+        return;
+      }
+
       // Support multiple email providers
       const emailProvider = env.EMAIL_PROVIDER || 'smtp';
 
@@ -134,6 +140,17 @@ class EmailService {
    */
   async sendEmail(options: EmailOptions, userId?: string): Promise<boolean> {
     try {
+      // Check if email service is available
+      if (!this.transporter) {
+        if (env.NODE_ENV === 'development') {
+          console.log(`📧 Email simulation (service disabled): To: ${options.to}, Subject: ${options.subject}`);
+          return true; // Return success in development for testing
+        } else {
+          console.error('Email service not available - transporter not initialized');
+          return false;
+        }
+      }
+
       // Rate limiting check
       if (!this.checkRateLimit(options.to as string)) {
         await this.auditService.logSecurityEvent({

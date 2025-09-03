@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Car, Clock, DollarSign, MapPin, AlertCircle, CheckCircle } from 'lucide-react'
 import {
   Dialog,
@@ -93,7 +93,7 @@ export function CheckInDialog({ open, onOpenChange }: CheckInDialogProps) {
     }
   }, [open])
 
-  const suggestSpot = async () => {
+  const suggestSpot = useCallback(async () => {
     if (!licensePlate.trim() || !vehicleType) return
 
     try {
@@ -104,20 +104,21 @@ export function CheckInDialog({ open, onOpenChange }: CheckInDialogProps) {
       
       setSimulation(result.data)
       setError(null)
-    } catch (error: any) {
+    } catch (error: unknown) {
       setSimulation(null)
-      if (error.response?.status !== 404) {
+      const err = error as { response?: { status?: number } }
+      if (err.response?.status !== 404) {
         console.error('Simulation failed:', error)
       }
     }
-  }
+  }, [licensePlate, vehicleType])
 
   // Auto-suggest spot when vehicle type changes
   useEffect(() => {
     if (licensePlate && vehicleType) {
       suggestSpot()
     }
-  }, [licensePlate, vehicleType])
+  }, [licensePlate, vehicleType, suggestSpot])
 
   const loadInitialData = async () => {
     try {

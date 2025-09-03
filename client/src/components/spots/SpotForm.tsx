@@ -158,7 +158,8 @@ export const SpotForm: React.FC<SpotFormProps> = ({
     // Clear validation error when user starts typing
     if (validationErrors[field]) {
       setValidationErrors(prev => {
-        const { [field]: _removed, ...rest } = prev
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [field]: _, ...rest } = prev
         return rest
       })
     }

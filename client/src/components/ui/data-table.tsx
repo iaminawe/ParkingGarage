@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -8,11 +8,11 @@ import { cn } from '@/utils/cn'
 export interface Column<T> {
   key: keyof T | string
   header: string
-  accessor?: (item: T) => any
+  accessor?: (item: T) => unknown
   sortable?: boolean
   width?: string | number
   className?: string
-  render?: (value: any, item: T, index: number) => React.ReactNode
+  render?: (value: unknown, item: T, index: number) => React.ReactNode
 }
 
 export interface DataTableProps<T> {
@@ -31,8 +31,8 @@ export interface DataTableProps<T> {
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
   selectable?: boolean
-  selectedItems?: any[]
-  onSelectionChange?: (selectedItems: any[]) => void
+  selectedItems?: string[]
+  onSelectionChange?: (selectedItems: string[]) => void
   getItemId?: (item: T) => string
   className?: string
   emptyMessage?: string
@@ -53,7 +53,7 @@ export function DataTable<T>({
   selectable = false,
   selectedItems = [],
   onSelectionChange,
-  getItemId = (item: any) => item.id,
+  getItemId = (item: T) => (item as { id: string }).id,
   className,
   emptyMessage = 'No data available',
   rowClassName,
@@ -71,15 +71,15 @@ export function DataTable<T>({
   }
 
   // Handle selection
-  const isSelected = (item: T) => {
+  const isSelected = useCallback((item: T) => {
     const itemId = getItemId(item)
     return selectedItems.some(selectedId => selectedId === itemId)
-  }
+  }, [selectedItems, getItemId])
 
   const isAllSelected = useMemo(() => {
     if (data.length === 0) return false
     return data.every(item => isSelected(item))
-  }, [data, selectedItems])
+  }, [data, isSelected])
 
   const isPartiallySelected = useMemo(() => {
     return selectedItems.length > 0 && !isAllSelected
@@ -111,7 +111,7 @@ export function DataTable<T>({
     if (column.accessor) {
       return column.accessor(item)
     }
-    return (item as any)[column.key]
+    return (item as Record<string, unknown>)[column.key as string]
   }
 
   // Render sort icon

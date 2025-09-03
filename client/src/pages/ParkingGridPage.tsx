@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { ParkingGrid, StatusLegend } from '@/components/parking'
+import { ParkingGrid } from '@/components/parking'
 import { ZoomControls } from '@/components/parking/ZoomControls'
 import { BulkOperationsToolbar } from '@/components/parking/BulkOperationsToolbar'
 import { ParkingListView } from '@/components/parking/ParkingListView'
@@ -16,8 +16,6 @@ import type { ParkingSpot } from '@/types/api'
 import { 
   Building2, 
   Car, 
-  Info, 
-  Lightbulb,
   Zap,
   RefreshCw,
   Eye,
@@ -64,7 +62,7 @@ export const ParkingGridPage: React.FC = () => {
   useEffect(() => {
     loadParkingData()
     setupWebSocket()
-  }, [])
+  }, [setupWebSocket])
 
   const loadParkingData = async () => {
     try {
@@ -84,7 +82,7 @@ export const ParkingGridPage: React.FC = () => {
     }
   }
 
-  const setupWebSocket = () => {
+  const setupWebSocket = useCallback(() => {
     socketService.connect()
     socketService.joinGarage('demo-garage-1')
     
@@ -104,7 +102,7 @@ export const ParkingGridPage: React.FC = () => {
     socketService.on('system:notification', (notification) => {
       addNotification(notification.message, notification.type)
     })
-  }
+  }, [])
 
   const addNotification = (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
     const id = Date.now().toString()

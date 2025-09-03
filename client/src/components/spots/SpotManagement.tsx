@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Card, 
   CardContent, 
@@ -58,40 +58,32 @@ export function SpotManagement() {
   })
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  useEffect(() => {
-    fetchGarages()
-  }, [])
-
-  useEffect(() => {
-    if (selectedGarage) {
-      fetchSpots()
-    }
-  }, [selectedGarage])
-
-  const fetchGarages = async () => {
+  const fetchGarages = useCallback(async () => {
     try {
       const response = await apiService.getGarages()
       if (response.success && response.data.length > 0) {
         setGarages(response.data)
         setSelectedGarage(response.data[0].id)
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to fetch garages',
         variant: 'destructive'
       })
     }
-  }
+  }, [toast])
 
-  const fetchSpots = async () => {
+  const fetchSpots = useCallback(async () => {
+    if (!selectedGarage) return
+    
     try {
       setLoading(true)
       const response = await apiService.getSpots(selectedGarage)
       if (response.success) {
         setSpots(response.data)
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to fetch parking spots',
@@ -100,7 +92,16 @@ export function SpotManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedGarage, toast])
+
+  useEffect(() => {
+    fetchGarages()
+  }, [fetchGarages])
+
+  useEffect(() => {
+    fetchSpots()
+  }, [fetchSpots])
+
 
   const handleStatusChange = async (spotId: string, newStatus: ParkingSpot['status']) => {
     try {
@@ -112,7 +113,7 @@ export function SpotManagement() {
         })
         fetchSpots()
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to update spot status',

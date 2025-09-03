@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { socketService } from '@/services'
 import type { SpotUpdate, GarageStatusUpdate } from '@/types/api'
@@ -13,7 +13,8 @@ interface SocketContextValue {
   offGarageStatusUpdate: (callback?: (update: GarageStatusUpdate) => void) => void
 }
 
-const SocketContext = createContext<SocketContextValue | undefined>(undefined)
+// eslint-disable-next-line react-refresh/only-export-components
+export const SocketContext = createContext<SocketContextValue | undefined>(undefined)
 
 interface SocketProviderProps {
   children: ReactNode
@@ -76,10 +77,3 @@ export function SocketProvider({ children }: SocketProviderProps) {
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>
 }
 
-export function useSocket() {
-  const context = useContext(SocketContext)
-  if (context === undefined) {
-    throw new Error('useSocket must be used within a SocketProvider')
-  }
-  return context
-}

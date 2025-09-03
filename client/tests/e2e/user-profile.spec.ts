@@ -116,7 +116,8 @@ test.describe('User Profile Management', () => {
     
     if (page.url().includes('profile') || page.url().includes('account')) {
       // Look for password change section
-      const passwordSection = page.locator('.password-section, [data-testid="password-section"], .change-password')
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _passwordSection = page.locator('.password-section, [data-testid="password-section"], .change-password')
       const passwordTab = page.locator('button:has-text("Password"), [data-testid="password-tab"]')
       
       // Click password tab if exists

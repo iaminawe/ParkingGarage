@@ -199,6 +199,68 @@ enum SessionStatus {
 }
 ```
 
+## Database Management Tools
+
+### Prisma Studio - Visual Database Browser
+
+Prisma Studio provides a visual interface for exploring and managing your database:
+
+#### Starting Prisma Studio
+
+```bash
+# Start Prisma Studio (opens at localhost:5555)
+npm run db:studio
+
+# Alternative command
+npx prisma studio
+
+# Custom port if 5555 is busy
+npx prisma studio --port 5556
+```
+
+#### Features Available
+
+- **Visual Data Browser**: Navigate through all database tables
+- **Relationship Navigation**: Click foreign key values to jump to related records
+- **Advanced Filtering**: Search and filter records with complex criteria
+- **Data Editing**: Modify records directly (development only!)
+- **Export Capabilities**: Export filtered data to CSV format
+- **Schema Visualization**: See table relationships and data types
+
+#### Recommended Usage Workflow
+
+1. **Seed your database**:
+   ```bash
+   npm run db:seed -- --size=medium --clear
+   ```
+
+2. **Start Prisma Studio**:
+   ```bash
+   npm run db:studio
+   ```
+
+3. **Browse data at**: `http://localhost:5555`
+
+#### Key Tables to Explore
+
+- **vehicles**: License plates, owner information, financial tracking
+- **parkingSpots**: Spot types, status distribution, physical dimensions
+- **parkingSessions**: Duration patterns, time-based analytics
+- **users**: Authentication data, roles, security settings
+- **payments**: Transaction history and payment methods
+
+#### Security Considerations
+
+⚠️ **Important**: Prisma Studio should only be used in development environments. It provides full database access and is not suitable for production use.
+
+#### Tips for Effective Usage
+
+- **Sort Data**: Click column headers to sort records
+- **Filter Records**: Use the filter panel for complex queries
+- **Follow Relationships**: Click on foreign key values to navigate
+- **Export Data**: Select records and export for analysis
+- **Monitor Changes**: Use real-time updates to see data changes
+
 ### PaymentMethod
 ```prisma
 enum PaymentMethod {

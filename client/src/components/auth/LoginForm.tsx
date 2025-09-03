@@ -17,7 +17,7 @@ export const LoginForm: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const from = (location.state as any)?.from?.pathname || '/dashboard'
+  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/dashboard'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,7 +37,7 @@ export const LoginForm: React.FC = () => {
     try {
       await login(email, password)
       navigate(from, { replace: true })
-    } catch (err) {
+    } catch {
       setError('Login failed. Please try again.')
     }
   }

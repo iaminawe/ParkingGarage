@@ -120,7 +120,7 @@ class SpotService {
       const processingTime = Number(endTime - startTime) / 1000000; // Convert to milliseconds
 
       return {
-        spots: paginatedSpots.map(spot => spot.toObject()),
+        spots: paginatedSpots, // Prisma objects don't need .toObject()
         pagination: paginationData,
         metadata: {
           ...metadata,
