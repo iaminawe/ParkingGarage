@@ -562,7 +562,7 @@ export class SeedDataInitializer {
 
       logger.info('Current Garage Status', {
         component: 'seedData',
-        action: 'status-display'
+        action: 'status-display',
         garageName: garageConfig.name,
         totalSpots: stats.occupancy.total,
         available: stats.occupancy.available,

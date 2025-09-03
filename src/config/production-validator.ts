@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import * as crypto from 'crypto';
 import { env, Environment } from './environment';
+import { logger } from '../utils/logger';
 
 export interface ValidationResult {
   valid: boolean;

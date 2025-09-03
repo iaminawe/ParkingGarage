@@ -945,6 +945,23 @@ class AuthService {
         },
       });
 
+      // Revoke all existing sessions for security
+      await this.logoutAllDevices(data.userId);
+
+      // Log successful password change
+      await this.auditService.logSecurityEvent({
+        userId: data.userId,
+        action: 'PASSWORD_CHANGED',
+        category: 'AUTH',
+        severity: 'LOW',
+        description: 'Password changed successfully',
+        metadata: { 
+          userEmail: user.email,
+          timestamp: new Date().toISOString(),
+          sessionsRevoked: true
+        },
+      });
+
       return {
         success: true,
         message: API_RESPONSES.SUCCESS.PASSWORD_CHANGED,
